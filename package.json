@@ -1,6 +1,6 @@
 {
   "name": "git-activity-logger",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "A tool to log time spent on Git branches based on activity.",
   "main": "dist/index.js",
   "bin": {
