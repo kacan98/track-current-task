@@ -1,0 +1,58 @@
+name: Create Release
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build_and_release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Required to push tags and update package.json version
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetches all history for all branches and tags
+          # token: ${{ secrets.YOUR_PAT_IF_NEEDED }} # Only if default GITHUB_TOKEN permissions are insufficient for pushing tags/commits
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18' # Or your preferred LTS version used in pkg target
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build TypeScript
+        run: npm run build
+
+      - name: Configure Git User
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Bump version and create tag
+        run: |
+          # npm version patch will create a new commit and a new tag.
+          # The commit message includes [skip ci] to prevent re-triggering the workflow.
+          NEW_VERSION=$(npm version patch -m "chore: Release v%s [skip ci]")
+          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+          git push --follow-tags
+        # The GITHUB_TOKEN has write permissions to contents by default in most cases for same repo actions.
+        # If not, a PAT stored in secrets.GH_PAT_TOKEN (or similar) would be needed for the git push.
+
+      - name: Build executables
+        run: npm run build:exe
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Use default token
+        run: |
+          gh release create ${{ env.NEW_VERSION }} \
+            --title "Release ${{ env.NEW_VERSION }}" \
+            --notes "Automated release for ${{ env.NEW_VERSION }}" \
+            ./dist-exe/* # Upload all files in dist-exe as assets
+          # Using GitHub CLI 'gh' for creating release and uploading assets.
+          # Assumes gh is available on ubuntu-latest runners.

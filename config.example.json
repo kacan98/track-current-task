@@ -1,0 +1,8 @@
+{
+  "repositoryPaths": [
+    "/path/to/your/first/git/repository",
+    "/path/to/your/second/git/repository"
+  ],
+  "logIntervalMinutes": 30,
+  "logFilePath": "./branch_activity_log.csv"
+}

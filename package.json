@@ -1,0 +1,40 @@
+{
+  "name": "git-activity-logger",
+  "version": "1.0.0",
+  "description": "A tool to log time spent on Git branches based on activity.",
+  "main": "dist/index.js",
+  "bin": {
+    "git-activity-logger": "./dist/index.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc",
+    "build:exe": "npm run build && pkg . --out-path ./dist-exe --targets node18-win-x64,node18-macos-x64"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kacan98/track-current-task.git"
+  },
+  "keywords": [
+    "git",
+    "activity",
+    "log",
+    "time tracking",
+    "task management"
+  ],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/kacan98/track-current-task/issues"
+  },
+  "homepage": "https://github.com/kacan98/track-current-task#readme",
+  "dependencies": {
+    "@types/node": "^20.11.20",
+    "execa": "^8.0.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  },
+  "devDependencies": {
+    "pkg": "^5.8.1"
+  }
+}
