@@ -1,8 +1,11 @@
 import { execa } from 'execa';
 import { readFile, writeFile } from 'fs/promises';
-import { Config } from './config.types';
+import { Config, RepositoryConfig } from './config.types';
 import { RepoState } from './repoState.types';
 import chalk from 'chalk';
+import inquirer from 'inquirer';
+import { existsSync } from 'fs';
+import path from 'path';
 
 async function getCurrentBranch(repoPath: string): Promise<string | null> {
   try {
@@ -460,9 +463,149 @@ async function processAllRepositories(config: Config): Promise<void> {
   }
 }
 
+// Interactive configuration setup
+async function createConfigInteractively(): Promise<Config> {
+  console.log(chalk.cyan.bold('\n🔧 No config.json found. Let\'s set up your Git Activity Logger!\n'));
+  
+  const repositories: RepositoryConfig[] = [];
+  
+  // Get repositories
+  let addingRepos = true;
+  while (addingRepos) {
+    console.log(chalk.yellow(`\n📁 Repository ${repositories.length + 1}:`));
+    
+    const repoAnswers = await inquirer.prompt([
+      {
+        type: 'input',
+        name: 'path',
+        message: 'Enter the full path to your Git repository:',
+        validate: (input: string) => {
+          if (!input.trim()) {
+            return 'Please enter a repository path.';
+          }
+          if (!existsSync(input)) {
+            return 'Directory does not exist. Please enter a valid path.';
+          }
+          if (!existsSync(path.join(input, '.git'))) {
+            return 'This directory is not a Git repository (no .git folder found).';
+          }
+          return true;
+        }
+      },
+      {
+        type: 'input',
+        name: 'mainBranch',
+        message: 'What is the main branch name for this repository? (e.g., main, master, develop)',
+        default: 'main',
+        validate: (input: string) => {
+          if (!input.trim()) {
+            return 'Please enter a branch name.';
+          }
+          return true;
+        }
+      }
+    ]);
+    
+    repositories.push({
+      path: repoAnswers.path.trim(),
+      mainBranch: repoAnswers.mainBranch.trim()
+    });
+    
+    console.log(chalk.green(`✅ Added repository: ${repoAnswers.path}`));
+    
+    if (repositories.length >= 1) {
+      const continueAnswer = await inquirer.prompt([
+        {
+          type: 'confirm',
+          name: 'addAnother',
+          message: 'Would you like to add another repository?',
+          default: false
+        }
+      ]);
+      
+      addingRepos = continueAnswer.addAnother;
+    }
+  }
+    // Get other configuration options
+  console.log(chalk.yellow('\n⚙️  Configuration options:'));
+    const trackingInterval = await inquirer.prompt({
+    type: 'number',
+    name: 'value',
+    message: 'How often should we check for changes? (minutes)',
+    default: 5,
+    validate: (input: number | undefined) => {
+      if (input === undefined || input <= 0) {
+        return 'Please enter a positive number.';
+      }
+      return true;
+    }
+  });
+  
+  const summaryInterval = await inquirer.prompt({
+    type: 'number',
+    name: 'value',
+    message: 'How often should we display the daily summary? (minutes)',
+    default: 30,
+    validate: (input: number | undefined) => {
+      if (input === undefined || input <= 0) {
+        return 'Please enter a positive number.';
+      }
+      return true;
+    }
+  });
+  
+  const logPath = await inquirer.prompt({
+    type: 'input',
+    name: 'value',
+    message: 'Where should we save the activity log?',
+    default: './branch_activity_log.csv'
+  });
+  
+  const taskPattern = await inquirer.prompt({
+    type: 'input',
+    name: 'value',
+    message: 'Task ID pattern (regex) to extract from branch names:',
+    default: 'DFO-\\d+',
+    validate: (input: string) => {
+      try {
+        new RegExp(input);
+        return true;
+      } catch (e) {
+        return 'Please enter a valid regular expression.';
+      }
+    }
+  });
+  
+  const config: Config = {
+    repositories,
+    trackingIntervalMinutes: trackingInterval.value,
+    logSummaryIntervalMinutes: summaryInterval.value,
+    logFilePath: logPath.value,
+    taskIdPattern: taskPattern.value
+  };
+  
+  // Save the config
+  try {
+    await writeFile('./config.json', JSON.stringify(config, null, 2), 'utf-8');
+    console.log(chalk.green.bold('\n✅ Configuration saved to config.json'));
+    console.log(chalk.blue('You can edit this file later to make changes.'));
+  } catch (error) {
+    console.error(chalk.red('❌ Error saving configuration:'), error);
+    throw error;
+  }
+  
+  return config;
+}
+
 // Import and read config
 async function loadConfig(): Promise<Config> {
   try {
+    // Check if config.json exists
+    if (!existsSync('./config.json')) {
+      console.log(chalk.yellow('Config file not found. Starting interactive setup...'));
+      return await createConfigInteractively();
+    }
+    
     const configData = await readFile('./config.json', 'utf-8');
     const config = JSON.parse(configData) as Config;
     
@@ -491,8 +634,29 @@ async function loadConfig(): Promise<Config> {
     
     return config;
   } catch (error: any) {
+    if (error.code === 'ENOENT') {
+      // This shouldn't happen since we check existsSync above, but just in case
+      console.log(chalk.yellow('Config file not found. Starting interactive setup...'));
+      return await createConfigInteractively();
+    }
+    
     console.error('Error loading config:', error.message);
-    process.exit(1);
+    console.log(chalk.yellow('\nWould you like to create a new configuration? Your existing config.json may be corrupted.'));
+    
+    const answer = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'createNew',
+        message: 'Create a new configuration?',
+        default: true
+      }
+    ]);
+    
+    if (answer.createNew) {
+      return await createConfigInteractively();
+    } else {
+      process.exit(1);
+    }
   }
 }
 
