@@ -1,8 +1,18 @@
 {
-  "repositoryPaths": [
-    "/path/to/your/first/git/repository",
-    "/path/to/your/second/git/repository"
+  "repositories": [
+    {
+      "path": "/path/to/your/first/git/repository",
+      "mainBranch": "master"
+    },
+    {
+      "path": "/path/to/your/second/git/repository",
+      "mainBranch": "main"
+    },
+    {
+      "path": "/path/to/your/third/git/repository",
+      "mainBranch": "develop"
+    }
   ],
-  "logIntervalMinutes": 30,
+  "logIntervalMinutes": 1,
   "logFilePath": "./branch_activity_log.csv"
 }

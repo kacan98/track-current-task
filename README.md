@@ -6,6 +6,7 @@ This tool tracks the time spent on different Git branches by monitoring for **ne
 Time is logged for a repository's currently active branch only if:
 1.  New uncommitted changes are detected (via `git status --porcelain`) since the last check.
 2.  The branch is new to the activity tracking state (i.e., it's the first time the script has seen this branch in this repository).
+3.  There are new commits or changes to the branch compared to the main branch (e.g., master or main).
 
 This means simply having a branch checked out without making any new changes will **not** result in logged time for that interval.
 
@@ -17,6 +18,7 @@ This means simply having a branch checked out without making any new changes wil
 *   Configurable repository paths and logging interval.
 *   If no task ID is found in the branch name, time is logged under "NonTaskActivity".
 *   Maintains a state file (`repo_activity_state.json`) to track activity baselines.
+*   Requires explicitly specifying main branch names for each repository.
 
 ## Prerequisites
 *   Node.js and npm installed.
@@ -36,9 +38,19 @@ Create a `config.json` file in the project root directory. An example can be fou
 **Structure of `config.json`:**
 ```json
 {
-  "repositoryPaths": [
-    "/path/to/your/first/git/repository",
-    "/path/to/your/second/git/repository"
+  "repositories": [
+    {
+      "path": "/path/to/your/first/git/repository",
+      "mainBranch": "master"
+    },
+    {
+      "path": "/path/to/your/second/git/repository",
+      "mainBranch": "main"
+    },
+    {
+      "path": "/path/to/your/third/git/repository",
+      "mainBranch": "develop"
+    }
   ],
   "logIntervalMinutes": 30,
   "logFilePath": "./branch_activity_log.csv"
@@ -46,7 +58,10 @@ Create a `config.json` file in the project root directory. An example can be fou
 ```
 
 **Configuration Options:**
-*   `repositoryPaths`: (Array of Strings) An array of absolute or relative paths to the Git repositories you want to monitor. The script will iterate through these paths.
+*   `repositories`: (Array of Objects) Each repository object must have:
+    *   `path`: (String) Absolute or relative path to the Git repository.
+    *   `mainBranch`: (String) The name of the main/default branch (e.g., "master", "main", "develop").
+*   `repositoryPaths`: (Legacy, Array of Strings) An older way to specify repositories, but doesn't allow specifying main branch names. Use `repositories` instead.
 *   `logIntervalMinutes`: (Number) How often, in minutes, the script will check the current branch in each repository for new activity and potentially update the log. For example, `30` means it will check every 30 minutes.
 *   `logFilePath`: (String) Path (can be relative to the project root) where the single CSV log file will be created and updated for all monitored repositories. Example: `./branch_activity_log.csv`.
 
