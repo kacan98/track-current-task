@@ -5,12 +5,12 @@
   "main": "dist/index.js",
   "bin": {
     "git-activity-logger": "./dist/index.js"
-  },
-  "scripts": {
+  },  "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc",
     "build:exe": "npm run build && pkg . --out-path ./dist-exe --targets node18-win-x64,node18-macos-x64",
-    "start": "ts-node src/index.ts"
+    "start": "ts-node src/index.ts",
+    "summary:month": "ts-node src/monthly-summary.ts"
   },
   "repository": {
     "type": "git",
@@ -31,6 +31,7 @@
   "homepage": "https://github.com/kacan98/track-current-task#readme",
   "dependencies": {
     "@types/node": "^20.11.20",
+    "chalk": "^4.1.2",
     "execa": "^8.0.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.3.3"

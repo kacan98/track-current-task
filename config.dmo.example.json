@@ -1,0 +1,12 @@
+{
+  "repositories": [
+    {
+      "path": "K:\\git\\Dynaway.DMO.EAM",
+      "mainBranch": "main"
+    }
+  ],
+  "trackingIntervalMinutes": 5,
+  "logSummaryIntervalMinutes": 30,
+  "logFilePath": "./dmo_activity_log.csv",
+  "taskIdPattern": "DMO-\\d+"
+}

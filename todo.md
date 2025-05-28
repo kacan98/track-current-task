@@ -1,0 +1,1 @@
+- Make it so that I don't need to specify the repositories manually, but instead  specify a folder that contains folders with all my repositories. And then somehow find the default branches automatically.

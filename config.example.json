@@ -11,8 +11,8 @@
     {
       "path": "/path/to/your/third/git/repository",
       "mainBranch": "develop"
-    }
-  ],
-  "logIntervalMinutes": 1,
-  "logFilePath": "./branch_activity_log.csv"
+    }  ],  "trackingIntervalMinutes": 5,
+  "logSummaryIntervalMinutes": 30,
+  "logFilePath": "./branch_activity_log.csv",
+  "taskIdPattern": "D[FM]O-\\d+"
 }
