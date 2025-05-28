@@ -66,48 +66,29 @@ async function writeLogFile(filePath: string, entries: LogEntry[]): Promise<void
   }
 }
 
-async function updateLogForRepository(repoPath: string, config: Config, entries: LogEntry[]): Promise<LogEntry[]> {
-  const branchName = await getCurrentBranch(repoPath);
-  if (!branchName) {
-    console.log(`No Git branch found in ${repoPath}. Skipping log for this repository.`);
-    return entries;
-  }
+const REPO_STATE_FILE_PATH = './repo_activity_state.json';
 
-  const extractedTaskId = extractTaskId(branchName);
-  const taskIdToLog = extractedTaskId || "NonTaskActivity";
-
-  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-  const logIntervalHours = config.logIntervalMinutes / 60;
-
-  const existingEntryIndex = entries.findIndex(
-    entry => entry.date === today && entry.taskId === taskIdToLog && entry.repoPath === repoPath // Assuming LogEntry is extended
-  );
-
-  if (existingEntryIndex !== -1) {
-    entries[existingEntryIndex].hours += logIntervalHours;
-  } else {
-    // We need to decide if LogEntry should store repoPath or if the CSV structure changes
-    // For now, let's assume a combined taskId might be an option, or we adjust LogEntry
-    // For simplicity, if task ID is unique across repos, this might be fine.
-    // However, it's better to distinguish. Let's assume for now we log it as is,
-    // and a more sophisticated solution might involve adding repoPath to LogEntry.
-    // For this iteration, we'll log the task and assume it's specific enough,
-    // or that "NonTaskActivity" for repo X is distinct from repo Y in terms of user analysis.
-    // A better approach: Add repoPath to LogEntry or log to separate files.
-    // Given the current LogEntry, let's find based on date and taskId only.
-    // This means time from different repos for the SAME task ID on the same day will be merged.
-    // This might be desired or not. Let's stick to the original LogEntry for now.
-
-    const taskSpecificEntryIndex = entries.findIndex(
-      entry => entry.date === today && entry.taskId === taskIdToLog
-    );
-
-    if (taskSpecificEntryIndex !== -1) {
-        entries[taskSpecificEntryIndex].hours += logIntervalHours;
-    } else {
-        entries.push({ date: today, taskId: taskIdToLog, hours: logIntervalHours });
+async function readRepoState(filePath: string = REPO_STATE_FILE_PATH): Promise<RepoState> {
+  try {
+    const data = await readFile(filePath, 'utf-8');
+    return JSON.parse(data) as RepoState;
+  } catch (error: any) {
+    if (error.code === 'ENOENT') {
+      return {}; // File not found, return empty state
     }
+    console.error(`Error reading repo state file ${filePath}:`, error);
+    return {};
   }
+}
+
+async function writeRepoState(state: RepoState, filePath: string = REPO_STATE_FILE_PATH): Promise<void> {
+  try {
+    await writeFile(filePath, JSON.stringify(state, null, 2), 'utf-8');
+  } catch (error) {
+    console.error(`Error writing repo state file ${filePath}:`, error);
+  }
+}
+
 // Takes mutable entries and repoState, modifies them directly.
 // Returns true if time was logged, false otherwise
 async function updateLogForRepository(
@@ -167,30 +148,6 @@ async function updateLogForRepository(
     return false; // No time logged
   }
 }
-
-const REPO_STATE_FILE_PATH = './repo_activity_state.json';
-
-async function readRepoState(filePath: string = REPO_STATE_FILE_PATH): Promise<RepoState> {
-  try {
-    const data = await readFile(filePath, 'utf-8');
-    return JSON.parse(data) as RepoState;
-  } catch (error: any) {
-    if (error.code === 'ENOENT') {
-      return {}; // File not found, return empty state
-    }
-    console.error(`Error reading repo state file ${filePath}:`, error);
-    return {};
-  }
-}
-
-async function writeRepoState(state: RepoState, filePath: string = REPO_STATE_FILE_PATH): Promise<void> {
-  try {
-    await writeFile(filePath, JSON.stringify(state, null, 2), 'utf-8');
-  } catch (error) {
-    console.error(`Error writing repo state file ${filePath}:`, error);
-  }
-}
-
 
 async function processAllRepositories(config: Config): Promise<void> {
   let entries = await readLogFile(config.logFilePath); // Load existing log entries
@@ -252,5 +209,6 @@ async function main(): Promise<void> {
     await processAllRepositories(config);
   }, config.logIntervalMinutes * 60 * 1000);
 }
+
 
 main();
