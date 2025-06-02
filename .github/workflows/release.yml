@@ -44,7 +44,7 @@ jobs:
         # If not, a PAT stored in secrets.GH_PAT_TOKEN (or similar) would be needed for the git push.
 
       - name: Build executables
-        run: npm run build:exe
+        run: npm run build:executables
 
       - name: Create GitHub Release
         env:
