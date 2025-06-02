@@ -422,10 +422,11 @@ async function updateLogForRepository(
       diffFiles: diffFiles,
       commitsNotInMaster: commitsNotInBase, // keep property name for compatibility
       numCommitsNotInMaster: numCommitsNotInBase,      diffStats: diffStats,
-      workingDirDiffStats: workingDirDiffStats,
-      lastLogTime: shouldLogTime ? now : lastLogTime // Only update the time if we're logging
-    };    const extractedTaskId = extractTaskId(branchName, config.taskIdPattern);
-    const taskIdToLog = extractedTaskId || "NonTaskActivity";
+      workingDirDiffStats: workingDirDiffStats,      lastLogTime: shouldLogTime ? now : lastLogTime // Only update the time if we're logging
+    };
+
+    const extractedTaskId = extractTaskId(branchName, config.taskIdPattern);
+    const taskIdToLog = extractedTaskId || branchName;
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
     const logIntervalHours = config.trackingIntervalMinutes / 60;
 

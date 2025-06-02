@@ -100,7 +100,7 @@ The CSV file contains:
 ```
 date,taskId,hours
 2023-10-27,DFO-12345,0.5
-2023-10-27,NonTaskActivity,1.0
+2023-10-27,feature/improve-performance,1.0
 ```
 
 ## Troubleshooting
