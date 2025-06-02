@@ -1,11 +1,11 @@
 import { readFile } from 'fs/promises';
 import chalk from 'chalk';
-import { LogEntry, EnhancedLogEntry, readLogFile as coreReadLogFile, enhanceLogEntries } from '../core/file-operations';
+import { LogEntry, EnhancedLogEntry, getLogEntries as coreGetLogEntries, enhanceLogEntries } from '../core/file-operations';
 import { Config } from '../config/config-types';
 import { loadConfig } from '../config/config-manager';
-import { formatHours, getMonthDateRange, formatWeekRange } from '../utils/date-utils';
-import { printTaskSummary, printDailyDetails } from './summary-formatters';
-import { printWeeklyBreakdown, printMonthSummary } from './summary-report-formatters';
+import { getFormattedHours, getMonthDateRange, getFormattedWeekRange } from '../utils/date-utils';
+import { renderDailyDetails } from './summary-formatters';
+import { generateWeeklyBreakdown, generateMonthSummary } from './summary-report-formatters';
 
 // Utility types for grouping data
 type TaskSummary = Record<string, number>;
@@ -14,19 +14,18 @@ type DailyEntries = Record<string, EnhancedLogEntry[]>;
 
 // Parse log file entries and enhance with date info
 // Local helper function to get enhanced log entries
-async function readLogFile(filePath: string): Promise<EnhancedLogEntry[]> {
-  const basicEntries = await coreReadLogFile(filePath);
+async function getLogFile(filePath: string): Promise<EnhancedLogEntry[]> {
+  const basicEntries = await coreGetLogEntries(filePath);
   return enhanceLogEntries(basicEntries);
 }
 
 // Main function to generate the monthly summary
 async function generateMonthlySummary() {
   console.log(chalk.cyan.bold('===================================='));
-  console.log(chalk.cyan.bold('       MONTHLY TIME SUMMARY'));
-  console.log(chalk.cyan.bold('===================================='));
+  console.log(chalk.cyan.bold('       MONTHLY TIME SUMMARY'));  console.log(chalk.cyan.bold('===================================='));
   
   const config = await loadConfig();
-  const entries = await readLogFile(config.logFilePath);
+  const entries = await getLogFile(config.logFilePath);
   
   if (entries.length === 0) {
     console.log(chalk.yellow('No entries found in the log file.'));
@@ -51,26 +50,23 @@ async function generateMonthlySummary() {
   const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
   const { firstDay: prevMonthStart, lastDayStr: prevMonthEnd } = 
     getMonthDateRange(prevYear, prevMonth);
-  
-  // Filter entries for current month
+    // Filter entries for current month
   const currentMonthEntries = entries.filter(
-    entry => entry.date >= currentMonthStart && entry.date <= currentMonthEnd
+    (entry: EnhancedLogEntry) => entry.date >= currentMonthStart && entry.date <= currentMonthEnd
   );
-  
-  // Get month names
+    // Get month names
   const currentMonthName = new Date(currentMonthStart).toLocaleString('default', { month: 'long' });
   
   // Print current month summary
-  printMonthSummary(currentMonthEntries, currentYear, currentMonthName);
-  
-  // Show previous month if we're in the first week of the current month
+  generateMonthSummary(currentMonthEntries, currentYear, currentMonthName);
+    // Show previous month if we're in the first week of the current month
   if (showPreviousMonth) {
     const prevMonthEntries = entries.filter(
-      entry => entry.date >= prevMonthStart && entry.date <= prevMonthEnd
+      (entry: EnhancedLogEntry) => entry.date >= prevMonthStart && entry.date <= prevMonthEnd
     );
     
     const prevMonthName = new Date(prevMonthStart).toLocaleString('default', { month: 'long' });
-    printMonthSummary(prevMonthEntries, prevYear, prevMonthName, true);
+    generateMonthSummary(prevMonthEntries, prevYear, prevMonthName, true);
   }
   
   console.log(chalk.cyan.bold('\n===================================='));

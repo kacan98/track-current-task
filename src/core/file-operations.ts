@@ -13,7 +13,12 @@ export interface EnhancedLogEntry extends LogEntry {
   weekNumber: number;
 }
 
-export async function readLogFile(filePath: string): Promise<LogEntry[]> {
+/**
+ * Get log entries from log file
+ * @param filePath Path to the log file
+ * @returns Array of log entries
+ */
+export async function getLogEntries(filePath: string): Promise<LogEntry[]> {
   try {
     const data = await readFile(filePath, 'utf-8');
     const lines = data.trim().split('\n');
@@ -57,20 +62,33 @@ export function enhanceLogEntries(entries: LogEntry[]): EnhancedLogEntry[] {
   });
 }
 
-export async function writeLogFile(filePath: string, entries: LogEntry[]): Promise<void> {
+/**
+ * Write log entries to the log file
+ * @param filePath Path to the log file
+ * @param entries Log entries to write
+ * @returns True if successful, false otherwise
+ */
+export async function writeLogFile(filePath: string, entries: LogEntry[]): Promise<boolean> {
   try {
     const header = 'date,taskId,hours';
     const csvLines = entries.map(entry => `${entry.date},${entry.taskId},${entry.hours}`);
     const csvContent = [header, ...csvLines].join('\n');
     await writeFile(filePath, csvContent, 'utf-8');
+    return true;
   } catch (error) {
     console.error(`Error writing log file ${filePath}:`, error);
+    return false;
   }
 }
 
 const REPO_STATE_FILE_PATH = './repo_activity_state.json';
 
-export async function readRepoState(filePath: string = REPO_STATE_FILE_PATH): Promise<RepoState> {
+/**
+ * Get repository state from state file
+ * @param filePath Path to the state file
+ * @returns Repository state
+ */
+export async function getRepoState(filePath: string = REPO_STATE_FILE_PATH): Promise<RepoState> {
   try {
     const data = await readFile(filePath, 'utf-8');
     return JSON.parse(data) as RepoState;
@@ -83,10 +101,18 @@ export async function readRepoState(filePath: string = REPO_STATE_FILE_PATH): Pr
   }
 }
 
-export async function writeRepoState(state: RepoState, filePath: string = REPO_STATE_FILE_PATH): Promise<void> {
+/**
+ * Write repository state to a file
+ * @param state Repository state to write
+ * @param filePath Path to the state file
+ * @returns True if successful, false otherwise
+ */
+export async function writeRepoState(state: RepoState, filePath: string = REPO_STATE_FILE_PATH): Promise<boolean> {
   try {
     await writeFile(filePath, JSON.stringify(state, null, 2), 'utf-8');
+    return true;
   } catch (error) {
     console.error(`Error writing repo state file ${filePath}:`, error);
+    return false;
   }
 }

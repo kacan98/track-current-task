@@ -1,7 +1,7 @@
 import { execGit, branchExists } from './git-utils';
 
 // Helper function to count lines in a file
-export async function countLinesInFile(filePath: string): Promise<number> {
+export async function getLineCount(filePath: string): Promise<number> {
   try {
     const { readFile } = await import('fs/promises');
     const content = await readFile(filePath, 'utf-8');
@@ -123,12 +123,11 @@ export async function getWorkingDirDiffStats(repoPath: string): Promise<Record<s
       const untrackedFiles = statusLines
         .filter(line => line.startsWith('??'))
         .map(line => line.substring(3)); // Remove '?? ' prefix
-      
-      // For each untracked file, count its lines (all lines are "added")
+        // For each untracked file, count its lines (all lines are "added")
       for (const filePath of untrackedFiles) {
         const path = await import('path');
         const fullPath = path.join(repoPath, filePath);
-        const lineCount = await countLinesInFile(fullPath);
+        const lineCount = await getLineCount(fullPath);
         
         diffStats[filePath] = {
           added: lineCount,
@@ -149,12 +148,11 @@ export async function getWorkingDirDiffStats(repoPath: string): Promise<Record<s
           
           // If we don't already have stats for the new file from the staged diff,
           // we should get them (this is mainly for safety - the staged diff should have caught this)
-          if (!diffStats[newPath]) {
-            try {
+          if (!diffStats[newPath]) {            try {
               // Get the line counts for the renamed file
               const path = await import('path');
               const fullPath = path.join(repoPath, newPath);
-              const lineCount = await countLinesInFile(fullPath);
+              const lineCount = await getLineCount(fullPath);
               
               diffStats[newPath] = {
                 added: lineCount,

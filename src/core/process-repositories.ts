@@ -1,12 +1,12 @@
 import { Config } from '../config/config-types';
-import { readLogFile, writeLogFile, readRepoState, writeRepoState } from './file-operations';
+import { getLogEntries, writeLogFile, getRepoState, writeRepoState } from './file-operations';
 import { updateLogForRepository } from './update-log-for-repository';
 
 export async function processAllRepositories(config: Config): Promise<void> {
-  let entries = await readLogFile(config.logFilePath); // Load existing log entries
+  let entries = await getLogEntries(config.logFilePath); // Load existing log entries
   // Make a deep copy of the initial entries for later comparison
   const initialEntries = JSON.stringify(entries);
-  const repoState = await readRepoState(); // Load current repository states
+  const repoState = await getRepoState(); // Load current repository states
 
   let anyActivityLogged = false;
 

@@ -1,11 +1,15 @@
 import chalk from 'chalk';
 import { Config } from '../config/config-types';
-import { readLogFile } from '../core/file-operations';
+import { getLogEntries } from '../core/file-operations';
 import { formatLocalDateTime } from '../utils/date-utils';
 
-// Function to display today's summary
-export async function displayTodaySummary(config: Config) {
-  const entries = await readLogFile(config.logFilePath);
+/**
+ * Get and display today's summary of logged hours
+ * @param config Application configuration
+ * @returns The total hours logged today
+ */
+export async function getTodaysSummary(config: Config): Promise<number> {
+  const entries = await getLogEntries(config.logFilePath);
   const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
   // Filter entries for today
@@ -13,7 +17,7 @@ export async function displayTodaySummary(config: Config) {
 
   if (todayEntries.length === 0) {
     console.log(chalk.blue(`\n[${formatLocalDateTime()}] Today's Summary: ${chalk.yellow('No time logged yet today.')}`));
-    return;
+    return 0;
   }
   
   // Group by task ID and sum hours
@@ -35,4 +39,6 @@ export async function displayTodaySummary(config: Config) {
     });
   
   console.log(chalk.blue(`  ${chalk.white.bold('Total')}: ${chalk.yellow.bold(totalHours.toFixed(2))} hours`));
+  
+  return totalHours;
 }

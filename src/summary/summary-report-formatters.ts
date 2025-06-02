@@ -1,15 +1,17 @@
 import chalk from 'chalk';
 import { EnhancedLogEntry } from '../core/file-operations';
-import { formatWeekRange, formatHours } from '../utils/date-utils';
-import { printTaskSummary, printDailyDetails } from './summary-formatters';
+import { getFormattedWeekRange, getFormattedHours } from '../utils/date-utils';
+import { printTaskSummary, renderDailyDetails } from './summary-formatters';
 
 // Utility types for grouping data
 type WeeklyEntries = Record<number, EnhancedLogEntry[]>;
 
 /**
- * Print weekly breakdown with task summary and daily details
+ * Generate weekly breakdown with task summary and daily details
+ * @param entries Log entries to process
+ * @returns Number of weeks rendered
  */
-export function printWeeklyBreakdown(entries: EnhancedLogEntry[]) {
+export function generateWeeklyBreakdown(entries: EnhancedLogEntry[]): number {
   // Group entries by week
   const weeklyEntries: WeeklyEntries = {};
   entries.forEach(entry => {
@@ -17,58 +19,65 @@ export function printWeeklyBreakdown(entries: EnhancedLogEntry[]) {
     weeklyEntries[entry.weekNumber].push(entry);
   });
   
-  // Sort and process weeks
-  Object.entries(weeklyEntries)
-    .sort(([weekA], [weekB]) => parseInt(weekA) - parseInt(weekB))
-    .forEach(([weekNum, entriesForWeek]) => {
-      // Calculate week date range (Sunday to Saturday)
-      const anyDateInWeek = entriesForWeek[0].dateObj;
-      
-      // Get start of week (Sunday)
-      const weekStart = new Date(anyDateInWeek);
-      weekStart.setDate(anyDateInWeek.getDate() - anyDateInWeek.getDay());
-      
-      // Get end of week (Saturday)
-      const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekStart.getDate() + 6);
-      
+  const weeks = Object.entries(weeklyEntries)
+    .sort(([weekA], [weekB]) => parseInt(weekA) - parseInt(weekB));
+  
+  // Process weeks
+  weeks.forEach(([weekNum, entriesForWeek]) => {
+    // Calculate week date range (Sunday to Saturday)
+    const anyDateInWeek = entriesForWeek[0].dateObj;
+    
+    // Get start of week (Sunday)
+    const weekStart = new Date(anyDateInWeek);
+    weekStart.setDate(anyDateInWeek.getDate() - anyDateInWeek.getDay());
+    
+    // Get end of week (Saturday)
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
       // Calculate total hours for the week
-      const weeklyHours = entriesForWeek.reduce((sum, entry) => sum + entry.hours, 0);
-      
-      // Print week header with date range
-      console.log(chalk.magenta.bold(`\n  ${formatWeekRange(weekStart, weekEnd)} (Week ${weekNum}): ${chalk.yellow(formatHours(weeklyHours))}`));
-      
-      // Print task breakdown for the week
-      printTaskSummary(entriesForWeek, '    ');
-      
-      // Print daily details
-      console.log(chalk.blue(`    Daily Details:`));
-      printDailyDetails(entriesForWeek);
-    });
+    const weeklyHours = entriesForWeek.reduce((sum, entry) => sum + entry.hours, 0);
+    
+    // Print week header with date range
+    console.log(chalk.magenta.bold(`\n  ${getFormattedWeekRange(weekStart, weekEnd)} (Week ${weekNum}): ${chalk.yellow(getFormattedHours(weeklyHours))}`));
+    
+    // Print task breakdown for the week
+    printTaskSummary(entriesForWeek, '    ');
+    // Print daily details
+    console.log(chalk.blue(`    Daily Details:`));
+    renderDailyDetails(entriesForWeek);
+  });
+  
+  return weeks.length;
 }
 
 /**
- * Print month summary
+ * Generate month summary with task breakdown
+ * @param entries Log entries for the month
+ * @param year Year of the month
+ * @param monthName Name of the month
+ * @param isPrevious Whether this is the previous month
+ * @returns Total hours logged for the month
  */
-export function printMonthSummary(entries: EnhancedLogEntry[], year: number, monthName: string, isPrevious = false) {
+export function generateMonthSummary(entries: EnhancedLogEntry[], year: number, monthName: string, isPrevious = false): number {
   const title = isPrevious ? `${monthName} ${year} (Previous Month):` : `${monthName} ${year}:`;
   console.log(chalk.green.bold(`\n${title}`));
   
   if (entries.length === 0) {
     console.log(chalk.yellow('  No entries found for this month.'));
-    return;
+    return 0;
   }
-  
-  // Print task summary
+    // Print task summary
   const totalHours = printTaskSummary(entries, '  ');
-  console.log(chalk.green.bold(`\n  Total Hours: ${formatHours(totalHours)}`));
+  console.log(chalk.green.bold(`\n  Total Hours: ${getFormattedHours(totalHours)}`));
   
   // For current month, print weekly breakdown
   if (!isPrevious) {
     console.log(chalk.blue.bold('\n  Weekly Breakdown:'));
-    printWeeklyBreakdown(entries);
+    generateWeeklyBreakdown(entries);
   } else {
     // For previous month, just show a note
     console.log(chalk.gray('\n  Note: Detailed weekly breakdown is shown for current month only.'));
   }
+  
+  return totalHours;
 }

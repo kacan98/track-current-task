@@ -33,7 +33,7 @@ export function extractTaskId(branchName: string, pattern?: string): string | nu
 /**
  * Format hours as "Xh Ym"
  */
-export function formatHours(hours: number): string {
+export function getFormattedHours(hours: number): string {
   const wholeHours = Math.floor(hours);
   const minutes = Math.round((hours - wholeHours) * 60);
   return `${wholeHours}h ${minutes}m`;
@@ -41,8 +41,9 @@ export function formatHours(hours: number): string {
 
 /**
  * Get first and last day of a month as formatted strings
+ * @returns Object containing firstDay and lastDayStr as formatted date strings
  */
-export function getMonthDateRange(year: number, month: number) {
+export function getMonthDateRange(year: number, month: number): { firstDay: string; lastDayStr: string } {
   // First day of month
   const firstDay = `${year}-${String(month + 1).padStart(2, '0')}-01`;
   
@@ -56,7 +57,7 @@ export function getMonthDateRange(year: number, month: number) {
 /**
  * Format date range for week display
  */
-export function formatWeekRange(weekStart: Date, weekEnd: Date): string {
+export function getFormattedWeekRange(weekStart: Date, weekEnd: Date): string {
   const startStr = weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   const endStr = weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   return `${startStr} - ${endStr}`;

@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import { Config } from './config/config-types';
 import { loadConfig } from './config/config-manager';
 import { processAllRepositories } from './core/process-repositories';
-import { displayTodaySummary } from './summary/display-todays-summary';
+import { getTodaysSummary } from './summary/display-todays-summary';
 import { formatLocalDateTime } from './utils/date-utils';
 
 // Main entry point
@@ -17,10 +17,9 @@ async function main() {
     const trackingIntervalMinutes = config.trackingIntervalMinutes;
     
     console.log(chalk.blue.bold(`Running with the following intervals:`));
-    console.log(chalk.yellow(`- Tracking interval: ${chalk.white(trackingIntervalMinutes.toString())} minutes (how often we check for changes)`));
-    
+    console.log(chalk.yellow(`- Tracking interval: ${chalk.white(trackingIntervalMinutes.toString())} minutes (how often we check for changes)`));    
     // Always display summary on startup
-    await displayTodaySummary(config);
+    await getTodaysSummary(config);
     
     // Function to run the check
     const runCheck = async () => {
@@ -44,14 +43,13 @@ async function main() {
     // Set up daily summary display (every hour on the hour)
     const now = new Date();
     const msUntilNextHour = (60 - now.getMinutes()) * 60 * 1000 - now.getSeconds() * 1000 - now.getMilliseconds();
-    
-    setTimeout(() => {
+      setTimeout(() => {
       // Display summary immediately when we hit the hour
-      displayTodaySummary(config);
+      getTodaysSummary(config);
       
       // Then set up interval to display every hour
       setInterval(() => {
-        displayTodaySummary(config);
+        getTodaysSummary(config);
       }, 60 * 60 * 1000);
     }, msUntilNextHour);
     
