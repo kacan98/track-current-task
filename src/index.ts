@@ -1,4 +1,5 @@
-import { execa } from 'execa';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
 import { readFile, writeFile } from 'fs/promises';
 import { Config, RepositoryConfig } from './config.types';
 import { RepoState } from './repoState.types';
@@ -6,6 +7,19 @@ import chalk from 'chalk';
 import inquirer from 'inquirer';
 import { existsSync } from 'fs';
 import path from 'path';
+
+const execFileAsync = promisify(execFile);
+
+// Helper function to execute git commands
+async function execGit(args: string[], options: { cwd: string }): Promise<{ stdout: string; stderr: string }> {
+  try {
+    const result = await execFileAsync('git', args, options);
+    return { stdout: result.stdout || '', stderr: result.stderr || '' };
+  } catch (error: any) {
+    // If the command fails, throw the error so callers can handle it
+    throw error;
+  }
+}
 
 // Helper function to format date/time in local timezone with prettier formatting
 function formatLocalDateTime(date: Date = new Date()): string {
@@ -33,7 +47,7 @@ function formatLocalDate(date: Date = new Date()): string {
 
 async function getCurrentBranch(repoPath: string): Promise<string | null> {
   try {
-    const { stdout } = await execa('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: repoPath });
+    const { stdout } = await execGit(['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: repoPath });
     return stdout.trim();
   } catch (error) {
     console.error(`Error getting current branch in ${repoPath}:`, error);
@@ -43,7 +57,7 @@ async function getCurrentBranch(repoPath: string): Promise<string | null> {
 
 async function getGitStatus(repoPath: string): Promise<string | null> {
   try {
-    const { stdout } = await execa('git', ['status', '--porcelain'], { cwd: repoPath });
+    const { stdout } = await execGit(['status', '--porcelain'], { cwd: repoPath });
     return stdout.trim();
   } catch (error) {
     console.error(`Error getting git status in ${repoPath}:`, error);
@@ -122,7 +136,7 @@ async function writeRepoState(state: RepoState, filePath: string = REPO_STATE_FI
 
 async function branchExists(repoPath: string, branch: string): Promise<boolean> {
   try {
-    await execa('git', ['rev-parse', '--verify', branch], { cwd: repoPath });
+    await execGit(['rev-parse', '--verify', branch], { cwd: repoPath });
     return true;
   } catch {
     return false;
@@ -131,7 +145,7 @@ async function branchExists(repoPath: string, branch: string): Promise<boolean> 
 
 async function getAvailableBranches(repoPath: string): Promise<string[]> {
   try {
-    const { stdout } = await execa('git', ['branch', '-a'], { cwd: repoPath });
+    const { stdout } = await execGit(['branch', '-a'], { cwd: repoPath });
     return stdout
       .split('\n')
       .map(line => line.trim().replace(/^\*\s*/, '').replace(/^remotes\/origin\//, ''))
@@ -162,7 +176,7 @@ async function getDefaultBaseBranch(repoPath: string, configuredMainBranch?: str
 async function getLatestCommitHash(repoPath: string, branch: string): Promise<string | null> {
   if (!(await branchExists(repoPath, branch))) return null;
   try {
-    const { stdout } = await execa('git', ['rev-parse', branch], { cwd: repoPath });
+    const { stdout } = await execGit(['rev-parse', branch], { cwd: repoPath });
     return stdout.trim();
   } catch (error) {
     console.error(`Error getting latest commit hash for ${branch} in ${repoPath}:`, error);
@@ -173,7 +187,7 @@ async function getLatestCommitHash(repoPath: string, branch: string): Promise<st
 async function getDiffFilesWithBase(repoPath: string, base: string, branch: string): Promise<string[] | null> {
   if (!(await branchExists(repoPath, base)) || !(await branchExists(repoPath, branch))) return null;
   try {
-    const { stdout } = await execa('git', ['diff', '--name-only', `${base}...${branch}`], { cwd: repoPath });
+    const { stdout } = await execGit(['diff', '--name-only', `${base}...${branch}`], { cwd: repoPath });
     return stdout.trim() ? stdout.trim().split('\n') : [];
   } catch (error) {
     console.error(`Error getting diff files between ${base} and ${branch} in ${repoPath}:`, error);
@@ -184,7 +198,7 @@ async function getDiffFilesWithBase(repoPath: string, base: string, branch: stri
 async function getCommitsNotInBase(repoPath: string, base: string, branch: string): Promise<string[] | null> {
   if (!(await branchExists(repoPath, base)) || !(await branchExists(repoPath, branch))) return null;
   try {
-    const { stdout } = await execa('git', ['log', '--pretty=%H', `${base}..${branch}`], { cwd: repoPath });
+    const { stdout } = await execGit(['log', '--pretty=%H', `${base}..${branch}`], { cwd: repoPath });
     return stdout.trim() ? stdout.trim().split('\n') : [];
   } catch (error) {
     console.error(`Error getting commits not in ${base} for ${branch} in ${repoPath}:`, error);
@@ -195,7 +209,7 @@ async function getCommitsNotInBase(repoPath: string, base: string, branch: strin
 async function getFileDiffStats(repoPath: string, base: string, branch: string): Promise<Record<string, { added: number; deleted: number }> | null> {
   if (!(await branchExists(repoPath, base)) || !(await branchExists(repoPath, branch))) return null;
   try {
-    const { stdout } = await execa('git', ['--no-pager', 'diff', '--numstat', `${base}...${branch}`], { cwd: repoPath });
+    const { stdout } = await execGit(['--no-pager', 'diff', '--numstat', `${base}...${branch}`], { cwd: repoPath });
     if (!stdout.trim()) return {};
     
     const diffStats: Record<string, { added: number; deleted: number }> = {};
@@ -237,7 +251,7 @@ async function countLinesInFile(filePath: string): Promise<number> {
 // Get diff stats for files changed in the working directory (not yet committed)
 async function getWorkingDirDiffStats(repoPath: string): Promise<Record<string, { added: number; deleted: number }> | null> {
   try {
-    const { stdout } = await execa('git', ['--no-pager', 'diff', '--numstat', '-M'], { cwd: repoPath });
+    const { stdout } = await execGit(['--no-pager', 'diff', '--numstat', '-M'], { cwd: repoPath });
     
     const diffStats: Record<string, { added: number; deleted: number }> = {};
     
@@ -269,7 +283,7 @@ async function getWorkingDirDiffStats(repoPath: string): Promise<Record<string, 
         }
       });
     }    // Also check staged changes
-    const { stdout: stagedStdout } = await execa('git', ['--no-pager', 'diff', '--cached', '--numstat', '-M'], { cwd: repoPath });
+    const { stdout: stagedStdout } = await execGit(['--no-pager', 'diff', '--cached', '--numstat', '-M'], { cwd: repoPath });
     
     if (stagedStdout.trim()) {
       stagedStdout.trim().split('\n').forEach(line => {
@@ -302,7 +316,7 @@ async function getWorkingDirDiffStats(repoPath: string): Promise<Record<string, 
         }
       });
     }    // Also check untracked files and staged renames from git status
-    const { stdout: statusStdout } = await execa('git', ['status', '--porcelain'], { cwd: repoPath });
+    const { stdout: statusStdout } = await execGit(['status', '--porcelain'], { cwd: repoPath });
     
     if (statusStdout.trim()) {
       const statusLines = statusStdout.trim().split('\n');

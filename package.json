@@ -34,7 +34,6 @@
     "@types/inquirer": "^9.0.8",
     "@types/node": "^20.11.20",
     "chalk": "^4.1.2",
-    "execa": "^8.0.1",
     "inquirer": "^12.6.3",
     "ts-node": "^10.9.2",
     "typescript": "^5.3.3"
