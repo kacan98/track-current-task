@@ -4,9 +4,7 @@
       "path": "K:\\git\\Dynaway.DFO.EAM",
       "mainBranch": "develop"
     }
-  ],
-  "trackingIntervalMinutes": 5,
-  "logSummaryIntervalMinutes": 30,
+  ],  "trackingIntervalMinutes": 5,
   "logFilePath": "./dfo_activity_log.csv",
   "taskIdPattern": "DFO-\\d+"
 }

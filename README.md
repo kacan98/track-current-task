@@ -26,9 +26,7 @@ Tracks time spent on Git branches by monitoring changes in your repositories. It
     {
       "path": "/path/to/repository",
       "mainBranch": "develop"
-    }  ],
-  "trackingIntervalMinutes": 5,
-  "logSummaryIntervalMinutes": 30,
+    }  ],  "trackingIntervalMinutes": 5,
   "logFilePath": "./branch_activity_log.csv",
   "taskIdPattern": "D[FM]O-\\d+"
 }
@@ -36,7 +34,6 @@ Tracks time spent on Git branches by monitoring changes in your repositories. It
 
 **Configuration Options:**
 * `trackingIntervalMinutes`: How often to check for changes (e.g., 5 minutes)
-* `logSummaryIntervalMinutes`: How often to log time and show summaries (e.g., 30 minutes)
 * `logFilePath`: Where to save the CSV log file
 * `taskIdPattern`: Regular expression to extract task IDs from branch names (e.g., `"D[FM]O-\\d+"` for both DFO and DMO tickets)
 
@@ -119,9 +116,7 @@ Two example configurations are provided for different teams:
       "path": "K:\\git\\Dynaway.DFO.EAM",
       "mainBranch": "develop"
     }
-  ],
-  "trackingIntervalMinutes": 5,
-  "logSummaryIntervalMinutes": 30,
+  ],  "trackingIntervalMinutes": 5,
   "logFilePath": "./dfo_activity_log.csv",
   "taskIdPattern": "DFO-\\d+"
 }
@@ -137,7 +132,6 @@ Two example configurations are provided for different teams:
     }
   ],
   "trackingIntervalMinutes": 5,
-  "logSummaryIntervalMinutes": 30,
   "logFilePath": "./dmo_activity_log.csv",
   "taskIdPattern": "DMO-\\d+"
 }

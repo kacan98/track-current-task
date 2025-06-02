@@ -602,24 +602,11 @@ async function createConfigInteractively(): Promise<Config> {
   }
     // Get other configuration options
   console.log(chalk.yellow('\n⚙️  Configuration options:'));
-    const trackingInterval = await inquirer.prompt({
+  const trackingInterval = await inquirer.prompt({
     type: 'number',
     name: 'value',
     message: 'How often should we check for changes? (minutes)',
     default: 15,
-    validate: (input: number | undefined) => {
-      if (input === undefined || input <= 0) {
-        return 'Please enter a positive number.';
-      }
-      return true;
-    }
-  });
-  
-  const summaryInterval = await inquirer.prompt({
-    type: 'number',
-    name: 'value',
-    message: 'How often should we display the daily summary? (minutes)',
-    default: 60,
     validate: (input: number | undefined) => {
       if (input === undefined || input <= 0) {
         return 'Please enter a positive number.';
@@ -649,11 +636,9 @@ async function createConfigInteractively(): Promise<Config> {
       }
     }
   });
-  
-  const config: Config = {
+    const config: Config = {
     repositories,
     trackingIntervalMinutes: trackingInterval.value,
-    logSummaryIntervalMinutes: summaryInterval.value,
     logFilePath: logPath.value,
     taskIdPattern: taskPattern.value
   };
@@ -724,17 +709,12 @@ async function loadConfig(): Promise<Config> {
           console.warn(chalk.yellow('   The application will fall back to default branch detection.'));
         }
       }
-    }
-      if (!config.logFilePath) {
+    }    if (!config.logFilePath) {
       config.logFilePath = './branch_activity_log.csv';
       console.log('Using default log file path: ./branch_activity_log.csv');
     }
     
-    if (!config.logSummaryIntervalMinutes || config.logSummaryIntervalMinutes <= 0) {
-      config.logSummaryIntervalMinutes = 30;
-      console.log('Using default log summary interval: 30 minutes');
-    }
-      if (!config.trackingIntervalMinutes || config.trackingIntervalMinutes <= 0) {
+    if (!config.trackingIntervalMinutes || config.trackingIntervalMinutes <= 0) {
       config.trackingIntervalMinutes = 5;
       console.log('Using default tracking interval: 5 minutes');
     }
@@ -779,30 +759,19 @@ async function main() {
     const config = await loadConfig();    console.log(chalk.green(`Loaded config with ${chalk.white.bold(config.repositories.length)} repositories`));
     
     // Set up intervals
-    const logSummaryIntervalMinutes = config.logSummaryIntervalMinutes;
     const trackingIntervalMinutes = config.trackingIntervalMinutes;
     
     console.log(chalk.blue.bold(`Running with the following intervals:`));
     console.log(chalk.yellow(`- Tracking interval: ${chalk.white(trackingIntervalMinutes.toString())} minutes (how often we check for changes)`));
-    console.log(chalk.yellow(`- Log summary interval: ${chalk.white(logSummaryIntervalMinutes.toString())} minutes (how often we log time and display daily summary)`));
     
-    // Variables to track the last summary time
-    let lastSummaryTime = 0;
-      // Function to display today's summary
+    // Function to display today's summary
     async function displayTodaySummary() {
-      const now = Date.now();
-      // Only display summary if enough time has passed
-      if (now - lastSummaryTime < logSummaryIntervalMinutes * 60 * 1000) {
-        return;
-      }
-      
       const entries = await readLogFile(config.logFilePath);
       const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
         // Filter entries for today
       const todayEntries = entries.filter(entry => entry.date === today);
         if (todayEntries.length === 0) {
-        console.log(chalk.blue(`\n[${formatLocalDate()}] Today's Summary: ${chalk.yellow('No time logged yet today.')}`));
-        lastSummaryTime = now;
+        console.log(chalk.blue(`\n[${formatLocalDateTime()}] Today's Summary: ${chalk.yellow('No time logged yet today.')}`));
         return;
       }
       
@@ -822,8 +791,6 @@ async function main() {
       Object.entries(taskSummary).forEach(([taskId, hours]) => {
         console.log(`- ${chalk.cyan(taskId)}: ${chalk.yellow(hours.toFixed(2))} hours`);
       });
-      
-      lastSummaryTime = now;
     }
       // Run once immediately
     await processAllRepositories(config);
