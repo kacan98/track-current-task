@@ -10,17 +10,17 @@ Tracks time spent on Git branches by monitoring changes in your repositories. It
 * Logs time to a single CSV file
 * Provides daily activity summaries
 * Generates monthly reports with task breakdowns
-* Groups monthly summaries by week with task details
+* Groups monthly summaries by week
 
-## Use latest release
+## Getting started
 - Go to [the latest release](https://github.com/kacan98/track-current-task/releases/latest)
 - on Windows you can add it to a special folder found by searching for "Run", typing in "shell:startup" and putting the .exe file in there to automatically run the executable on startup
 - run it once manually to set up the configuration
 
-## Quick Start
-1. Install with `npm install`
-2. Run with `npx ts-node src/index.ts`
-3. For a monthly summary, run `npm run summary:month`
+## Start development
+1. Install [Node.js](https://nodejs.org/en/download)
+2. Run `npm install`
+3. Run `npm start` to run it
 
 ## Configuration
 ```json
@@ -40,7 +40,7 @@ Tracks time spent on Git branches by monitoring changes in your repositories. It
 * `trackingIntervalMinutes`: How often to check for changes (e.g., 15 minutes) and how much we register if changes are found.
 * `taskIdRegEx`: Regular expression to extract task IDs from branch names (e.g., `"D[FM]O-\\d+"` for both DFO and DMO tickets). Defaults to branch name if not found.
 
-## How It Works
+## When does it log
 The tool logs time when:
 1. The number of added or removed lines is different from previous check
 2. New commits are made compared to the main branch
@@ -97,8 +97,8 @@ Current Month (June 2023):
       DFO-1234: 1h 15m
 ```
 
-## Output Format
-The CSV file contains:
+## CSV File
+Data is stored in a CSV file that looks like this:
 ```
 date,taskId,hours
 2023-10-27,DFO-12345,0.5
@@ -108,4 +108,4 @@ date,taskId,hours
 ## Troubleshooting
 * **No time logged?** Make sure you're actively making changes to files in your Git repository
 * **Git errors?** Verify Git is properly installed and the repository paths are correct
-* **Need to reset?** Delete files in the .TrackCurrentTask folder
+* **Want to reset?** Delete files in the .TrackCurrentTask folder
