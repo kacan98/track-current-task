@@ -8,6 +8,7 @@ on:
 jobs:
   build_and_release:
     runs-on: ubuntu-latest
+    continue-on-error: false
     permissions:
       contents: write # Required to push tags and update package.json version
     steps:

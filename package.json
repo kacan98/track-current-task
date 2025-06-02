@@ -8,6 +8,7 @@
   },
   "scripts": {
     "test:executable:windows": "npm run build:executables && dist-executables\\git-activity-logger-win.exe",
+    "build": "tsc",
     "build:executables": "npm run build && pkg . --out-path ./dist-executables --targets node18-win-x64,node18-macos-x64",
     "start": "ts-node src/index.ts",
     "summary:month": "ts-node src/summary/monthly-summary.ts"
