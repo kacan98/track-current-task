@@ -55,11 +55,11 @@ async function main() {
 
     setTimeout(() => {
       // Display summary immediately when we hit the hour
-      logTodaySummary(config);
+      logTodaySummary();
 
       // Then set up interval to display every hour
       setInterval(() => {
-        logTodaySummary(config);
+        logTodaySummary();
       }, 60 * 60 * 1000);
     }, msUntilNextHour);
 
