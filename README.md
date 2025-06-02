@@ -28,21 +28,21 @@ Tracks time spent on Git branches by monitoring changes in your repositories. It
   "repositories": [
     {
       "path": "/path/to/repository",
-      "mainBranch": "develop"
-    }  
+      "mainBranch": "main"
+    }
   ],  
-  "trackingIntervalMinutes": 5,
+  "trackingIntervalMinutes": 15,
   "taskIdRegEx": "D[FM]O-\\d+"
 }
 ```
 
 **Configuration Options:**
-* `trackingIntervalMinutes`: How often to check for changes (e.g., 5 minutes)
-* `taskIdRegEx`: Regular expression to extract task IDs from branch names (e.g., `"D[FM]O-\\d+"` for both DFO and DMO tickets)
+* `trackingIntervalMinutes`: How often to check for changes (e.g., 15 minutes) and how much we register if changes are found.
+* `taskIdRegEx`: Regular expression to extract task IDs from branch names (e.g., `"D[FM]O-\\d+"` for both DFO and DMO tickets). Defaults to branch name if not found.
 
 ## How It Works
 The tool logs time when:
-1. New uncommitted changes are detected
+1. The number of added or removed lines is different from previous check
 2. New commits are made compared to the main branch
 3. A branch is checked out for the first time
 
@@ -72,6 +72,7 @@ Current Month (June 2023):
   Week 1 (Jun 1 - Jun 4): 7h 15m
     DFO-1234: 4h 30m (62.1%)
     DFO-5678: 2h 45m (37.9%)
+
     Daily Details:
     Thu, Jun 1: 3h 45m
       DFO-1234: 2h 30m
@@ -83,6 +84,7 @@ Current Month (June 2023):
   Week 2 (Jun 5 - Jun 11): 12h 0m
     DFO-5678: 9h 45m (81.3%)
     DFO-1234: 2h 15m (18.7%)
+
     Daily Details:
     Mon, Jun 5: 4h 0m
       DFO-5678: 3h 30m
@@ -106,6 +108,4 @@ date,taskId,hours
 ## Troubleshooting
 * **No time logged?** Make sure you're actively making changes to files in your Git repository
 * **Git errors?** Verify Git is properly installed and the repository paths are correct
-* **Need to reset?** Delete `repo_activity_state.json` to reset tracking baselines
-
-For more detailed configuration options, check `config.example.json`.
+* **Need to reset?** Delete files in the .TrackCurrentTask folder

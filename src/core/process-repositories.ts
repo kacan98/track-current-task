@@ -28,7 +28,7 @@ export async function processAllRepositories(config: Config): Promise<void> {
   // If any time was logged, write back the log entries
   if (anyActivityLogged) {
     await writeLogFile(ACTIVITY_LOG_FILE_PATH, entries);
-    console.log(`Updated time log at ${ACTIVITY_LOG_FILE_PATH}`);
+    console.log(`Time log updated in ${ACTIVITY_LOG_FILE_PATH}`);
   }
 }
 

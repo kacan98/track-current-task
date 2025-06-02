@@ -89,8 +89,6 @@ export async function updateLogForRepository(
 
   // Always update the state if something changed, even if we don't log time
   if (somethingChanged) {
-    console.log(`Detected changes in ${repoPath} on branch ${branchName}.${shouldLogTime ? ' Logging time' : ' Not logging time (time interval not passed)'} and updating repo state.`);
-
     // Update repo state with all details
     repoState[repoPath][branchName] = {
       status: statusToStore,
