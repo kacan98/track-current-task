@@ -105,6 +105,21 @@ async function branchExists(repoPath: string, branch: string): Promise<boolean> 
   }
 }
 
+async function getAvailableBranches(repoPath: string): Promise<string[]> {
+  try {
+    const { stdout } = await execa('git', ['branch', '-a'], { cwd: repoPath });
+    return stdout
+      .split('\n')
+      .map(line => line.trim().replace(/^\*\s*/, '').replace(/^remotes\/origin\//, ''))
+      .filter(line => line && !line.includes('HEAD ->'))
+      .filter((branch, index, arr) => arr.indexOf(branch) === index) // Remove duplicates
+      .sort();
+  } catch (error) {
+    console.error(`Error getting available branches in ${repoPath}:`, error);
+    return [];
+  }
+}
+
 async function getDefaultBaseBranch(repoPath: string, configuredMainBranch?: string): Promise<string> {
   // First, use configured main branch if provided
   if (configuredMainBranch) {
@@ -473,8 +488,8 @@ async function createConfigInteractively(): Promise<Config> {
   let addingRepos = true;
   while (addingRepos) {
     console.log(chalk.yellow(`\n📁 Repository ${repositories.length + 1}:`));
-    
-    const repoAnswers = await inquirer.prompt([
+      // First, get the repository path
+    const pathAnswer = await inquirer.prompt([
       {
         type: 'input',
         name: 'path',
@@ -492,20 +507,53 @@ async function createConfigInteractively(): Promise<Config> {
           }
           return true;
         }
-      },
+      }
+    ]);
+
+    // Then, get the main branch for this specific repository
+    const branchAnswer = await inquirer.prompt([
       {
         type: 'input',
         name: 'mainBranch',
         message: 'What is the main branch name for this repository? (e.g., main, master, develop)',
         default: 'main',
-        validate: (input: string) => {
+        validate: async (input: string) => {
           if (!input.trim()) {
             return 'Please enter a branch name.';
           }
+            // Check if the branch exists in the repository
+          const repoPath = pathAnswer.path.trim();
+          const doesBranchExist = await branchExists(repoPath, input.trim());
+          if (!doesBranchExist) {
+            const availableBranches = await getAvailableBranches(repoPath);
+            if (availableBranches.length > 0) {
+              // Find common main branch candidates
+              const commonMainBranches = availableBranches.filter(branch => 
+                ['main', 'master', 'develop', 'development', 'dev'].includes(branch.toLowerCase())
+              );
+              
+              if (commonMainBranches.length > 0) {
+                return `Branch '${input.trim()}' does not exist. Common main branches found: ${commonMainBranches.join(', ')}`;
+              } else {
+                // Show first 10 branches if no common main branches found
+                const branchesToShow = availableBranches.slice(0, 10);
+                const moreMessage = availableBranches.length > 10 ? ` (and ${availableBranches.length - 10} more...)` : '';
+                return `Branch '${input.trim()}' does not exist. Available branches: ${branchesToShow.join(', ')}${moreMessage}`;
+              }
+            } else {
+              return `Branch '${input.trim()}' does not exist in the repository. Could not retrieve available branches.`;
+            }
+          }
+          
           return true;
         }
       }
     ]);
+
+    const repoAnswers = {
+      path: pathAnswer.path,
+      mainBranch: branchAnswer.mainBranch
+    };
     
     repositories.push({
       path: repoAnswers.path.trim(),
@@ -566,7 +614,7 @@ async function createConfigInteractively(): Promise<Config> {
     type: 'input',
     name: 'value',
     message: 'Task ID pattern (regex) to extract from branch names:',
-    default: 'DFO-\\d+',
+    default: 'D[FM]O-\\d+',
     validate: (input: string) => {
       try {
         new RegExp(input);
@@ -609,10 +657,48 @@ async function loadConfig(): Promise<Config> {
     
     const configData = await readFile('./config.json', 'utf-8');
     const config = JSON.parse(configData) as Config;
-    
-    // Validate config
+      // Validate config
     if (!config.repositories || !Array.isArray(config.repositories)) {
       throw new Error('Config is missing repositories array');
+    }
+    
+    // Validate each repository and its main branch
+    for (const repo of config.repositories) {
+      if (!repo.path) {
+        throw new Error('Repository configuration is missing path');
+      }
+      
+      if (!existsSync(repo.path)) {
+        throw new Error(`Repository path does not exist: ${repo.path}`);
+      }
+      
+      if (!existsSync(path.join(repo.path, '.git'))) {
+        throw new Error(`Directory is not a Git repository (no .git folder found): ${repo.path}`);
+      }
+        if (repo.mainBranch) {
+        const doesBranchExist = await branchExists(repo.path, repo.mainBranch);
+        if (!doesBranchExist) {
+          const availableBranches = await getAvailableBranches(repo.path);
+          let branchList = '';
+          if (availableBranches.length > 0) {
+            // Find common main branch candidates
+            const commonMainBranches = availableBranches.filter(branch => 
+              ['main', 'master', 'develop', 'development', 'dev'].includes(branch.toLowerCase())
+            );
+            
+            if (commonMainBranches.length > 0) {
+              branchList = ` Common main branches: ${commonMainBranches.join(', ')}`;
+            } else {
+              // Show first 5 branches if no common main branches found
+              const branchesToShow = availableBranches.slice(0, 5);
+              const moreMessage = availableBranches.length > 5 ? ` (and ${availableBranches.length - 5} more...)` : '';
+              branchList = ` Available branches: ${branchesToShow.join(', ')}${moreMessage}`;
+            }
+          }
+          console.warn(chalk.yellow(`⚠️  Warning: Main branch '${repo.mainBranch}' does not exist in repository ${repo.path}.${branchList}`));
+          console.warn(chalk.yellow('   The application will fall back to default branch detection.'));
+        }
+      }
     }
       if (!config.logFilePath) {
       config.logFilePath = './branch_activity_log.csv';
