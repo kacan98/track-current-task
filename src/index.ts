@@ -533,7 +533,7 @@ async function createConfigInteractively(): Promise<Config> {
     type: 'number',
     name: 'value',
     message: 'How often should we check for changes? (minutes)',
-    default: 5,
+    default: 15,
     validate: (input: number | undefined) => {
       if (input === undefined || input <= 0) {
         return 'Please enter a positive number.';
@@ -546,7 +546,7 @@ async function createConfigInteractively(): Promise<Config> {
     type: 'number',
     name: 'value',
     message: 'How often should we display the daily summary? (minutes)',
-    default: 30,
+    default: 60,
     validate: (input: number | undefined) => {
       if (input === undefined || input <= 0) {
         return 'Please enter a positive number.';
