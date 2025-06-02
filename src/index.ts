@@ -7,6 +7,30 @@ import inquirer from 'inquirer';
 import { existsSync } from 'fs';
 import path from 'path';
 
+// Helper function to format date/time in local timezone with prettier formatting
+function formatLocalDateTime(date: Date = new Date()): string {
+  return date.toLocaleString('en-US', {
+    weekday: 'short',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true
+  });
+}
+
+// Helper function to format just the date in local timezone
+function formatLocalDate(date: Date = new Date()): string {
+  return date.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+}
+
 async function getCurrentBranch(repoPath: string): Promise<string | null> {
   try {
     const { stdout } = await execa('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: repoPath });
@@ -776,9 +800,8 @@ async function main() {
       const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
         // Filter entries for today
       const todayEntries = entries.filter(entry => entry.date === today);
-      
-      if (todayEntries.length === 0) {
-        console.log(chalk.blue(`\n[${new Date().toISOString()}] Today's Summary: ${chalk.yellow('No time logged yet today.')}`));
+        if (todayEntries.length === 0) {
+        console.log(chalk.blue(`\n[${formatLocalDate()}] Today's Summary: ${chalk.yellow('No time logged yet today.')}`));
         lastSummaryTime = now;
         return;
       }
@@ -791,9 +814,8 @@ async function main() {
         taskSummary[entry.taskId] = (taskSummary[entry.taskId] || 0) + entry.hours;
         totalHours += entry.hours;
       });
-      
-      // Display summary
-      console.log(chalk.blue.bold(`\n[${new Date().toISOString()}] Today's Summary:`));
+        // Display summary
+      console.log(chalk.blue.bold(`\n[${formatLocalDateTime()}] Today's Summary:`));
       console.log(chalk.green(`Total hours logged today: ${chalk.white.bold(totalHours.toFixed(2))}`));
       console.log(chalk.blue('Breakdown by task:'));
       
@@ -808,10 +830,11 @@ async function main() {
     await displayTodaySummary();
     
     // Set up interval for tracking changes
-    const intervalMs = trackingIntervalMinutes * 60 * 1000;
+    const intervalMs = trackingIntervalMinutes * 60 * 1000;    
+    
     setInterval(async () => {
       try {
-        console.log(chalk.magenta(`\n[${new Date().toISOString()}] Running scheduled check...`));
+        console.log(chalk.magenta(`\n[${formatLocalDateTime()}] Running scheduled check...`));
         await processAllRepositories(config);
         await displayTodaySummary();
       } catch (error) {
