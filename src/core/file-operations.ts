@@ -1,5 +1,5 @@
 import { readFile, writeFile } from 'fs/promises';
-import { REPO_STATE_FILE_PATH } from '..';
+import { ACTIVITY_LOG_FILE_PATH, REPO_STATE_FILE_PATH } from '..';
 import { RepoState } from './repo-state-types';
 
 export interface LogEntry {
@@ -19,9 +19,9 @@ export interface EnhancedLogEntry extends LogEntry {
  * @param filePath Path to the log file
  * @returns Array of log entries
  */
-export async function getLogEntries(filePath: string): Promise<LogEntry[]> {
+export async function getLogEntries(): Promise<LogEntry[]> {
   try {
-    const data = await readFile(filePath, 'utf-8');
+    const data = await readFile(ACTIVITY_LOG_FILE_PATH, 'utf-8');
     const lines = data.trim().split('\n');
     if (lines.length <= 1) {
       return []; // Empty or only header
@@ -35,7 +35,7 @@ export async function getLogEntries(filePath: string): Promise<LogEntry[]> {
     if (error.code === 'ENOENT') {
       return []; // File not found, return empty array
     }
-    console.error(`Error reading log file ${filePath}:`, error);
+    console.error(`Error reading log file ${ACTIVITY_LOG_FILE_PATH}:`, error);
     return [];
   }
 }

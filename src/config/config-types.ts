@@ -6,6 +6,5 @@ export interface RepositoryConfig {
 export interface Config {
   repositories: RepositoryConfig[]; // Only accepts objects, not strings
   trackingIntervalMinutes: number; // How often to check for changes
-  logFilePath: string;
-  taskIdPattern?: string; // Optional: Pattern to extract task IDs, defaults to "DFO-\\d+"
+  taskIdRegEx?: string; // Optional: Pattern to extract task IDs, defaults to "DFO-\\d+"
 }

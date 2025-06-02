@@ -104,7 +104,7 @@ export async function updateLogForRepository(
       lastLogTime: shouldLogTime ? now : lastLogTime // Only update the time if we're logging
     };
 
-    const extractedTaskId = extractTaskId(branchName, config.taskIdPattern);
+    const extractedTaskId = extractTaskId(branchName, config.taskIdRegEx);
     const taskIdToLog = extractedTaskId || branchName;
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
     const logIntervalHours = config.trackingIntervalMinutes / 60;

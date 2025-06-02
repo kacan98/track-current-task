@@ -63,19 +63,14 @@ export async function loadConfig(): Promise<Config> {
         }
       }
     }
-
-    if (!config.logFilePath) {
-      config.logFilePath = './branch_activity_log.csv';
-      console.log('Using default log file path: ./branch_activity_log.csv');
-    }
     
     if (!config.trackingIntervalMinutes || config.trackingIntervalMinutes <= 0) {
       config.trackingIntervalMinutes = 5;
       console.log('Using default tracking interval: 5 minutes');
     }
     
-    if (!config.taskIdPattern) {
-      config.taskIdPattern = 'DFO-\\d+';
+    if (!config.taskIdRegEx) {
+      config.taskIdRegEx = 'DFO-\\d+';
       console.log('Using default task ID pattern: DFO-\\d+');
     }
     

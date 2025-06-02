@@ -29,16 +29,16 @@ Tracks time spent on Git branches by monitoring changes in your repositories. It
     {
       "path": "/path/to/repository",
       "mainBranch": "develop"
-    }  ],  "trackingIntervalMinutes": 5,
-  "logFilePath": "./branch_activity_log.csv",
-  "taskIdPattern": "D[FM]O-\\d+"
+    }  
+  ],  
+  "trackingIntervalMinutes": 5,
+  "taskIdRegEx": "D[FM]O-\\d+"
 }
 ```
 
 **Configuration Options:**
 * `trackingIntervalMinutes`: How often to check for changes (e.g., 5 minutes)
-* `logFilePath`: Where to save the CSV log file
-* `taskIdPattern`: Regular expression to extract task IDs from branch names (e.g., `"D[FM]O-\\d+"` for both DFO and DMO tickets)
+* `taskIdRegEx`: Regular expression to extract task IDs from branch names (e.g., `"D[FM]O-\\d+"` for both DFO and DMO tickets)
 
 ## How It Works
 The tool logs time when:
@@ -47,7 +47,7 @@ The tool logs time when:
 3. A branch is checked out for the first time
 
 ## Monthly Summary Report
-Running `npm run summary:month` generates a detailed report of your activity:
+On every run it will generate a monthly report, showing
 
 * Shows total hours per task for the current month
 * Groups tasks by week, showing weekly totals

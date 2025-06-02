@@ -59,11 +59,11 @@ export function generateWeeklyBreakdown(entries: EnhancedLogEntry[]): number {
  * @returns Total hours logged for the month
  */
 export function logMonthSummary(entries: EnhancedLogEntry[], year: number, monthName: string, isPrevious = false): void {
-    const title = isPrevious ? `${monthName} ${year} (Previous Month):` : `${monthName} ${year}:`;
-    console.log(chalk.green.bold(`\n${title}`));
-
-    if (entries.length === 0) {
+    if (entries.length === 0 && !isPrevious) {
+        const title = isPrevious ? `${monthName} ${year} (Previous Month):` : `${monthName} ${year}:`;
+        console.log(chalk.green.bold(`\n${title}`));
         console.log(chalk.yellow('  No entries found for this month.'));
+        return
     }
     
     // const totalHours = printTaskSummary(entries, '  ');

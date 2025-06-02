@@ -7,6 +7,7 @@ import { formatLocalDateTime } from './utils/date-utils';
 import { existsSync, mkdirSync } from 'fs';
 
 export const STORAGE_FOLDER_NAME = '.TrackCurrentTask';
+export const ACTIVITY_LOG_FILE_PATH = `./${STORAGE_FOLDER_NAME}/activity_log.json`;
 export const CONFIG_FILE_PATH = `./${STORAGE_FOLDER_NAME}/config.json`;
 export const REPO_STATE_FILE_PATH = `./${STORAGE_FOLDER_NAME}/repo_activity_state.json`;
 
@@ -20,17 +21,14 @@ async function main() {
     console.log(chalk.cyan.bold('Git Activity Logger starting...'));
     const config = await loadConfig();
 
-    console.log(chalk.green(`Loaded config with ${chalk.white.bold(config.repositories.length)} repositories`));
+    if (config.repositories.length > 1) {
+      console.log(chalk.green(`Loaded config` + `with ${chalk.white.bold(config.repositories.length)} repositories`));
+    }
 
     // Set up intervals
-    const trackingIntervalMinutes = config.trackingIntervalMinutes;
-
-    console.log(chalk.blue.bold(`Running with the following intervals:`));
-    console.log(chalk.yellow(`- Tracking interval: ${chalk.white(trackingIntervalMinutes.toString())} minutes (how often we check for changes)`));
-
     // Always display summary on startup
     await logMonthlySummary();
-
+    
     // Function to run the check
     const runCheck = async () => {
       try {
@@ -43,8 +41,9 @@ async function main() {
     // Check immediately on startup
     console.log(chalk.blue(`\n[${formatLocalDateTime()}] Starting initial repository check...`));
     await runCheck();
-
+    
     // Set up the tracking interval
+    const trackingIntervalMinutes = config.trackingIntervalMinutes;
     const trackingInterval = setInterval(async () => {
       console.log(chalk.blue(`\n[${formatLocalDateTime()}] Checking repositories for changes...`));
       await runCheck();
@@ -64,11 +63,12 @@ async function main() {
       }, 60 * 60 * 1000);
     }, msUntilNextHour);
 
-    console.log(chalk.blue.bold(`\n🚀 Git Activity Logger is now running. Press Ctrl+C to stop.`));
+    console.log(chalk.blue.bold(`\n🚀 Git Activity Logger is now running.`));
+    console.log(chalk.blue(`While running, it will check for changes every ${chalk.whiteBright(trackingIntervalMinutes)} minutes. Press Ctrl+C to stop.`));
 
     // Keep the process running
     process.on('SIGINT', () => {
-      console.log(chalk.yellow('\n📝 Stopping Git Activity Logger...'));
+      console.log(chalk.yellow('\n🛑 Stopping Git Activity Logger...'));
       clearInterval(trackingInterval);
       process.exit(0);
     });

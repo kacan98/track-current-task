@@ -11,22 +11,21 @@ type DailyEntries = Record<string, EnhancedLogEntry[]>;
 
 // Parse log file entries and enhance with date info
 // Local helper function to get enhanced log entries
-async function getLogFile(filePath: string): Promise<EnhancedLogEntry[]> {
-  const basicEntries = await coreGetLogEntries(filePath);
+async function getLogFile(): Promise<EnhancedLogEntry[]> {
+  const basicEntries = await coreGetLogEntries();
   return enhanceLogEntries(basicEntries);
 }
 
 // Main function to generate the monthly summary
 export async function logMonthlySummary() {
   const config = await loadConfig();
-  const entries = await getLogFile(config.logFilePath);
+  const entries = await getLogFile();
 
   if (entries.length === 0) {
-    console.log(chalk.yellow('No entries found in the log file.'));
     return;
   }
 
-  console.log(chalk.cyan.bold('===================================='));
+  console.log(chalk.cyan.bold('\n===================================='));
   console.log(chalk.cyan.bold('       MONTHLY TIME SUMMARY')); console.log(chalk.cyan.bold('===================================='));
 
   // Get current date details

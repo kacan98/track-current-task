@@ -1,9 +1,10 @@
+import { ACTIVITY_LOG_FILE_PATH } from '..';
 import { Config } from '../config/config-types';
-import { getLogEntries, writeLogFile, getRepoState, writeRepoState } from './file-operations';
+import { getLogEntries, getRepoState, writeLogFile, writeRepoState } from './file-operations';
 import { updateLogForRepository } from './update-log-for-repository';
 
 export async function processAllRepositories(config: Config): Promise<void> {
-  let entries = await getLogEntries(config.logFilePath); // Load existing log entries
+  let entries = await getLogEntries(); // Load existing log entries
   // Make a deep copy of the initial entries for later comparison
   const initialEntries = JSON.stringify(entries);
   const repoState = await getRepoState(); // Load current repository states
@@ -26,8 +27,8 @@ export async function processAllRepositories(config: Config): Promise<void> {
 
   // If any time was logged, write back the log entries
   if (anyActivityLogged) {
-    await writeLogFile(config.logFilePath, entries);
-    console.log(`Updated time log at ${config.logFilePath}`);
+    await writeLogFile(ACTIVITY_LOG_FILE_PATH, entries);
+    console.log(`Updated time log at ${ACTIVITY_LOG_FILE_PATH}`);
   }
 }
 

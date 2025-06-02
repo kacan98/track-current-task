@@ -123,17 +123,6 @@ export async function createConfigInteractively(): Promise<Config> {
         }
     });
 
-    const defaultFileName = 'activity_log.csv';
-    const desktopPath = path.join(process.env.HOME || process.env.USERPROFILE || '', 'Desktop', defaultFileName);
-    const desktopPathExists = existsSync(desktopPath);
-
-    const logPath = await inquirer.prompt({
-        type: 'input',
-        name: 'value',
-        message: 'Where should we save the activity log?',
-        default: desktopPathExists ? desktopPath : `./${defaultFileName}`,
-    });
-
     const taskPattern = await inquirer.prompt({
         type: 'input',
         name: 'value',
@@ -152,8 +141,7 @@ export async function createConfigInteractively(): Promise<Config> {
     const config: Config = {
         repositories,
         trackingIntervalMinutes: trackingInterval.value,
-        logFilePath: logPath.value,
-        taskIdPattern: taskPattern.value
+        taskIdRegEx: taskPattern.value
     };
 
     // Save the config
