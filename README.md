@@ -11,13 +11,16 @@ Tracks time spent on Git branches by monitoring changes in your repositories. It
 * Provides daily activity summaries
 * Generates monthly reports with task breakdowns
 * Groups monthly summaries by week with task details
-* Shows line-level changes for each tracked file
+
+## Use latest release
+- Go to [the latest release](https://github.com/kacan98/track-current-task/releases/latest)
+- on Windows you can add it to a special folder found by searching for "Run", typing in "shell:startup" and putting the .exe file in there to automatically run the executable on startup
+- run it once manually to set up the configuration
 
 ## Quick Start
 1. Install with `npm install`
-2. Create a `config.json` file (see example below)
-3. Run with `npx ts-node src/index.ts`
-4. For a monthly summary, run `npm run summary:month`
+2. Run with `npx ts-node src/index.ts`
+3. For a monthly summary, run `npm run summary:month`
 
 ## Configuration
 ```json
@@ -104,37 +107,5 @@ date,taskId,hours
 * **No time logged?** Make sure you're actively making changes to files in your Git repository
 * **Git errors?** Verify Git is properly installed and the repository paths are correct
 * **Need to reset?** Delete `repo_activity_state.json` to reset tracking baselines
-
-## Configuration Examples
-Two example configurations are provided for different teams:
-
-### DFO Team Configuration
-```json
-{
-  "repositories": [
-    {
-      "path": "K:\\git\\Dynaway.DFO.EAM",
-      "mainBranch": "develop"
-    }
-  ],  "trackingIntervalMinutes": 5,
-  "logFilePath": "./dfo_activity_log.csv",
-  "taskIdPattern": "DFO-\\d+"
-}
-```
-
-### DMO Team Configuration
-```json
-{
-  "repositories": [
-    {
-      "path": "K:\\git\\Dynaway.DMO.EAM",
-      "mainBranch": "main"
-    }
-  ],
-  "trackingIntervalMinutes": 5,
-  "logFilePath": "./dmo_activity_log.csv",
-  "taskIdPattern": "DMO-\\d+"
-}
-```
 
 For more detailed configuration options, check `config.example.json`.

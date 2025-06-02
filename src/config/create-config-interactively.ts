@@ -1,14 +1,15 @@
 import chalk from 'chalk';
-import inquirer from 'inquirer';
 import { existsSync } from 'fs';
-import path from 'path';
 import { writeFile } from 'fs/promises';
-import { Config, RepositoryConfig } from './config-types';
+import inquirer from 'inquirer';
+import path from 'path';
+import { CONFIG_FILE_PATH } from '..';
 import { branchExists, getAvailableBranches } from '../git/git-utils';
+import { Config, RepositoryConfig } from './config-types';
 
 // Interactive configuration setup
 export async function createConfigInteractively(): Promise<Config> {
-    console.log(chalk.cyan.bold('\n🔧 No config.json found. Let\'s set up your Git Activity Logger!\n'));
+    console.log(chalk.cyan.bold(`\n🔧 No ${CONFIG_FILE_PATH} found. Let\`s set up your Git Activity Logger!\n`));
 
     const repositories: RepositoryConfig[] = [];
 
@@ -93,8 +94,6 @@ export async function createConfigInteractively(): Promise<Config> {
             mainBranch: repoAnswers.mainBranch.trim()
         });
 
-        console.log(chalk.green(`✅ Added repository: ${repoAnswers.path}`));
-
         if (repositories.length >= 1) {
             const continueAnswer = await inquirer.prompt([
                 {
@@ -159,8 +158,8 @@ export async function createConfigInteractively(): Promise<Config> {
 
     // Save the config
     try {
-        await writeFile('./config.json', JSON.stringify(config, null, 2), 'utf-8');
-        console.log(chalk.green.bold('\n✅ Configuration saved to config.json'));
+        await writeFile(CONFIG_FILE_PATH, JSON.stringify(config, null, 2), 'utf-8');
+        console.log(chalk.green.bold(`\n✅ Configuration saved to ${CONFIG_FILE_PATH}`));
         console.log(chalk.blue('You can edit this file later to make changes.'));
     } catch (error) {
         console.error(chalk.red('❌ Error saving configuration:'), error);

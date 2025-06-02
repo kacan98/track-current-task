@@ -1,22 +1,22 @@
 import chalk from 'chalk';
-import inquirer from 'inquirer';
 import { existsSync } from 'fs';
-import path from 'path';
 import { readFile } from 'fs/promises';
-import { Config } from './config-types';
+import inquirer from 'inquirer';
+import path from 'path';
+import { CONFIG_FILE_PATH } from '..';
 import { branchExists, getAvailableBranches } from '../git/git-utils';
+import { Config } from './config-types';
 import { createConfigInteractively } from './create-config-interactively';
 
 // Import and read config
 export async function loadConfig(): Promise<Config> {
   try {
     // Check if config.json exists
-    if (!existsSync('./config.json')) {
-      console.log(chalk.yellow('Config file not found. Starting interactive setup...'));
+    if (!existsSync(CONFIG_FILE_PATH)) {
       return await createConfigInteractively();
     }
     
-    const configData = await readFile('./config.json', 'utf-8');
+    const configData = await readFile(CONFIG_FILE_PATH, 'utf-8');
     const config = JSON.parse(configData) as Config;
 
     // Validate config

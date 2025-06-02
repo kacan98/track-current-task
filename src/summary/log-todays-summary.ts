@@ -8,7 +8,7 @@ import { formatLocalDateTime } from '../utils/date-utils';
  * @param config Application configuration
  * @returns The total hours logged today
  */
-export async function getTodaysSummary(config: Config): Promise<number> {
+export async function logTodaySummary(config: Config): Promise<number> {
   const entries = await getLogEntries(config.logFilePath);
   const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 

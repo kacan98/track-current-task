@@ -3,3 +3,4 @@ dist*
 config.json
 *.csv
 repo_activity_state.json
+.TrackCurrentTask/

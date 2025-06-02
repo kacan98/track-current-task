@@ -1,4 +1,5 @@
 import { readFile, writeFile } from 'fs/promises';
+import { REPO_STATE_FILE_PATH } from '..';
 import { RepoState } from './repo-state-types';
 
 export interface LogEntry {
@@ -80,8 +81,6 @@ export async function writeLogFile(filePath: string, entries: LogEntry[]): Promi
     return false;
   }
 }
-
-const REPO_STATE_FILE_PATH = './repo_activity_state.json';
 
 /**
  * Get repository state from state file
