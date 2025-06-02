@@ -479,6 +479,7 @@ async function createConfigInteractively(): Promise<Config> {
         type: 'input',
         name: 'path',
         message: 'Enter the full path to your Git repository:',
+        default: 'K:\\git\\Dynaway.DFO.EAM',
         validate: (input: string) => {
           if (!input.trim()) {
             return 'Please enter a repository path.';
