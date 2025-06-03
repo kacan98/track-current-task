@@ -41,14 +41,14 @@ export async function updateLogForRepository(
   const workingDirDiffStats = await getWorkingDirDiffStats(repoPath);
   const diffStats = await getFileDiffStats(repoPath, baseBranch, branchName);
 
-  // Ensure repoPath and branchName path exists in state
   if (!repoState[repoPath]) {
     repoState[repoPath] = {};
   }
+
   const lastKnown = repoState[repoPath][branchName] || {};
   const lastKnownStatus = lastKnown.status;
   const lastKnownHash = lastKnown.commitHash;
-  const lastKnownBaseHash = lastKnown.masterHash; // keep property name for compatibility
+  const lastKnownBaseHash = lastKnown.masterHash;
   const lastKnownDiffFiles = lastKnown.diffFiles;
   const lastKnownCommits = lastKnown.commitsNotInMaster;
   const lastKnownNumCommits = lastKnown.numCommitsNotInMaster;
@@ -66,36 +66,35 @@ export async function updateLogForRepository(
   // Check if working directory stats have changed
   const workingDirChanged = JSON.stringify(workingDirDiffStats) !== JSON.stringify(lastKnownWorkingDirDiffStats);
   const diffStatsChanged = JSON.stringify(diffStats) !== JSON.stringify(lastKnownDiffStats);
-  
+
   // Check if tracking interval has passed to avoid duplicate logging
   const now = Date.now();
   const timeSinceLastLog = now - lastLogTime;
   const minimumTrackingIntervalMs = config.trackingIntervalMinutes * 60 * 1000;
-  const trackingIntervalPassed = timeSinceLastLog >= minimumTrackingIntervalMs;
+  const leewayMs = 15000;
+  const trackingIntervalPassed = timeSinceLastLog >= (minimumTrackingIntervalMs - leewayMs);
 
   const somethingChanged = (
-    statusChanged || 
-    hashChanged || 
-    baseHashChanged || 
-    diffFilesChanged || 
-    commitsChanged || 
-    numCommitsChanged || 
-    workingDirChanged || 
+    statusChanged ||
+    hashChanged ||
+    baseHashChanged ||
+    diffFilesChanged ||
+    commitsChanged ||
+    numCommitsChanged ||
+    workingDirChanged ||
     diffStatsChanged
   );
 
-  // Only log time if something changed AND enough time has passed since the last log
   const shouldLogTime = somethingChanged && trackingIntervalPassed;
 
   // Always update the state if something changed, even if we don't log time
   if (somethingChanged) {
-    // Update repo state with all details
     repoState[repoPath][branchName] = {
       status: statusToStore,
       commitHash: currentBranchHash,
-      masterHash: baseBranchHash, // keep property name for compatibility
+      masterHash: baseBranchHash,
       diffFiles: diffFiles,
-      commitsNotInMaster: commitsNotInBase, // keep property name for compatibility
+      commitsNotInMaster: commitsNotInBase,
       numCommitsNotInMaster: numCommitsNotInBase,
       diffStats: diffStats,
       workingDirDiffStats: workingDirDiffStats,

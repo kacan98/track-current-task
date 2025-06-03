@@ -4,30 +4,23 @@ import { getLogEntries, getRepoState, writeLogFile, writeRepoState } from './fil
 import { updateLogForRepository } from './update-log-for-repository';
 
 export async function processAllRepositories(config: Config): Promise<void> {
-  let entries = await getLogEntries(); // Load existing log entries
-  // Make a deep copy of the initial entries for later comparison
-  const initialEntries = JSON.stringify(entries);
-  const repoState = await getRepoState(); // Load current repository states
+  let existingEntries = await getLogEntries();
+  const currentRepoState = await getRepoState();
 
   let anyActivityLogged = false;
 
-  // Process repositories from new config format
   const repositories = config.repositories || [];
   
-  // Process repository objects with path and mainBranch
   for (const repo of repositories) {
-    const loggedTimeForRepo = await updateLogForRepository(repo.path, config, entries, repoState, repo.mainBranch);
-    if (loggedTimeForRepo) {
-      anyActivityLogged = true;
-    }
+    anyActivityLogged = await updateLogForRepository(repo.path, config, existingEntries, currentRepoState, repo.mainBranch);
   }
 
   // Always write back the repoState, as it might have changed (new branches, status updates, error states)
-  await writeRepoState(repoState);
+  await writeRepoState(currentRepoState);
 
   // If any time was logged, write back the log entries
   if (anyActivityLogged) {
-    await writeLogFile(ACTIVITY_LOG_FILE_PATH, entries);
+    await writeLogFile(ACTIVITY_LOG_FILE_PATH, existingEntries);
     console.log(`Time log updated in ${ACTIVITY_LOG_FILE_PATH}`);
   }
 }
