@@ -1,11 +1,16 @@
 import fs from 'fs';
+import path from 'path';
+import { resolvePathFromExecutable } from './path-utils';
 
 export const saveFileInFolder = (data: string, folderName: string, customFileNameWithoutExtension: string, fileExtension = 'md', makeFileNameUnique = true): string => {
-    if (!fs.existsSync(folderName) && folderName !== '') {
-        fs.mkdirSync(folderName);
+    // Make folder path relative to executable
+    const absoluteFolderPath = resolvePathFromExecutable(folderName);
+    
+    if (!fs.existsSync(absoluteFolderPath) && folderName !== '') {
+        fs.mkdirSync(absoluteFolderPath, { recursive: true });
     }
 
-    const fileName = `${folderName ? folderName + '/' : ''}` + (makeFileNameUnique ? (getDateForFileName() + "_"): '') + customFileNameWithoutExtension + `.${fileExtension}`;
+    const fileName = path.join(absoluteFolderPath, (makeFileNameUnique ? (getDateForFileName() + "_"): '') + customFileNameWithoutExtension + `.${fileExtension}`);
     fs.writeFileSync(fileName, data);
     return fileName;
 }
