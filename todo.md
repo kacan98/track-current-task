@@ -1,1 +1,2 @@
+- Change it so that when there are no changes, it still saves the current branch name that is checked out.
 - Make it so that I don't need to specify the repositories manually, but instead  specify a folder that contains folders with all my repositories. And then somehow find the default branches automatically.
