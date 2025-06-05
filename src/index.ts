@@ -31,8 +31,6 @@ async function main() {
     }
 
     // Set up intervals
-    // Always display summary on startup
-    await logMonthlySummary();
       // Create countdown spinner instance
     const trackingIntervalMinutes = config.trackingIntervalMinutes;
     const waitingSpinner = createCountdownSpinner(
@@ -61,6 +59,9 @@ async function main() {
     // Check immediately on startup
     console.log(chalk.blue(`\n[${formatLocalDateTime()}] Starting initial repository check...`));
     await runCheck();
+
+    // Always display summary on startup
+    await logMonthlySummary();
     
     // Set up the tracking interval
     const trackingInterval = setInterval(async () => {

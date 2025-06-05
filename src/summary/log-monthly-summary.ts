@@ -25,7 +25,7 @@ export async function logMonthlySummary() {
     return;
   }
 
-  console.log(chalk.cyan.bold('\n===================================='));
+  console.log(chalk.cyan.bold('\n\n===================================='));
   console.log(chalk.cyan.bold('       MONTHLY TIME SUMMARY')); console.log(chalk.cyan.bold('===================================='));
 
   // Get current date details

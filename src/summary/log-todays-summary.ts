@@ -15,7 +15,7 @@ export async function logTodaySummary(): Promise<number> {
   const todayEntries = entries.filter(entry => entry.date === today);
 
   if (todayEntries.length === 0) {
-    console.log(chalk.blue(`\n[${formatLocalDateTime()}] Today's Summary: ${chalk.yellow('No time logged yet today.')}`));
+    console.log(chalk.blue(`\n\n[${formatLocalDateTime()}] Today's Summary: ${chalk.yellow('No time logged yet today.')}\n\n`));
     return 0;
   }
   
@@ -29,7 +29,7 @@ export async function logTodaySummary(): Promise<number> {
   });
   
   // Display summary
-  console.log(chalk.blue(`\n[${formatLocalDateTime()}] Today's Summary:`));
+  console.log(chalk.blue(`\n\n[${formatLocalDateTime()}] Today's Summary:`));
   
   Object.entries(taskSummary)
     .sort(([, hoursA], [, hoursB]) => hoursB - hoursA) // Sort by hours descending
@@ -37,7 +37,7 @@ export async function logTodaySummary(): Promise<number> {
       console.log(chalk.green(`  • ${chalk.cyan(taskId)}: ${chalk.yellow(hours.toFixed(2))} hours`));
     });
   
-  console.log(chalk.blue(`  ${chalk.white.bold('Total')}: ${chalk.yellow.bold(totalHours.toFixed(2))} hours`));
+  console.log(chalk.blue(`  ${chalk.white.bold('Total')}: ${chalk.yellow.bold(totalHours.toFixed(2))} hours\n\n`));
   
   return totalHours;
 }
