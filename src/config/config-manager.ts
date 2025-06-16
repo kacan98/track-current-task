@@ -15,7 +15,7 @@ export async function loadConfig(): Promise<Config> {
     if (!existsSync(CONFIG_FILE_PATH)) {
       return await createConfigInteractively();
     }
-    
+
     const configData = await readFile(CONFIG_FILE_PATH, 'utf-8');
     const config = JSON.parse(configData) as Config;
 
@@ -23,17 +23,17 @@ export async function loadConfig(): Promise<Config> {
     if (!config.repositories || !Array.isArray(config.repositories)) {
       throw new Error('Config is missing repositories array');
     }
-    
+
     // Validate each repository and its main branch
     for (const repo of config.repositories) {
       if (!repo.path) {
         throw new Error('Repository configuration is missing path');
       }
-      
+
       if (!existsSync(repo.path)) {
         throw new Error(`Repository path does not exist: ${repo.path}`);
       }
-      
+
       if (!existsSync(path.join(repo.path, '.git'))) {
         throw new Error(`Directory is not a Git repository (no .git folder found): ${repo.path}`);
       }
@@ -45,10 +45,10 @@ export async function loadConfig(): Promise<Config> {
           let branchList = '';
           if (availableBranches.length > 0) {
             // Find common main branch candidates
-            const commonMainBranches = availableBranches.filter(branch => 
+            const commonMainBranches = availableBranches.filter(branch =>
               ['main', 'master', 'develop', 'development', 'dev'].includes(branch.toLowerCase())
             );
-            
+
             if (commonMainBranches.length > 0) {
               branchList = ` Common main branches: ${commonMainBranches.join(', ')}`;
             } else {
@@ -63,17 +63,16 @@ export async function loadConfig(): Promise<Config> {
         }
       }
     }
-    
+
     if (!config.trackingIntervalMinutes || config.trackingIntervalMinutes <= 0) {
       config.trackingIntervalMinutes = 5;
       console.log('Using default tracking interval: 5 minutes');
     }
-    
     if (!config.taskIdRegEx) {
       config.taskIdRegEx = 'DFO-\\d+';
       console.log('Using default task ID pattern: DFO-\\d+');
     }
-    
+
     return config;
   } catch (error: any) {
     if (error.code === 'ENOENT') {
@@ -81,10 +80,10 @@ export async function loadConfig(): Promise<Config> {
       console.log(chalk.yellow('Config file not found. Starting interactive setup...'));
       return await createConfigInteractively();
     }
-    
+
     console.error('Error loading config:', error.message);
     console.log(chalk.yellow('\nWould you like to create a new configuration? Your existing config.json may be corrupted.'));
-    
+
     const answer = await inquirer.prompt([
       {
         type: 'confirm',
@@ -93,7 +92,7 @@ export async function loadConfig(): Promise<Config> {
         default: true
       }
     ]);
-    
+
     if (answer.createNew) {
       return await createConfigInteractively();
     } else {

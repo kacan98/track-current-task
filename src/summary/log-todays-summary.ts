@@ -1,13 +1,14 @@
 import chalk from 'chalk';
-import { Config } from '../config/config-types';
+import { loadConfig } from '../config/config-manager';
 import { getLogEntries } from '../core/file-operations';
-import { formatLocalDateTime } from '../utils/date-utils';
+import { formatLocalDateTime, generateTaskUrl } from '../utils/date-utils';
 
 /**
  * Get and display today's summary of logged hours
  * @returns The total hours logged today
  */
 export async function logTodaySummary(): Promise<number> {
+  const config = await loadConfig();
   const entries = await getLogEntries();
   const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
@@ -30,14 +31,19 @@ export async function logTodaySummary(): Promise<number> {
   
   // Display summary
   console.log(chalk.blue(`\n\n[${formatLocalDateTime()}] Today's Summary:`));
-  
-  Object.entries(taskSummary)
+    Object.entries(taskSummary)
     .sort(([, hoursA], [, hoursB]) => hoursB - hoursA) // Sort by hours descending
     .forEach(([taskId, hours]) => {
-      console.log(chalk.green(`  • ${chalk.cyan(taskId)}: ${chalk.yellow(hours.toFixed(2))} hours`));
+      const taskUrl = generateTaskUrl(taskId, config.taskTrackingUrl);
+      
+      let taskDisplay = chalk.cyan(taskId);
+      if (taskUrl) {
+        taskDisplay = chalk.cyan(taskId) + chalk.gray(` → ${taskUrl}`);
+      }
+      
+      console.log(chalk.green(`  • ${taskDisplay}: ${chalk.yellow(hours.toFixed(2))} hours`));
     });
-  
-  console.log(chalk.blue(`  ${chalk.white.bold('Total')}: ${chalk.yellow.bold(totalHours.toFixed(2))} hours\n\n`));
+    console.log(chalk.blue(`  ${chalk.white.bold('Total')}: ${chalk.yellow.bold(totalHours.toFixed(2))} hours\n\n`));
   
   return totalHours;
 }

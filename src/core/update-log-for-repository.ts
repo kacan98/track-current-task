@@ -124,7 +124,7 @@ export async function updateLogForRepository(
       return false;
     }
   } else {
-    console.log(chalk.gray(`No new changes in ${chalk.cyan(repoPath)} on branch ${chalk.cyan(branchName)}. No time logged.`));
+    console.log(chalk.gray(`No new changes in ${chalk.cyan(repoPath)} on branch ${chalk.cyan(branchName)}.`));
     return false;
   }
 }

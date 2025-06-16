@@ -67,21 +67,8 @@ async function main() {
     const trackingInterval = setInterval(async () => {
       console.log(chalk.blue(`\n[${formatLocalDateTime()}] Checking repositories for changes...`));
       await runCheck();
+      await logTodaySummary();
     }, trackingIntervalMinutes * 60 * 1000);
-
-    // Set up daily summary display (every hour on the hour)
-    const now = new Date();
-    const msUntilNextHour = (60 - now.getMinutes()) * 60 * 1000 - now.getSeconds() * 1000 - now.getMilliseconds();
-
-    setTimeout(() => {
-      // Display summary immediately when we hit the hour
-      logTodaySummary();
-
-      // Then set up interval to display every hour
-      setInterval(() => {
-        logTodaySummary();
-      }, 60 * 60 * 1000);
-    }, msUntilNextHour);
 
     console.log(chalk.blue.bold(`\n🚀 Git Activity Logger is now running.`));
     console.log(chalk.blue(`While running, it will check for changes every ${chalk.whiteBright(trackingIntervalMinutes)} minutes. Press Ctrl+C to stop.`));    // Keep the process running

@@ -31,6 +31,19 @@ export function extractTaskId(branchName: string, pattern?: string): string | nu
 }
 
 /**
+ * Generate a clickable URL for a task ID if taskTrackingUrl is configured
+ */
+export function generateTaskUrl(taskId: string, baseUrl?: string): string | null {
+  if (!baseUrl || !taskId) {
+    return null;
+  }
+  
+  // Ensure baseUrl ends with a slash or is ready for concatenation
+  const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl : baseUrl + '/';
+  return cleanBaseUrl + taskId;
+}
+
+/**
  * Format hours as "Xh Ym"
  */
 export function getFormattedHours(hours: number): string {
@@ -59,6 +72,5 @@ export function getMonthDateRange(year: number, month: number): { firstDay: stri
  */
 export function getFormattedWeekRange(weekStart: Date, weekEnd: Date): string {
   const startStr = weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  const endStr = weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  return `${startStr} - ${endStr}`;
+  const endStr = weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });  return `${startStr} - ${endStr}`;
 }

@@ -1,4 +1,5 @@
 import chalk from 'chalk';
+import { Config } from '../config/config-types';
 import { EnhancedLogEntry } from '../core/file-operations';
 import { getFormattedWeekRange, getFormattedHours } from '../utils/date-utils';
 import { printTaskSummary, renderDailyDetails } from './summary-formatters';
@@ -9,9 +10,10 @@ type WeeklyEntries = Record<number, EnhancedLogEntry[]>;
 /**
  * Generate weekly breakdown with task summary and daily details
  * @param entries Log entries to process
+ * @param config Configuration object containing taskTrackingUrl
  * @returns Number of weeks rendered
  */
-export function generateWeeklyBreakdown(entries: EnhancedLogEntry[]): number {
+export function generateWeeklyBreakdown(entries: EnhancedLogEntry[], config: Config): number {
     // Group entries by week
     const weeklyEntries: WeeklyEntries = {};
     entries.forEach(entry => {
@@ -38,13 +40,11 @@ export function generateWeeklyBreakdown(entries: EnhancedLogEntry[]): number {
         const weeklyHours = entriesForWeek.reduce((sum, entry) => sum + entry.hours, 0);
 
         // Print week header with date range
-        console.log(chalk.magenta.bold(`\n  ${getFormattedWeekRange(weekStart, weekEnd)} (Week ${weekNum}): ${chalk.yellow(getFormattedHours(weeklyHours))}`));
-
-        // Print task breakdown for the week
-        printTaskSummary(entriesForWeek, '    ');
+        console.log(chalk.magenta.bold(`\n  ${getFormattedWeekRange(weekStart, weekEnd)} (Week ${weekNum}): ${chalk.yellow(getFormattedHours(weeklyHours))}`));        // Print task breakdown for the week
+        printTaskSummary(entriesForWeek, config, '    ');
         // Print daily details
         console.log(chalk.blue(`\n    Daily Details:`));
-        renderDailyDetails(entriesForWeek);
+        renderDailyDetails(entriesForWeek, config);
     });
 
     return weeks.length;
@@ -55,10 +55,11 @@ export function generateWeeklyBreakdown(entries: EnhancedLogEntry[]): number {
  * @param entries Log entries for the month
  * @param year Year of the month
  * @param monthName Name of the month
+ * @param config Configuration object containing taskTrackingUrl
  * @param isPrevious Whether this is the previous month
  * @returns Total hours logged for the month
  */
-export function logMonthSummary(entries: EnhancedLogEntry[], year: number, monthName: string, isPrevious = false): void {
+export function logMonthSummary(entries: EnhancedLogEntry[], year: number, monthName: string, config: Config, isPrevious = false): void {
     if (entries.length === 0 && !isPrevious) {
         const title = isPrevious ? `${monthName} ${year} (Previous Month):` : `${monthName} ${year}:`;
         console.log(chalk.green.bold(`\n${title}`));
@@ -66,8 +67,8 @@ export function logMonthSummary(entries: EnhancedLogEntry[], year: number, month
         return
     }
     
-    // const totalHours = printTaskSummary(entries, '  ');
+    // const totalHours = printTaskSummary(entries, config, '  ');
     // console.log(chalk.green.bold(`\n  Total Hours: ${getFormattedHours(totalHours)}`));
 
-    generateWeeklyBreakdown(entries);
+    generateWeeklyBreakdown(entries, config);
 }

@@ -1,6 +1,7 @@
 import chalk from 'chalk';
+import { Config } from '../config/config-types';
 import { EnhancedLogEntry } from '../core/file-operations';
-import { getFormattedHours } from '../utils/date-utils';
+import { getFormattedHours, generateTaskUrl } from '../utils/date-utils';
 
 // Utility types for grouping data
 type TaskSummary = Record<string, number>;
@@ -10,7 +11,7 @@ type DailyEntries = Record<string, EnhancedLogEntry[]>;
  * Calculate and print task summary
  * Returns the total hours
  */
-export function printTaskSummary(entries: EnhancedLogEntry[], indent = ''): number {
+export function printTaskSummary(entries: EnhancedLogEntry[], config: Config, indent = ''): number {
   const taskSummary: TaskSummary = {};
   let totalHours = 0;
   
@@ -21,10 +22,17 @@ export function printTaskSummary(entries: EnhancedLogEntry[], indent = ''): numb
   });
     // Print task breakdown sorted by hours (most to least)
   Object.entries(taskSummary)
-    .sort(([, hoursA], [, hoursB]) => hoursB - hoursA)
-    .forEach(([taskId, hours]) => {
+    .sort(([, hoursA], [, hoursB]) => hoursB - hoursA).forEach(([taskId, hours]) => {
       const percentage = totalHours > 0 ? (hours / totalHours * 100).toFixed(1) : '0.0';
-      console.log(`${indent}${chalk.cyan(taskId)}: ${chalk.yellow(getFormattedHours(hours))} (${percentage}%)`);
+      const taskUrl = generateTaskUrl(taskId, config.taskTrackingUrl);
+      
+      let taskDisplay = chalk.cyan(taskId);
+      if (taskUrl) {
+        // Display URL in a PowerShell-friendly way
+        taskDisplay = chalk.cyan(taskId) + chalk.gray(` → ${taskUrl}`);
+      }
+      
+      console.log(`${indent}${taskDisplay}: ${chalk.yellow(getFormattedHours(hours))} (${percentage}%)`);
     });
   
   return totalHours;
@@ -33,9 +41,10 @@ export function printTaskSummary(entries: EnhancedLogEntry[], indent = ''): numb
 /**
  * Render daily details with task breakdown
  * @param entriesForWeek Entries for a specific week
+ * @param config Configuration object containing taskTrackingUrl
  * @returns Total number of days rendered
  */
-export function renderDailyDetails(entriesForWeek: EnhancedLogEntry[]): number {
+export function renderDailyDetails(entriesForWeek: EnhancedLogEntry[], config: Config): number {
   // Group entries by day
   const dailyEntries: DailyEntries = {};
   entriesForWeek.forEach(entry => {
@@ -56,8 +65,7 @@ export function renderDailyDetails(entriesForWeek: EnhancedLogEntry[]): number {
       console.log(`    ${chalk.cyan(formattedDate)}: ${chalk.yellow(getFormattedHours(dailyHours))}`);
       
       // Print tasks for each day
-    printTaskSummary(entriesForDay, '      ');
+    printTaskSummary(entriesForDay, config, '      ');
   });
-  
-  return days.length;
+    return days.length;
 }

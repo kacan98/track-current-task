@@ -51,18 +51,19 @@ export async function logMonthlySummary() {
     (entry: EnhancedLogEntry) => entry.date >= currentMonthStart && entry.date <= currentMonthEnd
   );
   // Get month names
-  const currentMonthName = new Date(currentMonthStart).toLocaleString('default', { month: 'long' });
-
-  // Print current month summary
-  logMonthSummary(currentMonthEntries, currentYear, currentMonthName);
+  const currentMonthName = new Date(currentMonthStart).toLocaleString('default', { month: 'long' });  // Print current month summary
+  logMonthSummary(currentMonthEntries, currentYear, currentMonthName, config);
+  
+  let allDisplayedEntries = [...currentMonthEntries];
+  
   // Show previous month if we're in the first week of the current month
   if (showPreviousMonth) {
     const prevMonthEntries = entries.filter(
       (entry: EnhancedLogEntry) => entry.date >= prevMonthStart && entry.date <= prevMonthEnd
     );
 
-    const prevMonthName = new Date(prevMonthStart).toLocaleString('default', { month: 'long' });
-    logMonthSummary(prevMonthEntries, prevYear, prevMonthName, true);
+    const prevMonthName = new Date(prevMonthStart).toLocaleString('default', { month: 'long' });    logMonthSummary(prevMonthEntries, prevYear, prevMonthName, config, true);
+    allDisplayedEntries = [...allDisplayedEntries, ...prevMonthEntries];
   }
 
   console.log(chalk.cyan.bold('\n===================================='));

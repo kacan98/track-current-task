@@ -32,13 +32,15 @@ Tracks time spent on Git branches by monitoring changes in your repositories. It
     }
   ],  
   "trackingIntervalMinutes": 15,
-  "taskIdRegEx": "D[FM]O-\\d+"
+  "taskIdRegEx": "D[FM]O-\\d+",
+  "taskTrackingUrl": "https://jira.eg.dk/browse/"
 }
 ```
 
 **Configuration Options:**
 * `trackingIntervalMinutes`: How often to check for changes (e.g., 15 minutes) and how much we register if changes are found.
 * `taskIdRegEx`: Regular expression to extract task IDs from branch names (e.g., `"D[FM]O-\\d+"` for both DFO and DMO tickets). Defaults to branch name if not found.
+* `taskTrackingUrl`: Optional base URL for your task tracking system (e.g., `"https://jira.eg.dk/browse/"`). When configured, task IDs will be displayed with clickable links in summaries.
 
 ## When does it log
 The tool logs time when:
@@ -62,21 +64,21 @@ Example output:
 ====================================
 
 Current Month (June 2023):
-  DFO-5678: 12h 30m (65.2%)
-  DFO-1234: 6h 45m (34.8%)
+  DFO-5678 (https://jira.eg.dk/browse/DFO-5678): 12h 30m (65.2%)
+  DFO-1234 (https://jira.eg.dk/browse/DFO-1234): 6h 45m (34.8%)
 
   Total Hours: 19h 15m
 
   Weekly Breakdown:
 
   Week 1 (Jun 1 - Jun 4): 7h 15m
-    DFO-1234: 4h 30m (62.1%)
-    DFO-5678: 2h 45m (37.9%)
+    DFO-1234 (https://jira.eg.dk/browse/DFO-1234): 4h 30m (62.1%)
+    DFO-5678 (https://jira.eg.dk/browse/DFO-5678): 2h 45m (37.9%)
 
     Daily Details:
     Thu, Jun 1: 3h 45m
-      DFO-1234: 2h 30m
-      DFO-5678: 1h 15m
+      DFO-1234 (https://jira.eg.dk/browse/DFO-1234): 2h 30m
+      DFO-5678 (https://jira.eg.dk/browse/DFO-5678): 1h 15m
     Fri, Jun 2: 3h 30m
       DFO-1234: 2h 0m
       DFO-5678: 1h 30m

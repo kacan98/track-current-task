@@ -122,7 +122,6 @@ export async function createConfigInteractively(): Promise<Config> {
             return true;
         }
     });
-
     const taskPattern = await inquirer.prompt({
         type: 'input',
         name: 'value',
@@ -138,10 +137,27 @@ export async function createConfigInteractively(): Promise<Config> {
         }
     });
 
-    const config: Config = {
+    const taskTrackingUrl = await inquirer.prompt({
+        type: 'input',
+        name: 'value',
+        message: 'Task tracking system base URL (optional, e.g., https://jira.eg.dk/browse/):',
+        default: 'https://jira.eg.dk/browse/',
+        validate: (input: string) => {
+            if (!input.trim()) {
+                return true; // Empty is allowed since it's optional
+            }
+            try {
+                new URL(input);
+                return true;
+            } catch (e) {
+                return 'Please enter a valid URL or leave empty.';
+            }
+        }
+    });    const config: Config = {
         repositories,
         trackingIntervalMinutes: trackingInterval.value,
-        taskIdRegEx: taskPattern.value
+        taskIdRegEx: taskPattern.value,
+        taskTrackingUrl: taskTrackingUrl.value.trim() || undefined
     };
 
     // Save the config
