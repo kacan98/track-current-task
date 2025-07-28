@@ -66,7 +66,7 @@ function App() {
 
   return (
     <div className="fixed inset-0 min-h-screen w-screen bg-gradient-to-br from-blue-50 to-blue-100 flex flex-col items-center justify-start py-6 px-1 z-0 overflow-auto">
-      <div className="relative w-full max-w-2xl bg-white/80 rounded-2xl shadow-xl border border-blue-100 p-3 sm:p-6 z-10 flex flex-col">
+      <div className="relative w-full max-w-5xl bg-white/80 rounded-2xl shadow-xl border border-blue-100 p-3 sm:p-6 z-10 flex flex-col">
         <h1 className="text-3xl font-extrabold mb-4 text-center text-blue-700 tracking-tight drop-shadow">Hours</h1>
         <div className="mb-4 flex flex-col items-center justify-center">
           <DateRangePicker from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />

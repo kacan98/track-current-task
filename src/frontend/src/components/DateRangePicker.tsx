@@ -1,3 +1,5 @@
+import { Button } from './Button';
+
 interface DateRangePickerProps {
   from: string;
   to: string;
@@ -57,13 +59,14 @@ export function DateRangePicker({ from, to, onChange }: DateRangePickerProps) {
           { label: 'Last 30 days', range: 'last30Days' },
           { label: 'This year', range: 'thisYear' },
         ].map(({ label, range }) => (
-          <button
+          <Button
             key={range}
-            className="px-3 py-1 rounded-full bg-blue-100 hover:bg-blue-200 text-blue-700 font-semibold transition cursor-pointer border border-blue-200"
+            variant="compact"
+            className="px-3 py-1 rounded-full font-semibold border"
             onClick={() => { const r = getQuickRange(range as any); onChange(r.from, r.to); }}
           >
             {label}
-          </button>
+          </Button>
         ))}
       </div>
       <div className="flex flex-col sm:flex-row gap-4 items-center justify-center w-full">
