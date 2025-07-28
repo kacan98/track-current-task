@@ -9,8 +9,11 @@
   "scripts": {
     "build": "tsc",
     "build:executables": "npm run build && pkg . --out-path ./dist-executables --targets node18-win-x64,node18-macos-x64",
-    "start": "ts-node src/index.ts",
-    "dev": "nodemon --exec ts-node src/index.ts"
+    "start": "concurrently \"npm run frontend:dev\" \"npm run backend:dev\"",
+    "dev": "nodemon --exec ts-node src/index.ts",
+    "frontend:dev": "npm run dev --prefix src/frontend",
+    "backend": "ts-node src/backend/index.ts",
+    "backend:dev": "nodemon --watch src/backend --ext ts --exec ts-node src/backend/index.ts"
   },
   "repository": {
     "type": "git",
@@ -31,14 +34,21 @@
   "homepage": "https://github.com/kacan98/track-current-task#readme",
   "dependencies": {
     "@types/inquirer": "^9.0.8",
-    "@types/node": "^20.11.20",
     "chalk": "^4.1.2",
     "inquirer": "^12.6.3",
-    "ts-node": "^10.9.2",
     "typescript": "^5.3.3"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.1.0",
+    "axios": "^1.11.0",
+    "concurrently": "^9.2.0",
+    "cors": "^2.8.5",
     "esbuild": "^0.25.5",
-    "pkg": "^5.8.1"
+    "express": "^5.1.0",
+    "nodemon": "^3.1.10",
+    "pkg": "^5.8.1",
+    "ts-node": "^10.9.2"
   }
 }

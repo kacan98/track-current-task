@@ -2,6 +2,8 @@ import { DateRangePicker } from './components/DateRangePicker';
 import { LogTable } from './components/LogTable';
 import type { LogEntry } from './components/types';
 import { useEffect, useState } from 'react';
+import { JiraCredentialsForm } from './components/JiraCredentialsForm';
+import { logWorkToJira } from './services/JiraIntegration';
 
 function getEntriesInRange(entries: LogEntry[], from: Date, to: Date): LogEntry[] {
   return entries.filter(e => {
@@ -54,10 +56,18 @@ function App() {
       .catch(() => setError('Failed to load .TrackCurrentTask/activity_log.csv'));
   }, []);
 
-  const handleSendToJira = (entry: LogEntry) => {
+  const handleSendToJira = async (entry: LogEntry) => {
     const key = `${entry.taskId}|${entry.date}`;
     const hoursValue = editedHours[key] !== undefined ? parseFloat(editedHours[key]) : entry.hours;
-    alert(`Send to Jira: ${entry.taskId} on ${entry.date} - ${hoursValue}h`);
+    try {
+      // Format date for Jira: 'YYYY-MM-DDTHH:mm:ss.SSSZ'
+      const started = `${entry.date}T09:00:00.000+0000`;
+      await logWorkToJira(entry.taskId, hoursValue*60*60, started);
+      alert('Worklog sent to Jira!');
+      // Optionally update UI to mark as sent
+    } catch (e: any) {
+      alert('Failed to send worklog to Jira: ' + (e?.message || e));
+    }
   };
 
   const filtered = getEntriesInRange(entries, new Date(from), new Date(to));
@@ -68,6 +78,7 @@ function App() {
     <div className="fixed inset-0 min-h-screen w-screen bg-gradient-to-br from-blue-50 to-blue-100 flex flex-col items-center justify-start py-6 px-1 z-0 overflow-auto">
       <div className="relative w-full max-w-5xl bg-white/80 rounded-2xl shadow-xl border border-blue-100 p-3 sm:p-6 z-10 flex flex-col">
         <h1 className="text-3xl font-extrabold mb-4 text-center text-blue-700 tracking-tight drop-shadow">Hours</h1>
+        <JiraCredentialsForm />
         <div className="mb-4 flex flex-col items-center justify-center">
           <DateRangePicker from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
         </div>

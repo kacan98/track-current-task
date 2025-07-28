@@ -25,6 +25,9 @@ export default defineConfig({
     tailwindcss(),
   ],
   server: {
+    proxy: {
+      '/api/jira': 'http://localhost:9999',
+    },
     fs: {
       allow: [
         resolve(__dirname, '../../.TrackCurrentTask'),
