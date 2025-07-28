@@ -1,9 +1,10 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { getDayOfWeek } from '../components/utils';
 import type { LogEntry } from '../components/types';
 import { Button } from './Button';
 import { HourAdjustButtons } from './HourAdjustButtons';
 import { getJiraTaskUrl } from './jira-utils';
+import { getJiraIssuesDetails } from '../services/JiraIntegration';
 
 interface LogTableProps {
   entries: LogEntry[];
@@ -38,11 +39,82 @@ export function LogTable({ entries, editedHours, setEditedHours, handleSendToJir
     return sorted;
   }, [entries, sortColumn, sortDirection]);
 
+  // --- Jira headings state ---
+  const [issueHeadings, setIssueHeadings] = useState<Record<string, string>>({});
+  const [loadingHeadings, setLoadingHeadings] = useState<Record<string, boolean>>({});
+  const [headingsError, setHeadingsError] = useState<Record<string, string>>({});
+
+  // Detect all unique DFO-1234 task IDs in the entries
+  const dfoTaskIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const entry of entries) {
+      if (/^DFO-\d+$/.test(entry.taskId)) ids.add(entry.taskId);
+    }
+    return Array.from(ids);
+  }, [entries]);
+
+  // Fetch Jira headings for DFO-1234 tasks
+  useEffect(() => {
+    let cancelled = false;
+    if (dfoTaskIds.length === 0) {
+      setIssueHeadings({});
+      setLoadingHeadings({});
+      setHeadingsError({});
+      return;
+    }
+    // Set loading state for all
+    setLoadingHeadings(Object.fromEntries(dfoTaskIds.map(id => [id, true])));
+    setHeadingsError({});
+    getJiraIssuesDetails(dfoTaskIds)
+      .then(issues => {
+        if (cancelled) return;
+        const headings: Record<string, string> = {};
+        for (const issue of issues) {
+          headings[issue.key] = issue.fields?.summary || '(No summary)';
+        }
+        setIssueHeadings(headings);
+        setLoadingHeadings(Object.fromEntries(dfoTaskIds.map(id => [id, false])));
+      })
+      .catch(e => {
+        if (cancelled) return;
+        const errMsg = e?.message || 'Failed to fetch Jira headings';
+        setHeadingsError(Object.fromEntries(dfoTaskIds.map(id => [id, errMsg])));
+        setLoadingHeadings(Object.fromEntries(dfoTaskIds.map(id => [id, false])));
+      });
+    return () => { cancelled = true; };
+  }, [dfoTaskIds.join(',')]);
+
+  // --- Color coding for same tasks ---
+  // Assign a color to each unique DFO-1234 taskId
+  const dfoTaskColorMap = useMemo(() => {
+    const ids = dfoTaskIds;
+    const palette = [
+      'bg-yellow-100 text-yellow-900',
+      'bg-green-100 text-green-900',
+      'bg-blue-100 text-blue-900',
+      'bg-pink-100 text-pink-900',
+      'bg-purple-100 text-purple-900',
+      'bg-orange-100 text-orange-900',
+      'bg-teal-100 text-teal-900',
+      'bg-red-100 text-red-900',
+      'bg-indigo-100 text-indigo-900',
+      'bg-lime-100 text-lime-900',
+      'bg-cyan-100 text-cyan-900',
+      'bg-fuchsia-100 text-fuchsia-900',
+    ];
+    const map: Record<string, string> = {};
+    ids.forEach((id, i) => {
+      map[id] = palette[i % palette.length];
+    });
+    return map;
+  }, [dfoTaskIds.join(',')]);
+
   // Header config
   const headers = [
     { key: 'date', label: 'Date' },
     { key: 'day', label: 'Day' },
     { key: 'task', label: 'Task' },
+    { key: 'heading', label: 'Heading' },
     { key: 'hours', label: 'Hours' },
     { key: 'sent', label: 'Sent' },
     { key: 'action', label: 'Action', sortable: false },
@@ -81,25 +153,42 @@ export function LogTable({ entries, editedHours, setEditedHours, handleSendToJir
           <tbody>
             {sortedEntries.length === 0 ? (
               <tr>
-                <td colSpan={6} className="text-center py-8 text-gray-400 text-lg">No entries in this range.</td>
+                <td colSpan={headers.length} className="text-center py-8 text-gray-400 text-lg">No entries in this range.</td>
               </tr>
             ) : (
               sortedEntries.map((entry, i) => {
                 const key = `${entry.taskId}|${entry.date}`;
+                // --- Heading cell logic ---
+                let headingCell: React.ReactNode = '';
+                let taskCellClass = '';
+                if (/^DFO-\d+$/.test(entry.taskId)) {
+                  taskCellClass = dfoTaskColorMap[entry.taskId] + ' font-mono rounded px-2 py-1';
+                  if (loadingHeadings[entry.taskId]) {
+                    headingCell = <span className="italic text-blue-400">Loading...</span>;
+                  } else if (headingsError[entry.taskId]) {
+                    headingCell = <span className="text-red-500">{headingsError[entry.taskId]}</span>;
+                  } else {
+                    headingCell = issueHeadings[entry.taskId] || <span className="text-gray-400">Not found</span>;
+                  }
+                } else {
+                  taskCellClass = 'text-gray-300';
+                  headingCell = <span className="text-gray-300">—</span>;
+                }
                 return (
                   <tr key={i} className="border-t hover:bg-blue-50 transition-colors">
                     <td className="px-3 py-2 whitespace-nowrap text-center">{entry.date}</td>
                     <td className="px-3 py-2 whitespace-nowrap text-center">{getDayOfWeek(entry.date)}</td>
-                    <td className="px-3 py-2 font-mono text-blue-800/90 whitespace-nowrap text-center">
+                    <td className={`px-3 py-2 whitespace-nowrap text-center ${taskCellClass}`}>
                       {(() => {
                         const url = getJiraTaskUrl(entry.taskId);
                         return url ? (
-                          <a href={url} target="_blank" rel="noopener noreferrer" className="underline text-blue-700 hover:text-blue-900">{entry.taskId}</a>
+                          <a href={url} target="_blank" rel="noopener noreferrer" className="underline">{entry.taskId}</a>
                         ) : (
                           entry.taskId
                         );
                       })()}
                     </td>
+                    <td className="px-3 py-2 text-center">{headingCell}</td>
                     <td className="px-3 py-2 text-center">
                       <HourAdjustButtons
                         value={editedHours[key] !== undefined ? editedHours[key] : entry.hours}
