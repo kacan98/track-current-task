@@ -1,0 +1,1 @@
+When running commands use ; and not && when you wanna do multiple commands at the same time.
