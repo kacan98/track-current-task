@@ -66,3 +66,23 @@ export async function getJiraIssuesDetails(issueKeys: string[]): Promise<any[]> 
   const data = await res.json();
   return data.issues || [];
 }
+
+// Fetch details for multiple Jira worklogs by their IDs
+export async function getJiraWorklogsDetails(worklogIds: number[]): Promise<any[]> {
+  const token = getCachedJiraToken();
+  if (!token) throw new Error('No Jira token found. Please authenticate first.');
+  const res = await fetch(baseUrl + '/api/jira/worklogs/details', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      token,
+      worklogIds
+    })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.error || 'Failed to fetch Jira worklog details');
+  }
+  const data = await res.json();
+  return data.worklogs || [];
+}

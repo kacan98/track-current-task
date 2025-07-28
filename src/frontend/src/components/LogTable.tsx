@@ -4,7 +4,7 @@ import type { LogEntry } from '../components/types';
 import { Button } from './Button';
 import { HourAdjustButtons } from './HourAdjustButtons';
 import { getJiraTaskUrl } from './jira-utils';
-import { getJiraIssuesDetails } from '../services/JiraIntegration';
+import { getJiraIssuesDetails, getJiraWorklogsDetails, getCachedJiraToken } from '../services/JiraIntegration';
 
 interface LogTableProps {
   entries: LogEntry[];
@@ -53,7 +53,6 @@ export function LogTable({ entries, editedHours, setEditedHours, handleSendToJir
     return Array.from(ids);
   }, [entries]);
 
-  // Fetch Jira headings for DFO-1234 tasks
   useEffect(() => {
     let cancelled = false;
     if (dfoTaskIds.length === 0) {
@@ -108,6 +107,75 @@ export function LogTable({ entries, editedHours, setEditedHours, handleSendToJir
     });
     return map;
   }, [dfoTaskIds.join(',')]);
+
+  // --- Jira worklog totals state ---
+  const [worklogTotals, setWorklogTotals] = useState<Record<string, number>>({});
+  const [loadingWorklogs, setLoadingWorklogs] = useState<Record<string, boolean>>({});
+  const [worklogError, setWorklogError] = useState<Record<string, string>>({});
+
+  // For each row (taskId+date), fetch total hours registered in Jira for that task on that day
+  useEffect(() => {
+    let cancelled = false;
+    // Find all unique (taskId, date) pairs for DFO tasks
+    const pairs = entries
+      .filter(e => /^DFO-\d+$/.test(e.taskId))
+      .map(e => ({ taskId: e.taskId, date: e.date }));
+    const uniquePairs = Array.from(new Set(pairs.map(p => `${p.taskId}|${p.date}`)))
+      .map(k => {
+        const [taskId, date] = k.split('|');
+        return { taskId, date };
+      });
+    if (uniquePairs.length === 0) {
+      setWorklogTotals({});
+      setLoadingWorklogs({});
+      setWorklogError({});
+      return;
+    }
+    setLoadingWorklogs(Object.fromEntries(uniquePairs.map(({taskId, date}) => [`${taskId}|${date}`, true])));
+    setWorklogError({});
+    // For each unique taskId, fetch all worklogs, then filter by date
+    Promise.all(
+      dfoTaskIds.map(async taskId => {
+        try {
+          // Get all worklogs for this issue
+          // 1. Fetch issue worklogs (returns worklog IDs)
+          const res = await fetch(`http://localhost:9999/api/jira/issues/details`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: getCachedJiraToken(), issueKeys: [taskId], fields: ['worklog'] })
+          });
+          if (!res.ok) throw new Error('Failed to fetch worklogs');
+          const data = await res.json();
+          const worklogs = data.issues?.[0]?.fields?.worklog?.worklogs || [];
+          if (!Array.isArray(worklogs) || worklogs.length === 0) return { taskId, worklogs: [] };
+          return { taskId, worklogs };
+        } catch (e: any) {
+          return { taskId, worklogs: [], error: e?.message || 'Failed to fetch worklogs' };
+        }
+      })
+    ).then(async results => {
+      if (cancelled) return;
+      // Flatten all worklogs and map to (taskId, date, timeSpentSeconds)
+      const allWorklogs = results.flatMap(r =>
+        (r.worklogs || []).map((w: any) => ({
+          taskId: r.taskId,
+          started: w.started,
+          timeSpentSeconds: w.timeSpentSeconds
+        }))
+      );
+      // For each unique (taskId, date), sum timeSpentSeconds for worklogs started on that date
+      const totals: Record<string, number> = {};
+      for (const { taskId, date } of uniquePairs) {
+        const total = allWorklogs
+          .filter(w => w.taskId === taskId && w.started && w.started.startsWith(date))
+          .reduce((sum, w) => sum + (w.timeSpentSeconds || 0), 0);
+        totals[`${taskId}|${date}`] = total;
+      }
+      setWorklogTotals(totals);
+      setLoadingWorklogs(Object.fromEntries(uniquePairs.map(({taskId, date}) => [`${taskId}|${date}`, false])));
+    });
+    return () => { cancelled = true; };
+  }, [entries]);
 
   // Header config
   const headers = [
@@ -195,6 +263,14 @@ export function LogTable({ entries, editedHours, setEditedHours, handleSendToJir
                         onChange={v => setEditedHours({ ...editedHours, [key]: v })}
                         disabled={entry.sentToJira}
                       />
+                      <div className="text-xs mt-1 text-blue-700 min-h-[1.2em]">
+                        {loadingWorklogs[key]
+                          ? <span className="italic text-blue-400">Jira: ...</span>
+                          : worklogError[key]
+                            ? <span className="text-red-500">Jira: {worklogError[key]}</span>
+                            : <span>Jira: {worklogTotals[key] ? (worklogTotals[key]/3600).toFixed(2) : '0.00'}h</span>
+                        }
+                      </div>
                     </td>
                     <td className="px-3 py-2 text-center">{entry.sentToJira ? <span className="text-green-600">✅</span> : <span className="text-red-400">❌</span>}</td>
                     <td className="px-3 py-2 text-center">

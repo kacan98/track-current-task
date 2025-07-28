@@ -189,6 +189,49 @@ app.post('/api/jira/issues/details', async (req, res) => {
     }
 });
 
+// Endpoint to get details for multiple worklogs by ID
+app.post('/api/jira/worklogs/details', async (req, res) => {
+    const { login, apiToken, token, worklogIds, cookies } = req.body;
+    if ((!login || !apiToken) && !token) {
+        return sendError(res, 400, new Error('Missing login/apiToken or token'), 'JIRA_PROXY_WORKLOGS_MISSING_CREDENTIALS');
+    }
+    if (!Array.isArray(worklogIds) || worklogIds.length === 0) {
+        return sendError(res, 400, new Error('Missing or empty worklogIds array'), 'JIRA_PROXY_WORKLOGS_MISSING_IDS');
+    }
+    try {
+        const url = 'https://jira.eg.dk/rest/api/2/worklog/list';
+        const payload = { ids: worklogIds };
+        let axiosConfig: any = {
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'User-Agent': 'PostmanRuntime/7.44.1',
+            },
+        };
+        if (login && apiToken) {
+            axiosConfig.auth = { username: login, password: apiToken };
+        } else if (token) {
+            axiosConfig.headers['Authorization'] = `Bearer ${token}`;
+        }
+        if (cookies) axiosConfig.headers['Cookie'] = cookies;
+        const response = await axios.post(url, payload, axiosConfig);
+        res.json({
+            worklogs: response.data,
+            total: response.data.length,
+            sentIds: worklogIds
+        });
+    } catch (error: any) {
+        if (error?.response) {
+            sendError(res, 502, error, 'JIRA_PROXY_WORKLOGS_JIRA_ERROR', {
+                jiraStatus: error.response.status,
+                jiraData: error.response.data,
+            });
+        } else {
+            sendError(res, 500, error, 'JIRA_PROXY_WORKLOGS_SERVER_ERROR');
+        }
+    }
+});
+
 // Catch-all 404 handler for unknown routes
 app.use((req, res) => {
     res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });
