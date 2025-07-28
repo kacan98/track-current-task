@@ -2,6 +2,7 @@ import { getDayOfWeek } from '../components/utils';
 import type { LogEntry } from '../components/types';
 import { Button } from './Button';
 import { HourAdjustButtons } from './HourAdjustButtons';
+import { getJiraTaskUrl } from './jira-utils';
 
 interface LogTableProps {
   entries: LogEntry[];
@@ -33,7 +34,16 @@ export function LogTable({ entries, editedHours, setEditedHours, handleSendToJir
                 <tr key={i} className="border-t hover:bg-blue-50 transition-colors">
                   <td className="px-3 py-2 whitespace-nowrap text-center">{entry.date}</td>
                   <td className="px-3 py-2 whitespace-nowrap text-center">{getDayOfWeek(entry.date)}</td>
-                  <td className="px-3 py-2 font-mono text-blue-800/90 whitespace-nowrap text-center">{entry.taskId}</td>
+                  <td className="px-3 py-2 font-mono text-blue-800/90 whitespace-nowrap text-center">
+                    {(() => {
+                      const url = getJiraTaskUrl(entry.taskId);
+                      return url ? (
+                        <a href={url} target="_blank" rel="noopener noreferrer" className="underline text-blue-700 hover:text-blue-900">{entry.taskId}</a>
+                      ) : (
+                        entry.taskId
+                      );
+                    })()}
+                  </td>
                   <td className="px-3 py-2 text-center">
                     <HourAdjustButtons
                       value={editedHours[key] !== undefined ? editedHours[key] : entry.hours}
