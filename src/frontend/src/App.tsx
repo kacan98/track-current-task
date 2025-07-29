@@ -128,6 +128,23 @@ function App() {
     settingsDialogRef.current?.close();
   };
 
+  useEffect(() => {
+    const dialogEl = settingsDialogRef.current;
+    if (!dialogEl) return;
+    const handleClick = (event: MouseEvent) => {
+      const modalContent = document.getElementById('settings-modal-content');
+      if (!modalContent) return;
+      // If the click target is not inside the modal content, close the dialog
+      if (!modalContent.contains(event.target as Node)) {
+        closeSettingsModal();
+      }
+    };
+    dialogEl.addEventListener('click', handleClick);
+    return () => {
+      dialogEl.removeEventListener('click', handleClick);
+    };
+  }, []);
+
   if (error) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -197,9 +214,8 @@ function App() {
         ref={settingsDialogRef} 
         className="fixed inset-0 z-50 w-full h-full bg-transparent border-0 p-0"
       >
-        <div className="fixed inset-0 bg-black bg-opacity-50" onClick={closeSettingsModal}></div>
-        <div className="relative z-10">
-          <SettingsPage onClose={closeSettingsModal} />
+        <div className="relative z-10" id="settings-modal-content">
+          <SettingsPage onClose={closeSettingsModal}></SettingsPage>
         </div>
       </dialog>
     </div>
