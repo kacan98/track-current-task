@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { JiraCredentialsForm } from './JiraCredentialsForm';
-import { Button } from './Button';
 import { RecurringEventsEditor } from './RecurringEventsEditor';
 import type { RecurringEvent } from './RecurringEventsEditor';
+import { Button } from './Button';
 
 export const SETTINGS_FIELDS = [
   { key: 'scrumTaskId', label: 'Scrum Jira Task ID', type: 'text', placeholder: 'Enter Scrum Jira Task ID' },
@@ -14,111 +15,7 @@ SETTINGS_FIELDS.forEach(f => {
   initialSettings[f.key] = '';
 });
 
-function SettingsPage({ onClose }: { onClose: () => void }) {
-  const [settings, setSettings] = useState<Record<string, string>>(initialSettings);
-  const [recurringEvents, setRecurringEvents] = useState<RecurringEvent[]>(() => {
-    const stored = localStorage.getItem('recurringEvents');
-    return stored ? JSON.parse(stored) : [
-      { id: 'endSprint', name: 'End Sprint Event', day: '', durationMinutes: '180' },
-      { id: 'backlogRefinement', name: 'Backlog Refinement', day: '', durationMinutes: '60' },
-    ];
-  });
-
-  // Load initial values from localStorage
-  React.useEffect(() => {
-    const loaded: Record<string, string> = {};
-    SETTINGS_FIELDS.forEach(f => {
-      loaded[f.key] = localStorage.getItem(f.key) || '';
-    });
-    setSettings(loaded);
-  }, []);
-
-  // Save values to localStorage on change
-  const handleChange = (key: string, value: string) => {
-    const field = SETTINGS_FIELDS.find(f => f.key === key);
-    let newValue = value;
-    if (field?.type === 'number' && value !== '') {
-      if (key === 'scrumDailyDurationMinutes') {
-        // For daily, round to nearest 5 min
-        const minutes = Math.round(parseFloat(value) / 5) * 5;
-        newValue = String(minutes);
-      } else {
-        // For others, round to nearest 30 min
-        const minutes = Math.round(parseFloat(value) / 30) * 30;
-        newValue = String(minutes);
-      }
-    }
-    localStorage.setItem(key, newValue);
-    setSettings(prev => ({ ...prev, [key]: newValue }));
-  };
-
-  // Set default values for daily and event durations
-  React.useEffect(() => {
-    if (!localStorage.getItem('scrumDailyDurationMinutes')) {
-      localStorage.setItem('scrumDailyDurationMinutes', '15');
-    }
-    if (!localStorage.getItem('scrumEndSprintDurationMinutes')) {
-      localStorage.setItem('scrumEndSprintDurationMinutes', '180');
-    }
-    if (!localStorage.getItem('backlogRefinementDurationMinutes')) {
-      localStorage.setItem('backlogRefinementDurationMinutes', '60');
-    }
-  }, []);
-
-  // Save recurring events to localStorage on change
-  React.useEffect(() => {
-    localStorage.setItem('recurringEvents', JSON.stringify(recurringEvents));
-  }, [recurringEvents]);
-
-  return (
-    <div className="fixed inset-0 min-h-screen w-screen bg-gradient-to-br from-blue-50 to-blue-100 flex flex-col items-center justify-center z-50 overflow-x-hidden">
-      <div className="relative max-w-screen-md bg-white/80 rounded-2xl shadow-xl border border-blue-100 p-6 z-10 flex flex-col gap-6 max-h-[90vh] overflow-auto overflow-x-hidden">
-        <h2 className="text-2xl font-bold text-blue-700 mb-2 text-center">Settings</h2>
-        <JiraCredentialsForm />
-        {/* Settings fields */}
-        {SETTINGS_FIELDS.map(field => (
-          <div className="flex flex-col gap-2" key={field.key}>
-            <label htmlFor={field.key} className="font-semibold text-blue-600">{field.label}</label>
-            <input
-              id={field.key}
-              type={field.type}
-              min={field.type === 'number' ? '0' : undefined}
-              step={field.key === 'scrumDailyDurationMinutes' ? '5' : field.key.endsWith('DurationMinutes') ? '30' : undefined}
-              value={settings[field.key]}
-              onChange={e => handleChange(field.key, e.target.value)}
-              className="border rounded px-3 py-2 focus:outline-none focus:ring focus:border-blue-300"
-              placeholder={field.placeholder}
-            />
-          </div>
-        ))}
-        {/* Recurring events table - sleeker layout */}
-        <div className="flex flex-col gap-4 border-t pt-4 mt-4">
-          <table className="min-w-full text-sm text-center w-auto border rounded shadow">
-            <thead>
-              <tr className="bg-blue-100">
-                <th className="px-3 py-2 rounded-tl-2xl">Name</th>
-                <th className="px-3 py-2">Day</th>
-                <th className="px-3 py-2">Duration (min)</th>
-                <th className="px-3 py-2 rounded-tr-2xl">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white/80">
-              <RecurringEventsEditor events={recurringEvents} onChange={setRecurringEvents} />
-            </tbody>
-          </table>
-        </div>
-        <Button
-          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          onClick={onClose}
-        >
-          Close
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-type ExtractKeys<T extends readonly { key: string }[]> = T[number]['key'];
+export type ExtractKeys<T extends readonly { key: string }[]> = T[number]['key'];
 export type SettingKey = ExtractKeys<typeof SETTINGS_FIELDS>;
 
 export type SettingsObject = {
@@ -129,4 +26,152 @@ export function getSetting(key: SettingKey): string {
   return localStorage.getItem(key) || '';
 }
 
-export default SettingsPage;
+function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [settings, setSettings] = React.useState<Record<string, string>>(initialSettings);
+  const [recurringEvents, setRecurringEvents] = React.useState<RecurringEvent[]>(() => {
+    const stored = localStorage.getItem('recurringEvents');
+    return stored ? JSON.parse(stored) : [
+      { id: 'endSprint', name: 'End Sprint Event', day: '', durationMinutes: '180' },
+      { id: 'backlogRefinement', name: 'Backlog Refinement', day: '', durationMinutes: '60' },
+    ];
+  });
+
+  useEffect(() => {
+    if (!open) return;
+    const loaded: Record<string, string> = {};
+    SETTINGS_FIELDS.forEach(f => {
+      loaded[f.key] = localStorage.getItem(f.key) || '';
+    });
+    setSettings(loaded);
+  }, [open]);
+
+  useEffect(() => {
+    localStorage.setItem('recurringEvents', JSON.stringify(recurringEvents));
+  }, [recurringEvents]);
+
+  const handleChange = (key: string, value: string) => {
+    const field = SETTINGS_FIELDS.find(f => f.key === key);
+    let newValue = value;
+    if (field?.type === 'number' && value !== '') {
+      if (key === 'scrumDailyDurationMinutes') {
+        const minutes = Math.round(parseFloat(value) / 5) * 5;
+        newValue = String(minutes);
+      } else {
+        const minutes = Math.round(parseFloat(value) / 30) * 30;
+        newValue = String(minutes);
+      }
+    }
+    localStorage.setItem(key, newValue);
+    setSettings(prev => ({ ...prev, [key]: newValue }));
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  let modalContent: React.ReactNode;
+  try {
+    modalContent = (
+      <>
+        <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center">Settings</h2>
+        
+        <div className="mb-8">
+          <JiraCredentialsForm />
+        </div>
+        
+        <div className="flex flex-col gap-4 mb-8">
+          {SETTINGS_FIELDS.map(field => (
+            <div className="flex flex-col gap-2" key={field.key}>
+              <label htmlFor={field.key} className="font-semibold text-gray-900">
+                {field.label}
+              </label>
+              <input
+                id={field.key}
+                type={field.type}
+                min={field.type === 'number' ? '0' : undefined}
+                step={field.key === 'scrumDailyDurationMinutes' ? '5' : field.key.endsWith('DurationMinutes') ? '30' : undefined}
+                value={settings[field.key]}
+                onChange={e => handleChange(field.key, e.target.value)}
+                className="border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                placeholder={field.placeholder}
+              />
+            </div>
+          ))}
+        </div>
+        
+        <div className="border-t border-gray-200 pt-6">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-200">
+                  <th className="px-6 py-3 text-left font-semibold text-gray-900">Name</th>
+                  <th className="px-6 py-3 text-left font-semibold text-gray-900">Day</th>
+                  <th className="px-6 py-3 text-left font-semibold text-gray-900">Duration (min)</th>
+                  <th className="px-6 py-3 text-left font-semibold text-gray-900">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <RecurringEventsEditor events={recurringEvents} onChange={setRecurringEvents} />
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </>
+    );
+  } catch (err: any) {
+    modalContent = (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md mx-auto">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
+            <span className="text-red-600 text-sm">⚠</span>
+          </div>
+          <div>
+            <h3 className="font-semibold text-red-800">Error</h3>
+            <p className="text-red-700 text-sm">
+              Error rendering settings: {err?.message || String(err)}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return createPortal(
+    <dialog 
+      open 
+      className="fixed inset-0 z-50 p-0 border-0 bg-transparent" 
+      style={{width: '100vw', height: '100vh', background: 'none'}}
+    >
+      <div
+        className="fixed inset-0 bg-black bg-opacity-50 z-0 cursor-pointer"
+        onClick={onClose}
+        aria-label="Close settings"
+      />
+      <div
+        className="relative bg-white rounded-lg shadow-sm border border-gray-200 p-6 w-full max-w-3xl mx-auto flex flex-col overflow-y-auto"
+        style={{margin: '5vh auto', pointerEvents: 'auto', maxHeight: '90vh'}}
+        onClick={e => e.stopPropagation()}
+      >
+        <Button
+          variant="secondary"
+          className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center rounded-lg"
+          onClick={onClose}
+          aria-label="Close settings"
+        >
+          <span className="material-symbols-outlined text-sm">close</span>
+        </Button>
+        {modalContent}
+      </div>
+    </dialog>,
+    document.body
+  );
+}
+
+export default SettingsModal;

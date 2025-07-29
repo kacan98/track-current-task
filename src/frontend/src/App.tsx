@@ -128,27 +128,48 @@ function App() {
     settingsDialogRef.current?.close();
   };
 
-  if (error) return <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-blue-100"><div className="text-red-500 text-lg font-semibold bg-white/80 rounded-lg shadow-lg px-8 py-6 border border-red-200">{error}</div></div>;
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
+              <span className="material-symbols-outlined text-red-600 text-sm">error</span>
+            </div>
+            <div>
+              <h3 className="font-semibold text-red-800">Error Loading Data</h3>
+              <p className="text-red-700 text-sm">{error}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="fixed inset-0 min-h-screen w-screen bg-gradient-to-br from-blue-50 to-blue-100 flex flex-col items-center justify-start py-8 px-2 z-0 overflow-auto">
-      <div className="relative w-full bg-white/90 rounded-3xl shadow-2xl border border-blue-100 p-6 z-10 flex flex-col gap-6" style={{boxShadow: '0 8px 32px rgba(60,130,220,0.10)'}}>
-        <div className="flex justify-end">
-          <Button
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg shadow hover:bg-blue-600 transition-all duration-150"
-            onClick={openSettingsModal}
-          >
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto p-6">
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">Hours</h1>
+          <Button variant="secondary" className="flex items-center gap-2" onClick={openSettingsModal}>
+            <span className="material-symbols-outlined text-sm">settings</span>
             Settings
           </Button>
         </div>
-        <h1 className="text-4xl font-extrabold mb-2 text-center text-blue-700 tracking-tight drop-shadow-lg">Hours</h1>
-        <div className="flex flex-col items-center justify-center gap-2">
-          <DateRangePicker from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
+
+        <div className="mb-8">
+          <DateRangePicker 
+            from={from} 
+            to={to} 
+            onChange={(f, t) => { setFrom(f); setTo(t); }} 
+          />
         </div>
-        <div className="flex-1 min-h-0">
-          <div className="overflow-x-auto max-h-[65vh] rounded-2xl border border-blue-100 shadow bg-white/80 p-2" style={{boxShadow: '0 2px 12px rgba(60,130,220,0.07)'}}>
+
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+          <div className="overflow-x-auto">
             {weeks.length > 1
               ? [...weeks].sort((a, b) => b.start.getTime() - a.start.getTime()).map(week => (
-                  <div key={week.start.toISOString()} className="mb-10">
+                  <div key={week.start.toISOString()} className="mb-8 last:mb-0">
                     <LogTable
                       entries={week.entries}
                       editedHours={editedHours}
@@ -169,11 +190,15 @@ function App() {
           </div>
         </div>
       </div>
+
       <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
-      {/* Native HTML modal for settings */}
-      <dialog ref={settingsDialogRef} className="z-50 p-0 border-0" style={{position: 'fixed', inset: 0, width: '100vw', height: '100vh', background: 'none'}}>
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-0" style={{pointerEvents: 'none'}}></div>
-        <div tabIndex={-1} style={{outline: 'none', position: 'relative', zIndex: 1}}>
+      
+      <dialog 
+        ref={settingsDialogRef} 
+        className="fixed inset-0 z-50 w-full h-full bg-transparent border-0 p-0"
+      >
+        <div className="fixed inset-0 bg-black bg-opacity-50" onClick={closeSettingsModal}></div>
+        <div className="relative z-10">
           <SettingsPage onClose={closeSettingsModal} />
         </div>
       </dialog>

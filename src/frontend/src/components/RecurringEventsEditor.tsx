@@ -37,21 +37,21 @@ export const RecurringEventsEditor: React.FC<RecurringEventsEditorProps> = ({ ev
   return (
     <>
       {events.map(ev => (
-        <tr key={ev.id} className="transition hover:bg-blue-50">
-          <td className="px-3 py-2">
+        <tr key={ev.id} className="transition hover:bg-background-light">
+          <td className="px-4 py-3">
             <input
               type="text"
               value={ev.name}
               onChange={e => handleFieldChange(ev.id, 'name', e.target.value)}
               placeholder="Event name (e.g. Backlog Refinement)"
-              className="border rounded px-3 py-2 w-full focus:outline-none focus:ring focus:border-blue-300 bg-white/80"
+              className="border border-background-dark rounded-lg px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-primary-light bg-white/90"
             />
           </td>
-          <td className="px-3 py-2">
+          <td className="px-4 py-3">
             <select
               value={ev.day}
               onChange={e => handleFieldChange(ev.id, 'day', e.target.value)}
-              className="border rounded px-3 py-2 w-full focus:outline-none focus:ring focus:border-blue-300 bg-white/80"
+              className="border border-background-dark rounded-lg px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-primary-light bg-white/90"
             >
               <option value="">Select a day</option>
               {DAYS.slice(1).map(day => (
@@ -59,7 +59,7 @@ export const RecurringEventsEditor: React.FC<RecurringEventsEditorProps> = ({ ev
               ))}
             </select>
           </td>
-          <td className="px-3 py-2">
+          <td className="px-4 py-3">
             <input
               type="number"
               min="0"
@@ -67,14 +67,15 @@ export const RecurringEventsEditor: React.FC<RecurringEventsEditorProps> = ({ ev
               value={ev.durationMinutes}
               onChange={e => handleFieldChange(ev.id, 'durationMinutes', e.target.value)}
               placeholder="Duration (min)"
-              className="border rounded px-3 py-2 w-full focus:outline-none focus:ring focus:border-blue-300 bg-white/80"
+              className="border border-background-dark rounded-lg px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-primary-light bg-white/90"
             />
           </td>
-          <td className="px-3 py-2 text-center">
+          <td className="px-4 py-3 text-center">
             <Button
               type="button"
+              variant="secondary"
+              className="inline-flex items-center gap-1 px-3 py-2 text-sm font-semibold rounded-lg border border-background-dark hover:bg-background focus:bg-background-light"
               onClick={() => handleRemove(ev.id)}
-              className="inline-flex items-center gap-1 px-3 py-1 text-sm font-semibold text-red-600 bg-red-50 rounded hover:bg-red-100 transition"
               title="Remove event"
             >
               <span className="material-symbols-outlined text-base align-middle">delete</span>
@@ -84,11 +85,12 @@ export const RecurringEventsEditor: React.FC<RecurringEventsEditorProps> = ({ ev
         </tr>
       ))}
       <tr>
-        <td colSpan={4} className="px-3 py-2 text-left">
+        <td colSpan={4} className="px-4 py-3 text-left">
           <Button
             type="button"
+            variant="secondary"
+            className="px-4 py-2 rounded-lg font-semibold border border-background-dark hover:bg-background focus:bg-background-light"
             onClick={handleAdd}
-            className="px-4 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 font-semibold shadow transition"
           >
             + Add Event
           </Button>

@@ -27,19 +27,39 @@ function getRecurringEvents(): RecurringEvent[] {
   return stored ? JSON.parse(stored) : [];
 }
 
-function LogTableSectionHeading({ weekStart, weekEnd, onAddDailyScrum, onAddEvent, eventStates }: LogTableSectionHeadingProps & { onAddDailyScrum: () => void; onAddEvent: (event: RecurringEvent) => void; eventStates: Record<string, boolean> }) {
+function LogTableSectionHeading({ 
+  weekStart, 
+  weekEnd, 
+  onAddDailyScrum, 
+  onAddEvent, 
+  eventStates 
+}: LogTableSectionHeadingProps & { 
+  onAddDailyScrum: () => void; 
+  onAddEvent: (event: RecurringEvent) => void; 
+  eventStates: Record<string, boolean> 
+}) {
   const recurringEvents = getRecurringEvents();
+  // Format week header: 'Month YYYY: dd – dd'
+  const startDate = new Date(weekStart);
+  const endDate = new Date(weekEnd);
+  const month = startDate.toLocaleString('default', { month: 'long' });
+  const year = startDate.getFullYear();
+  const startDay = String(startDate.getDate()).padStart(2, '0');
+  const endDay = String(endDate.getDate()).padStart(2, '0');
+  
   return (
-    <tr className="bg-blue-50 border-b">
+    <tr className="bg-gray-50 border-b border-gray-200">
       <td colSpan={7} className="px-6 py-3 text-left align-middle">
         <div className="flex flex-row items-center justify-between w-full">
           <div className="flex flex-col">
-            <span className="text-xl font-extrabold text-blue-700 tracking-tight drop-shadow">Week</span>
-            <span className="text-lg font-semibold text-blue-600">{weekStart} – {weekEnd}</span>
+            <span className="text-lg font-bold text-gray-900 tracking-tight">
+              {month} {year}: {startDay} – {endDay}
+            </span>
           </div>
           <div className="flex gap-3">
             <Button
-              className="px-4 py-2 bg-green-500 text-white rounded-lg font-semibold shadow hover:bg-green-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              variant="secondary"
+              className="flex items-center gap-2"
               onClick={onAddDailyScrum}
               disabled={eventStates['dailyScrum']}
             >
@@ -48,7 +68,8 @@ function LogTableSectionHeading({ weekStart, weekEnd, onAddDailyScrum, onAddEven
             {recurringEvents.map((ev: RecurringEvent) => (
               <Button
                 key={ev.id}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg font-semibold shadow hover:bg-blue-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                variant="secondary"
+                className="flex items-center gap-2"
                 onClick={() => onAddEvent(ev)}
                 disabled={eventStates[ev.id]}
               >
@@ -62,7 +83,14 @@ function LogTableSectionHeading({ weekStart, weekEnd, onAddDailyScrum, onAddEven
   );
 }
 
-export function LogTable({ entries, editedHours, setEditedHours, handleSendToJira, weekStart, weekEnd }: LogTableProps) {
+export function LogTable({ 
+  entries, 
+  editedHours, 
+  setEditedHours, 
+  handleSendToJira, 
+  weekStart, 
+  weekEnd 
+}: LogTableProps) {
   // Sorting state
   const [sortColumn, setSortColumn] = useState<'date' | 'day' | 'task' | 'hours' | 'sent'>('date');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
@@ -329,62 +357,71 @@ export function LogTable({ entries, editedHours, setEditedHours, handleSendToJir
   }, [entries, extraRows, sortColumn, sortDirection]);
 
   return (
-    <div className="overflow-x-auto w-full">
-      <table className="min-w-full text-sm text-center w-auto">
-        <thead>
-          {weekStart && weekEnd ? (
-            <LogTableSectionHeading
-              weekStart={weekStart}
-              weekEnd={weekEnd}
-              onAddDailyScrum={handleAddDailyScrum}
-              onAddEvent={handleAddEvent}
-              eventStates={eventStates}
-            />
-          ) : null}
-          <tr className="bg-blue-50 border-b">
-            {headers.map(h => (
-              <th
-                key={h.key}
-                className={`px-3 py-2 font-semibold text-blue-900/80 text-center select-none ${h.sortable === false ? '' : 'cursor-pointer hover:bg-blue-100'}`}
-                onClick={() => handleHeaderClick(h.key)}
-              >
-                {h.label}
-                {h.key === sortColumn && (
-                  <span className="ml-1">{sortDirection === 'asc' ? '▲' : '▼'}</span>
-                )}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {allEntries.length === 0 ? (
-            <tr>
-              <td colSpan={headers.length} className="text-center py-8 text-gray-400 text-lg">No entries in this range.</td>
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div className="overflow-x-auto w-full">
+        <table className="w-full text-left">
+          <thead className="bg-gray-50">
+            {weekStart && weekEnd ? (
+              <LogTableSectionHeading
+                weekStart={weekStart}
+                weekEnd={weekEnd}
+                onAddDailyScrum={handleAddDailyScrum}
+                onAddEvent={handleAddEvent}
+                eventStates={eventStates}
+              />
+            ) : null}
+            <tr className="border-b border-gray-200">
+              {headers.map(h => (
+                <th
+                  key={h.key}
+                  className={`px-6 py-3 text-gray-900 font-semibold text-center select-none ${
+                    h.sortable === false ? '' : 'cursor-pointer hover:bg-gray-100'
+                  }`}
+                  onClick={() => handleHeaderClick(h.key)}
+                >
+                  {h.label}
+                  {h.key === sortColumn && (
+                    <span className="ml-1 text-gray-700">
+                      {sortDirection === 'asc' ? '▲' : '▼'}
+                    </span>
+                  )}
+                </th>
+              ))}
             </tr>
-          ) : (
-            allEntries.map(entry => {
-              const keyId = `${entry.taskId}|${entry.date}`;
-              return (
-                <LogTableRow
-                  key={keyId}
-                  entry={entry}
-                  keyId={keyId}
-                  dfoTaskColorMap={dfoTaskColorMap}
-                  editedHours={editedHours}
-                  setEditedHours={setEditedHours}
-                  loadingHeadings={loadingHeadings}
-                  headingsError={headingsError}
-                  issueHeadings={issueHeadings}
-                  loadingWorklogs={loadingWorklogs}
-                  worklogError={worklogError}
-                  worklogTotals={worklogTotals}
-                  handleSendToJira={handleSendToJira}
-                />
-              );
-            })
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {allEntries.length === 0 ? (
+              <tr>
+                <td colSpan={headers.length} className="text-center py-8 text-gray-700 text-lg">
+                  No entries in this range.
+                </td>
+              </tr>
+            ) : (
+              allEntries.map((entry, idx) => {
+                // Guarantee unique key for each row
+                const keyId = `${entry.taskId}|${entry.date}${entry.eventId ? `|${entry.eventId}` : entry.eventName ? `|${entry.eventName}` : `|${idx}`}`;
+                return (
+                  <LogTableRow
+                    key={keyId}
+                    entry={entry}
+                    keyId={keyId}
+                    dfoTaskColorMap={dfoTaskColorMap}
+                    editedHours={editedHours}
+                    setEditedHours={setEditedHours}
+                    loadingHeadings={loadingHeadings}
+                    headingsError={headingsError}
+                    issueHeadings={issueHeadings}
+                    loadingWorklogs={loadingWorklogs}
+                    worklogError={worklogError}
+                    worklogTotals={worklogTotals}
+                    handleSendToJira={handleSendToJira}
+                  />
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

@@ -38,15 +38,17 @@ export function LogTableRow({
   const url = getJiraTaskUrl(entry.taskId);
   const taskCellClass = /^DFO-\d+$/.test(entry.taskId)
     ? dfoTaskColorMap[entry.taskId] + ' font-mono rounded px-2 py-1'
-    : 'text-gray-300';
+    : 'text-gray-500';
 
   return (
-    <tr className="border-t hover:bg-blue-50 transition-colors">
-      <td className="px-3 py-2 whitespace-nowrap text-center">{entry.date}</td>
-      <td className="px-3 py-2 whitespace-nowrap text-center">{getDayOfWeek(entry.date)}</td>
+    <tr className="border-t border-gray-200 hover:bg-gray-50 transition-colors">
+      <td className="px-3 py-2 whitespace-nowrap text-center text-gray-900">{entry.date}</td>
+      <td className="px-3 py-2 whitespace-nowrap text-center text-gray-900">{getDayOfWeek(entry.date)}</td>
       <td className={`px-3 py-2 whitespace-nowrap text-center ${taskCellClass}`}>
         {url ? (
-          <a href={url} target="_blank" rel="noopener noreferrer" className="underline">{entry.taskId}</a>
+          <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline">
+            {entry.taskId}
+          </a>
         ) : (
           entry.taskId
         )}
@@ -73,27 +75,29 @@ export function LogTableRow({
         />
       </td>
       <td className="px-3 py-2 text-center">
-        {entry.sentToJira ? <span className="text-green-600">✅</span> : <span className="text-red-400">❌</span>}
+        {entry.sentToJira ? (
+          <span className="text-green-600 text-lg">
+            <span className="material-symbols-outlined">check_circle</span>
+          </span>
+        ) : (
+          <span className="text-red-500 text-lg">
+            <span className="material-symbols-outlined">cancel</span>
+          </span>
+        )}
       </td>
       <td className="px-3 py-2 text-center">
         <div className="flex justify-center items-center">
           <Button
-            className={`group relative flex items-center gap-2 px-4 py-2 rounded-full font-semibold shadow-md transition-all duration-150
-              ${entry.sentToJira
-                ? 'bg-gray-200 text-gray-400 cursor-not-allowed border border-gray-200'
-                : 'bg-gradient-to-r from-blue-500 to-blue-700 text-white hover:from-blue-600 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-400 border border-blue-600 cursor-pointer'}
-            `}
+            variant={entry.sentToJira ? "secondary" : "primary"}
+            className="flex items-center gap-2"
             disabled={entry.sentToJira}
             onClick={() => handleSendToJira(entry)}
             aria-label={entry.sentToJira ? 'Already sent to Jira' : 'Send to Jira'}
           >
-            <span className="material-symbols-outlined text-lg pointer-events-none">
+            <span className="material-symbols-outlined text-sm">
               {entry.sentToJira ? 'check_circle' : 'send'}
             </span>
             <span>{entry.sentToJira ? 'Sent' : 'Send'}</span>
-            {!entry.sentToJira && (
-              <span className="absolute left-0 top-0 w-full h-full rounded-full opacity-0 group-hover:opacity-10 bg-white transition-opacity duration-200 pointer-events-none"></span>
-            )}
           </Button>
         </div>
       </td>

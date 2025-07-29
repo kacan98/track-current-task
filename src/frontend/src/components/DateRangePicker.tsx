@@ -61,7 +61,7 @@ export function DateRangePicker({ from, to, onChange }: DateRangePickerProps) {
         ].map(({ label, range }) => (
           <Button
             key={range}
-            variant="compact"
+            variant="secondary"
             className="px-3 py-1 rounded-full font-semibold border"
             onClick={() => { const r = getQuickRange(range as any); onChange(r.from, r.to); }}
           >
