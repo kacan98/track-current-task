@@ -22,17 +22,6 @@ function endOfWeek(date: Date, opts?: { weekStartsOn?: number }) {
   return d;
 }
 
-function eachDayOfInterval({ start, end }: { start: Date; end: Date }) {
-  const days = [];
-  let d = new Date(start);
-  d.setHours(0, 0, 0, 0);
-  while (d <= end) {
-    days.push(new Date(d));
-    d.setDate(d.getDate() + 1);
-  }
-  return days;
-}
-
 function format(date: Date, fmt: string) {
   const pad = (n: number) => n.toString().padStart(2, '0');
   if (fmt === 'yyyy-MM-dd') {

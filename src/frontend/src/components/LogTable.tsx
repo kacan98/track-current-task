@@ -3,6 +3,7 @@ import type { LogEntry } from '../components/types';
 import { LogTableRow } from './LogTable/LogTableRow';
 import { getDayOfWeek } from '../components/utils';
 import { getJiraIssuesDetails, getCachedJiraToken } from '../services/JiraIntegration';
+import { getSetting } from './SettingsPage';
 
 interface LogTableProps {
   entries: LogEntry[];
@@ -18,18 +19,24 @@ interface LogTableSectionHeadingProps {
   weekEnd: string;
 }
 
-function LogTableSectionHeading({ weekStart, weekEnd }: LogTableSectionHeadingProps) {
+function LogTableSectionHeading({ weekStart, weekEnd, onAddDailyScrum, onAddEndSprint }: LogTableSectionHeadingProps & { onAddDailyScrum: () => void; onAddEndSprint: () => void }) {
   return (
-    <div className="flex justify-center items-center mb-6">
-      <div className="inline-block bg-white/90 rounded-xl shadow border border-blue-200 px-6 py-3">
-        <span className="text-xl font-extrabold text-blue-700 tracking-tight drop-shadow mr-3">Week</span>
-        <span className="text-lg font-semibold text-blue-600">{weekStart} – {weekEnd}</span>
+    <div className="flex flex-col items-center mb-6">
+      <div className="flex flex-row items-center justify-between w-full max-w-2xl bg-white/90 rounded-xl shadow border border-blue-200 px-6 py-3">
+        <div className="flex flex-col">
+          <span className="text-xl font-extrabold text-blue-700 tracking-tight drop-shadow">Week</span>
+          <span className="text-lg font-semibold text-blue-600">{weekStart} – {weekEnd}</span>
+        </div>
+        <div className="flex gap-3">
+          <button className="px-4 py-2 bg-green-500 text-white rounded-lg font-semibold shadow hover:bg-green-600 transition" onClick={onAddDailyScrum}>Add daily scrum events</button>
+          <button className="px-4 py-2 bg-purple-500 text-white rounded-lg font-semibold shadow hover:bg-purple-600 transition" onClick={onAddEndSprint}>Add end sprint event</button>
+        </div>
       </div>
     </div>
   );
 }
 
-export function LogTable({ entries, editedHours, setEditedHours, handleSendToJira }: LogTableProps) {
+export function LogTable({ entries, editedHours, setEditedHours, handleSendToJira, weekStart, weekEnd }: LogTableProps) {
   // Sorting state
   const [sortColumn, setSortColumn] = useState<'date' | 'day' | 'task' | 'hours' | 'sent'>('date');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
@@ -214,11 +221,89 @@ export function LogTable({ entries, editedHours, setEditedHours, handleSendToJir
     }
   };
 
+  // --- Extra rows for daily scrum and end sprint events ---
+  const [extraRows, setExtraRows] = useState<LogEntry[]>([]);
+
+  // Helper to get all dates in week (Monday–Friday)
+  function getWeekDates(start: string, end: string) {
+    const dates: string[] = [];
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+      const day = d.getDay();
+      if (day >= 1 && day <= 5) { // Monday–Friday
+        dates.push(d.toISOString().slice(0, 10));
+      }
+    }
+    return dates;
+  }
+
+  // Helper to get date for a specific day name in week
+  function getDateForDayInWeek(start: string, end: string, dayName: string) {
+    const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+      if (days[d.getDay()] === dayName) {
+        return d.toISOString().slice(0, 10);
+      }
+    }
+    return null;
+  }
+
+  // Add daily scrum events
+  const handleAddDailyScrum = () => {
+    const taskId = getSetting('scrumTaskId');
+    const minutes = parseFloat(getSetting('scrumDailyDurationMinutes'));
+    const hours = minutes / 60;
+    const weekDates = getWeekDates(weekStart!, weekEnd!);
+    const newRows: LogEntry[] = weekDates.map(date => ({
+      date,
+      taskId,
+      hours,
+      sentToJira: false,
+    }));
+    setExtraRows(prev => {
+      // Avoid duplicates
+      const allRows = [...prev, ...newRows];
+      const uniqueRows = allRows.filter((row, idx, arr) => arr.findIndex(r => r.date === row.date && r.taskId === row.taskId) === idx);
+      return uniqueRows;
+    });
+  };
+
+  // Add end sprint event
+  const handleAddEndSprint = () => {
+    const taskId = getSetting('scrumTaskId');
+    const minutes = parseFloat(getSetting('scrumEndSprintDurationMinutes'));
+    const hours = minutes / 60;
+    const dayName = getSetting('scrumDay');
+    const date = getDateForDayInWeek(weekStart!, weekEnd!, dayName);
+    if (!date) return;
+    const newRow: LogEntry = {
+      date,
+      taskId,
+      hours,
+      sentToJira: false,
+    };
+    setExtraRows(prev => {
+      // Avoid duplicates
+      const allRows = [...prev, newRow];
+      const uniqueRows = allRows.filter((row, idx, arr) => arr.findIndex(r => r.date === row.date && r.taskId === row.taskId) === idx);
+      return uniqueRows;
+    });
+  };
+
+  // Merge and sort all rows
+  const allEntries = useMemo(() => {
+    const merged = [...entries, ...extraRows];
+    merged.sort((a, b) => a.date.localeCompare(b.date));
+    return merged;
+  }, [entries, extraRows]);
+
   return (
     <>
-      {/* If weekStart/weekEnd are passed, render heading */}
-      {('weekStart' in arguments[0] && 'weekEnd' in arguments[0]) ? (
-        <LogTableSectionHeading weekStart={arguments[0].weekStart} weekEnd={arguments[0].weekEnd} />
+      {weekStart && weekEnd ? (
+        <LogTableSectionHeading weekStart={weekStart} weekEnd={weekEnd} onAddDailyScrum={handleAddDailyScrum} onAddEndSprint={handleAddEndSprint} />
       ) : null}
       <div className="overflow-x-auto w-full">
         <table className="min-w-full text-sm text-center w-auto">
@@ -239,12 +324,12 @@ export function LogTable({ entries, editedHours, setEditedHours, handleSendToJir
             </tr>
           </thead>
           <tbody>
-            {sortedEntries.length === 0 ? (
+            {allEntries.length === 0 ? (
               <tr>
                 <td colSpan={headers.length} className="text-center py-8 text-gray-400 text-lg">No entries in this range.</td>
               </tr>
             ) : (
-              sortedEntries.map(entry => {
+              allEntries.map(entry => {
                 const keyId = `${entry.taskId}|${entry.date}`;
                 return (
                   <LogTableRow
