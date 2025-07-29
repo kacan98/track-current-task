@@ -130,23 +130,22 @@ function App() {
 
   if (error) return <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-blue-100"><div className="text-red-500 text-lg font-semibold bg-white/80 rounded-lg shadow-lg px-8 py-6 border border-red-200">{error}</div></div>;
   return (
-    <div className="fixed inset-0 min-h-screen w-screen bg-gradient-to-br from-blue-50 to-blue-100 flex flex-col items-center justify-start py-6 px-1 z-0 overflow-auto">
-      <div className="relative w-full max-w-5xl bg-white/80 rounded-2xl shadow-xl border border-blue-100 p-3 sm:p-6 z-10 flex flex-col">
-        <div className="flex justify-end mb-2">
+    <div className="fixed inset-0 min-h-screen w-screen bg-gradient-to-br from-blue-50 to-blue-100 flex flex-col items-center justify-start py-8 px-2 z-0 overflow-auto">
+      <div className="relative w-full bg-white/90 rounded-3xl shadow-2xl border border-blue-100 p-6 z-10 flex flex-col gap-6" style={{boxShadow: '0 8px 32px rgba(60,130,220,0.10)'}}>
+        <div className="flex justify-end">
           <Button
-            className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+            className="px-4 py-2 bg-blue-500 text-white rounded-lg shadow hover:bg-blue-600 transition-all duration-150"
             onClick={openSettingsModal}
           >
             Settings
           </Button>
         </div>
-        <h1 className="text-3xl font-extrabold mb-4 text-center text-blue-700 tracking-tight drop-shadow">Hours</h1>
-        {/* <JiraCredentialsForm /> moved to SettingsPage */}
-        <div className="mb-4 flex flex-col items-center justify-center">
+        <h1 className="text-4xl font-extrabold mb-2 text-center text-blue-700 tracking-tight drop-shadow-lg">Hours</h1>
+        <div className="flex flex-col items-center justify-center gap-2">
           <DateRangePicker from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
         </div>
         <div className="flex-1 min-h-0">
-          <div className="overflow-x-auto overflow-y-auto max-h-[60vh] rounded-xl border shadow-sm bg-white/70">
+          <div className="overflow-x-auto max-h-[65vh] rounded-2xl border border-blue-100 shadow bg-white/80 p-2" style={{boxShadow: '0 2px 12px rgba(60,130,220,0.07)'}}>
             {weeks.length > 1
               ? [...weeks].sort((a, b) => b.start.getTime() - a.start.getTime()).map(week => (
                   <div key={week.start.toISOString()} className="mb-10">
