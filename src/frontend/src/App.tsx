@@ -6,11 +6,67 @@ import SettingsPage from './components/SettingsPage';
 import { logWorkToJira } from './services/JiraIntegration';
 import { Button } from './components/Button';
 
+function startOfWeek(date: Date, opts?: { weekStartsOn?: number }) {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = (day < 1 ? 7 : day) - (opts?.weekStartsOn ?? 0);
+  d.setDate(d.getDate() - diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function endOfWeek(date: Date, opts?: { weekStartsOn?: number }) {
+  const d = startOfWeek(date, opts);
+  d.setDate(d.getDate() + 6);
+  d.setHours(23, 59, 59, 999);
+  return d;
+}
+
+function eachDayOfInterval({ start, end }: { start: Date; end: Date }) {
+  const days = [];
+  let d = new Date(start);
+  d.setHours(0, 0, 0, 0);
+  while (d <= end) {
+    days.push(new Date(d));
+    d.setDate(d.getDate() + 1);
+  }
+  return days;
+}
+
+function format(date: Date, fmt: string) {
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  if (fmt === 'yyyy-MM-dd') {
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  }
+  if (fmt === 'EEEE') {
+    return date.toLocaleDateString('en-US', { weekday: 'long' });
+  }
+  return date.toISOString();
+}
+
 function getEntriesInRange(entries: LogEntry[], from: Date, to: Date): LogEntry[] {
   return entries.filter(e => {
     const d = new Date(e.date);
     return d >= from && d <= to;
   });
+}
+
+function splitEntriesByWeek(entries: LogEntry[], from: Date, to: Date) {
+  const weeks: Array<{ start: Date; end: Date; entries: LogEntry[] }> = [];
+  let current = startOfWeek(from, { weekStartsOn: 1 }); // Monday
+  const last = endOfWeek(to, { weekStartsOn: 1 });
+  while (current <= last) {
+    const weekStart = current;
+    const weekEnd = endOfWeek(current, { weekStartsOn: 1 });
+    const weekEntries = entries.filter(e => {
+      const d = new Date(e.date);
+      return d >= weekStart && d <= weekEnd;
+    });
+    weeks.push({ start: weekStart, end: weekEnd, entries: weekEntries });
+    current = new Date(weekEnd);
+    current.setDate(current.getDate() + 1);
+  }
+  return weeks;
 }
 
 function App() {
@@ -73,6 +129,7 @@ function App() {
   };
 
   const filtered = getEntriesInRange(entries, new Date(from), new Date(to));
+  const weeks = splitEntriesByWeek(filtered, new Date(from), new Date(to));
 
   const openSettingsModal = () => {
     settingsDialogRef.current?.showModal();
@@ -101,12 +158,26 @@ function App() {
         </div>
         <div className="flex-1 min-h-0">
           <div className="overflow-x-auto overflow-y-auto max-h-[60vh] rounded-xl border shadow-sm bg-white/70">
-            <LogTable
-              entries={filtered}
-              editedHours={editedHours}
-              setEditedHours={setEditedHours}
-              handleSendToJira={handleSendToJira}
-            />
+            {weeks.length > 1
+              ? [...weeks].sort((a, b) => b.start.getTime() - a.start.getTime()).map(week => (
+                  <div key={week.start.toISOString()} className="mb-10">
+                    <LogTable
+                      entries={week.entries}
+                      editedHours={editedHours}
+                      setEditedHours={setEditedHours}
+                      handleSendToJira={handleSendToJira}
+                      weekStart={format(week.start, 'yyyy-MM-dd')}
+                      weekEnd={format(week.end, 'yyyy-MM-dd')}
+                    />
+                  </div>
+                ))
+              : <LogTable
+                  entries={filtered}
+                  editedHours={editedHours}
+                  setEditedHours={setEditedHours}
+                  handleSendToJira={handleSendToJira}
+                />
+            }
           </div>
         </div>
       </div>

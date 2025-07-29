@@ -9,6 +9,24 @@ interface LogTableProps {
   editedHours: { [key: string]: string };
   setEditedHours: (v: { [key: string]: string }) => void;
   handleSendToJira: (entry: LogEntry) => void;
+  weekStart?: string;
+  weekEnd?: string;
+}
+
+interface LogTableSectionHeadingProps {
+  weekStart: string;
+  weekEnd: string;
+}
+
+function LogTableSectionHeading({ weekStart, weekEnd }: LogTableSectionHeadingProps) {
+  return (
+    <div className="flex justify-center items-center mb-6">
+      <div className="inline-block bg-white/90 rounded-xl shadow border border-blue-200 px-6 py-3">
+        <span className="text-xl font-extrabold text-blue-700 tracking-tight drop-shadow mr-3">Week</span>
+        <span className="text-lg font-semibold text-blue-600">{weekStart} – {weekEnd}</span>
+      </div>
+    </div>
+  );
 }
 
 export function LogTable({ entries, editedHours, setEditedHours, handleSendToJira }: LogTableProps) {
@@ -198,6 +216,10 @@ export function LogTable({ entries, editedHours, setEditedHours, handleSendToJir
 
   return (
     <>
+      {/* If weekStart/weekEnd are passed, render heading */}
+      {('weekStart' in arguments[0] && 'weekEnd' in arguments[0]) ? (
+        <LogTableSectionHeading weekStart={arguments[0].weekStart} weekEnd={arguments[0].weekEnd} />
+      ) : null}
       <div className="overflow-x-auto w-full">
         <table className="min-w-full text-sm text-center w-auto">
           <thead>
