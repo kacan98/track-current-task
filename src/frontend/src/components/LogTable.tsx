@@ -1,10 +1,8 @@
 import { useState, useMemo, useEffect } from 'react';
-import { getDayOfWeek } from '../components/utils';
 import type { LogEntry } from '../components/types';
-import { Button } from './Button';
-import { HourAdjustButtons } from './HourAdjustButtons';
-import { getJiraTaskUrl } from './jira-utils';
-import { getJiraIssuesDetails, getJiraWorklogsDetails, getCachedJiraToken } from '../services/JiraIntegration';
+import { LogTableRow } from './LogTable/LogTableRow';
+import { getDayOfWeek } from '../components/utils';
+import { getJiraIssuesDetails, getCachedJiraToken } from '../services/JiraIntegration';
 
 interface LogTableProps {
   entries: LogEntry[];
@@ -224,78 +222,24 @@ export function LogTable({ entries, editedHours, setEditedHours, handleSendToJir
                 <td colSpan={headers.length} className="text-center py-8 text-gray-400 text-lg">No entries in this range.</td>
               </tr>
             ) : (
-              sortedEntries.map((entry, i) => {
-                const key = `${entry.taskId}|${entry.date}`;
-                // --- Heading cell logic ---
-                let headingCell: React.ReactNode = '';
-                let taskCellClass = '';
-                if (/^DFO-\d+$/.test(entry.taskId)) {
-                  taskCellClass = dfoTaskColorMap[entry.taskId] + ' font-mono rounded px-2 py-1';
-                  if (loadingHeadings[entry.taskId]) {
-                    headingCell = <span className="italic text-blue-400">Loading...</span>;
-                  } else if (headingsError[entry.taskId]) {
-                    headingCell = <span className="text-red-500">{headingsError[entry.taskId]}</span>;
-                  } else {
-                    headingCell = issueHeadings[entry.taskId] || <span className="text-gray-400">Not found</span>;
-                  }
-                } else {
-                  taskCellClass = 'text-gray-300';
-                  headingCell = <span className="text-gray-300">—</span>;
-                }
+              sortedEntries.map(entry => {
+                const keyId = `${entry.taskId}|${entry.date}`;
                 return (
-                  <tr key={i} className="border-t hover:bg-blue-50 transition-colors">
-                    <td className="px-3 py-2 whitespace-nowrap text-center">{entry.date}</td>
-                    <td className="px-3 py-2 whitespace-nowrap text-center">{getDayOfWeek(entry.date)}</td>
-                    <td className={`px-3 py-2 whitespace-nowrap text-center ${taskCellClass}`}>
-                      {(() => {
-                        const url = getJiraTaskUrl(entry.taskId);
-                        return url ? (
-                          <a href={url} target="_blank" rel="noopener noreferrer" className="underline">{entry.taskId}</a>
-                        ) : (
-                          entry.taskId
-                        );
-                      })()}
-                    </td>
-                    <td className="px-3 py-2 text-center">{headingCell}</td>
-                    <td className="px-3 py-2 text-center">
-                      <HourAdjustButtons
-                        value={editedHours[key] !== undefined ? editedHours[key] : entry.hours}
-                        onChange={v => setEditedHours({ ...editedHours, [key]: v })}
-                        disabled={entry.sentToJira}
-                      />
-                      <div className="text-xs mt-1 text-blue-700 min-h-[1.2em]">
-                        {loadingWorklogs[key]
-                          ? <span className="italic text-blue-400">Jira: ...</span>
-                          : worklogError[key]
-                            ? <span className="text-red-500">Jira: {worklogError[key]}</span>
-                            : <span>Jira: {worklogTotals[key] ? (worklogTotals[key]/3600).toFixed(2) : '0.00'}h</span>
-                        }
-                      </div>
-                    </td>
-                    <td className="px-3 py-2 text-center">{entry.sentToJira ? <span className="text-green-600">✅</span> : <span className="text-red-400">❌</span>}</td>
-                    <td className="px-3 py-2 text-center">
-                      <div className="flex justify-center items-center">
-                        <Button
-                          className={`group relative flex items-center gap-2 px-4 py-2 rounded-full font-semibold shadow-md transition-all duration-150
-                          ${entry.sentToJira
-                              ? 'bg-gray-200 text-gray-400 cursor-not-allowed border border-gray-200'
-                              : 'bg-gradient-to-r from-blue-500 to-blue-700 text-white hover:from-blue-600 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-400 border border-blue-600 cursor-pointer'}
-                        `}
-                          disabled={entry.sentToJira}
-                          onClick={() => handleSendToJira(entry)}
-                          aria-label={entry.sentToJira ? 'Already sent to Jira' : 'Send to Jira'}
-                        >
-                          <span className="material-symbols-outlined text-lg pointer-events-none">
-                            {entry.sentToJira ? 'check_circle' : 'send'}
-                          </span>
-                          <span>{entry.sentToJira ? 'Sent' : 'Send'}</span>
-                          {!entry.sentToJira && (
-                            <span className="absolute left-0 top-0 w-full h-full rounded-full opacity-0 group-hover:opacity-10 bg-white transition-opacity duration-200 pointer-events-none"></span>
-                          )}
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
+                  <LogTableRow
+                    key={keyId}
+                    entry={entry}
+                    keyId={keyId}
+                    dfoTaskColorMap={dfoTaskColorMap}
+                    editedHours={editedHours}
+                    setEditedHours={setEditedHours}
+                    loadingHeadings={loadingHeadings}
+                    headingsError={headingsError}
+                    issueHeadings={issueHeadings}
+                    loadingWorklogs={loadingWorklogs}
+                    worklogError={worklogError}
+                    worklogTotals={worklogTotals}
+                    handleSendToJira={handleSendToJira}
+                  />
                 );
               })
             )}
