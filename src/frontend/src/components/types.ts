@@ -3,4 +3,6 @@ export interface LogEntry {
   taskId: string;
   hours: number;
   sentToJira: boolean;
+  eventName?: string;
+  eventId?: string;
 }

@@ -4,6 +4,7 @@ import { LogTableRow } from './LogTable/LogTableRow';
 import { getDayOfWeek } from '../components/utils';
 import { getJiraIssuesDetails, getCachedJiraToken } from '../services/JiraIntegration';
 import { getSetting } from './SettingsPage';
+import type { RecurringEvent } from './RecurringEventsEditor';
 import { Button } from './Button';
 
 interface LogTableProps {
@@ -20,7 +21,14 @@ interface LogTableSectionHeadingProps {
   weekEnd: string;
 }
 
-function LogTableSectionHeading({ weekStart, weekEnd, onAddDailyScrum, onAddEndSprint, dailyScrumAdded, endSprintAdded }: LogTableSectionHeadingProps & { onAddDailyScrum: () => void; onAddEndSprint: () => void; dailyScrumAdded: boolean; endSprintAdded: boolean }) {
+// Helper to get recurring events from localStorage
+function getRecurringEvents(): RecurringEvent[] {
+  const stored = localStorage.getItem('recurringEvents');
+  return stored ? JSON.parse(stored) : [];
+}
+
+function LogTableSectionHeading({ weekStart, weekEnd, onAddDailyScrum, onAddEvent, eventStates }: LogTableSectionHeadingProps & { onAddDailyScrum: () => void; onAddEvent: (event: RecurringEvent) => void; eventStates: Record<string, boolean> }) {
+  const recurringEvents = getRecurringEvents();
   return (
     <tr className="bg-blue-50 border-b">
       <td colSpan={7} className="px-6 py-3 text-left align-middle">
@@ -30,12 +38,23 @@ function LogTableSectionHeading({ weekStart, weekEnd, onAddDailyScrum, onAddEndS
             <span className="text-lg font-semibold text-blue-600">{weekStart} – {weekEnd}</span>
           </div>
           <div className="flex gap-3">
-            <Button className="px-4 py-2 bg-green-500 text-white rounded-lg font-semibold shadow hover:bg-green-600 transition disabled:opacity-50 disabled:cursor-not-allowed" onClick={onAddDailyScrum} disabled={dailyScrumAdded}>
+            <Button
+              className="px-4 py-2 bg-green-500 text-white rounded-lg font-semibold shadow hover:bg-green-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={onAddDailyScrum}
+              disabled={eventStates['dailyScrum']}
+            >
               Add daily scrum events
             </Button>
-            <Button className="px-4 py-2 bg-purple-500 text-white rounded-lg font-semibold shadow hover:bg-purple-600 transition disabled:opacity-50 disabled:cursor-not-allowed" onClick={onAddEndSprint} disabled={endSprintAdded}>
-              Add end sprint event
-            </Button>
+            {recurringEvents.map((ev: RecurringEvent) => (
+              <Button
+                key={ev.id}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg font-semibold shadow hover:bg-blue-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={() => onAddEvent(ev)}
+                disabled={eventStates[ev.id]}
+              >
+                Add {ev.name}
+              </Button>
+            ))}
           </div>
         </div>
       </td>
@@ -209,10 +228,23 @@ export function LogTable({ entries, editedHours, setEditedHours, handleSendToJir
 
   // --- Extra rows for daily scrum and end sprint events ---
   const [extraRows, setExtraRows] = useState<LogEntry[]>([]);
-  const [dailyScrumClicked, setDailyScrumClicked] = useState(false);
-  const [endSprintClicked, setEndSprintClicked] = useState(false);
+  const [eventStates, setEventStates] = useState<Record<string, boolean>>({});
 
-  // Helper to get all dates in week (Monday–Friday)
+  // Helper to get all dates in week for a specific day name
+  function getDatesForDayInWeek(start: string, end: string, dayName: string) {
+    const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    const dates: string[] = [];
+    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+      if (days[d.getDay()] === dayName) {
+        dates.push(d.toISOString().slice(0, 10));
+      }
+    }
+    return dates;
+  }
+
+  // Helper to get all weekdays in week
   function getWeekDates(start: string, end: string) {
     const dates: string[] = [];
     const startDate = new Date(start);
@@ -226,20 +258,7 @@ export function LogTable({ entries, editedHours, setEditedHours, handleSendToJir
     return dates;
   }
 
-  // Helper to get date for a specific day name in week
-  function getDateForDayInWeek(start: string, end: string, dayName: string) {
-    const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-    const startDate = new Date(start);
-    const endDate = new Date(end);
-    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-      if (days[d.getDay()] === dayName) {
-        return d.toISOString().slice(0, 10);
-      }
-    }
-    return null;
-  }
-
-  // Add daily scrum events
+  // Add daily scrum events for every weekday
   const handleAddDailyScrum = () => {
     const taskId = getSetting('scrumTaskId');
     const minutes = parseFloat(getSetting('scrumDailyDurationMinutes'));
@@ -250,37 +269,41 @@ export function LogTable({ entries, editedHours, setEditedHours, handleSendToJir
       taskId,
       hours,
       sentToJira: false,
+      eventName: 'Daily Scrum',
+      eventId: 'dailyScrum',
     }));
     setExtraRows(prev => {
-      // Avoid duplicates
+      // Avoid exact duplicates (same date and same eventId)
       const allRows = [...prev, ...newRows];
-      const uniqueRows = allRows.filter((row, idx, arr) => arr.findIndex(r => r.date === row.date && r.taskId === row.taskId) === idx);
+      const uniqueRows = allRows.filter((row, idx, arr) => arr.findIndex(r => r.date === row.date && r.eventId === row.eventId) === idx);
       return uniqueRows;
     });
-    setDailyScrumClicked(true);
+    setEventStates(prev => ({ ...prev, dailyScrum: true }));
   };
 
-  // Add end sprint event
-  const handleAddEndSprint = () => {
+  // Add recurring event for all matching days in the current week
+  const handleAddEvent = (ev: RecurringEvent) => {
+    // Use the configured taskId and also store the event name
     const taskId = getSetting('scrumTaskId');
-    const minutes = parseFloat(getSetting('scrumEndSprintDurationMinutes'));
+    const minutes = parseFloat(ev.durationMinutes);
     const hours = minutes / 60;
-    const dayName = getSetting('scrumDay');
-    const date = getDateForDayInWeek(weekStart!, weekEnd!, dayName);
-    if (!date) return;
-    const newRow: LogEntry = {
+    const dates = getDatesForDayInWeek(weekStart!, weekEnd!, ev.day);
+    if (!dates.length) return;
+    const newRows: LogEntry[] = dates.map(date => ({
       date,
       taskId,
       hours,
       sentToJira: false,
-    };
+      eventName: ev.name, // Store the button name/event name
+      eventId: ev.id, // Add a unique id for the event
+    }));
     setExtraRows(prev => {
-      // Avoid duplicates
-      const allRows = [...prev, newRow];
-      const uniqueRows = allRows.filter((row, idx, arr) => arr.findIndex(r => r.date === row.date && r.taskId === row.taskId) === idx);
+      // Avoid exact duplicates (same date and same eventId)
+      const allRows = [...prev, ...newRows];
+      const uniqueRows = allRows.filter((row, idx, arr) => arr.findIndex(r => r.date === row.date && r.eventId === row.eventId) === idx);
       return uniqueRows;
     });
-    setEndSprintClicked(true);
+    setEventStates(prev => ({ ...prev, [ev.id]: true }));
   };
 
   // Merge and sort all rows
@@ -305,16 +328,6 @@ export function LogTable({ entries, editedHours, setEditedHours, handleSendToJir
     return merged;
   }, [entries, extraRows, sortColumn, sortDirection]);
 
-  // Check if daily scrum events have already been added for this week
-  const weekDates = weekStart && weekEnd ? getWeekDates(weekStart, weekEnd) : [];
-  const taskId = getSetting('scrumTaskId');
-  const dailyScrumAdded = weekDates.every(date => entries.concat(extraRows).some(e => e.date === date && e.taskId === taskId));
-
-  // Check if end sprint event has already been added for this week
-  const dayName = getSetting('scrumDay');
-  const endSprintDate = weekStart && weekEnd && dayName ? getDateForDayInWeek(weekStart, weekEnd, dayName) : null;
-  const endSprintAdded = endSprintDate ? entries.concat(extraRows).some(e => e.date === endSprintDate && e.taskId === taskId) : false;
-
   return (
     <div className="overflow-x-auto w-full">
       <table className="min-w-full text-sm text-center w-auto">
@@ -324,9 +337,8 @@ export function LogTable({ entries, editedHours, setEditedHours, handleSendToJir
               weekStart={weekStart}
               weekEnd={weekEnd}
               onAddDailyScrum={handleAddDailyScrum}
-              onAddEndSprint={handleAddEndSprint}
-              dailyScrumAdded={dailyScrumClicked}
-              endSprintAdded={endSprintClicked}
+              onAddEvent={handleAddEvent}
+              eventStates={eventStates}
             />
           ) : null}
           <tr className="bg-blue-50 border-b">
