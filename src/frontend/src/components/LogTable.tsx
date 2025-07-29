@@ -4,6 +4,7 @@ import { LogTableRow } from './LogTable/LogTableRow';
 import { getDayOfWeek } from '../components/utils';
 import { getJiraIssuesDetails, getCachedJiraToken } from '../services/JiraIntegration';
 import { getSetting } from './SettingsPage';
+import { Button } from './Button';
 
 interface LogTableProps {
   entries: LogEntry[];
@@ -19,20 +20,26 @@ interface LogTableSectionHeadingProps {
   weekEnd: string;
 }
 
-function LogTableSectionHeading({ weekStart, weekEnd, onAddDailyScrum, onAddEndSprint }: LogTableSectionHeadingProps & { onAddDailyScrum: () => void; onAddEndSprint: () => void }) {
+function LogTableSectionHeading({ weekStart, weekEnd, onAddDailyScrum, onAddEndSprint, dailyScrumAdded, endSprintAdded }: LogTableSectionHeadingProps & { onAddDailyScrum: () => void; onAddEndSprint: () => void; dailyScrumAdded: boolean; endSprintAdded: boolean }) {
   return (
-    <div className="flex flex-col items-center mb-6">
-      <div className="flex flex-row items-center justify-between w-full max-w-2xl bg-white/90 rounded-xl shadow border border-blue-200 px-6 py-3">
-        <div className="flex flex-col">
-          <span className="text-xl font-extrabold text-blue-700 tracking-tight drop-shadow">Week</span>
-          <span className="text-lg font-semibold text-blue-600">{weekStart} – {weekEnd}</span>
+    <tr className="bg-blue-50 border-b">
+      <td colSpan={7} className="px-6 py-3 text-left align-middle">
+        <div className="flex flex-row items-center justify-between w-full">
+          <div className="flex flex-col">
+            <span className="text-xl font-extrabold text-blue-700 tracking-tight drop-shadow">Week</span>
+            <span className="text-lg font-semibold text-blue-600">{weekStart} – {weekEnd}</span>
+          </div>
+          <div className="flex gap-3">
+            <Button className="px-4 py-2 bg-green-500 text-white rounded-lg font-semibold shadow hover:bg-green-600 transition disabled:opacity-50 disabled:cursor-not-allowed" onClick={onAddDailyScrum} disabled={dailyScrumAdded}>
+              Add daily scrum events
+            </Button>
+            <Button className="px-4 py-2 bg-purple-500 text-white rounded-lg font-semibold shadow hover:bg-purple-600 transition disabled:opacity-50 disabled:cursor-not-allowed" onClick={onAddEndSprint} disabled={endSprintAdded}>
+              Add end sprint event
+            </Button>
+          </div>
         </div>
-        <div className="flex gap-3">
-          <button className="px-4 py-2 bg-green-500 text-white rounded-lg font-semibold shadow hover:bg-green-600 transition" onClick={onAddDailyScrum}>Add daily scrum events</button>
-          <button className="px-4 py-2 bg-purple-500 text-white rounded-lg font-semibold shadow hover:bg-purple-600 transition" onClick={onAddEndSprint}>Add end sprint event</button>
-        </div>
-      </div>
-    </div>
+      </td>
+    </tr>
   );
 }
 
@@ -40,27 +47,6 @@ export function LogTable({ entries, editedHours, setEditedHours, handleSendToJir
   // Sorting state
   const [sortColumn, setSortColumn] = useState<'date' | 'day' | 'task' | 'hours' | 'sent'>('date');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
-
-  // Sorting logic
-  const sortedEntries = useMemo(() => {
-    const sorted = [...entries];
-    sorted.sort((a, b) => {
-      let cmp = 0;
-      if (sortColumn === 'date') {
-        cmp = a.date.localeCompare(b.date);
-      } else if (sortColumn === 'day') {
-        cmp = getDayOfWeek(a.date).localeCompare(getDayOfWeek(b.date));
-      } else if (sortColumn === 'task') {
-        cmp = a.taskId.localeCompare(b.taskId);
-      } else if (sortColumn === 'hours') {
-        cmp = Number(a.hours) - Number(b.hours);
-      } else if (sortColumn === 'sent') {
-        cmp = Number(a.sentToJira) - Number(b.sentToJira);
-      }
-      return sortDirection === 'asc' ? cmp : -cmp;
-    });
-    return sorted;
-  }, [entries, sortColumn, sortDirection]);
 
   // --- Jira headings state ---
   const [issueHeadings, setIssueHeadings] = useState<Record<string, string>>({});
@@ -223,6 +209,8 @@ export function LogTable({ entries, editedHours, setEditedHours, handleSendToJir
 
   // --- Extra rows for daily scrum and end sprint events ---
   const [extraRows, setExtraRows] = useState<LogEntry[]>([]);
+  const [dailyScrumClicked, setDailyScrumClicked] = useState(false);
+  const [endSprintClicked, setEndSprintClicked] = useState(false);
 
   // Helper to get all dates in week (Monday–Friday)
   function getWeekDates(start: string, end: string) {
@@ -269,6 +257,7 @@ export function LogTable({ entries, editedHours, setEditedHours, handleSendToJir
       const uniqueRows = allRows.filter((row, idx, arr) => arr.findIndex(r => r.date === row.date && r.taskId === row.taskId) === idx);
       return uniqueRows;
     });
+    setDailyScrumClicked(true);
   };
 
   // Add end sprint event
@@ -291,68 +280,99 @@ export function LogTable({ entries, editedHours, setEditedHours, handleSendToJir
       const uniqueRows = allRows.filter((row, idx, arr) => arr.findIndex(r => r.date === row.date && r.taskId === row.taskId) === idx);
       return uniqueRows;
     });
+    setEndSprintClicked(true);
   };
 
   // Merge and sort all rows
   const allEntries = useMemo(() => {
     const merged = [...entries, ...extraRows];
-    merged.sort((a, b) => a.date.localeCompare(b.date));
+    // Use the same sorting logic as sortedEntries
+    merged.sort((a, b) => {
+      let cmp = 0;
+      if (sortColumn === 'date') {
+        cmp = a.date.localeCompare(b.date);
+      } else if (sortColumn === 'day') {
+        cmp = getDayOfWeek(a.date).localeCompare(getDayOfWeek(b.date));
+      } else if (sortColumn === 'task') {
+        cmp = a.taskId.localeCompare(b.taskId);
+      } else if (sortColumn === 'hours') {
+        cmp = Number(a.hours) - Number(b.hours);
+      } else if (sortColumn === 'sent') {
+        cmp = Number(a.sentToJira) - Number(b.sentToJira);
+      }
+      return sortDirection === 'asc' ? cmp : -cmp;
+    });
     return merged;
-  }, [entries, extraRows]);
+  }, [entries, extraRows, sortColumn, sortDirection]);
+
+  // Check if daily scrum events have already been added for this week
+  const weekDates = weekStart && weekEnd ? getWeekDates(weekStart, weekEnd) : [];
+  const taskId = getSetting('scrumTaskId');
+  const dailyScrumAdded = weekDates.every(date => entries.concat(extraRows).some(e => e.date === date && e.taskId === taskId));
+
+  // Check if end sprint event has already been added for this week
+  const dayName = getSetting('scrumDay');
+  const endSprintDate = weekStart && weekEnd && dayName ? getDateForDayInWeek(weekStart, weekEnd, dayName) : null;
+  const endSprintAdded = endSprintDate ? entries.concat(extraRows).some(e => e.date === endSprintDate && e.taskId === taskId) : false;
 
   return (
-    <>
-      {weekStart && weekEnd ? (
-        <LogTableSectionHeading weekStart={weekStart} weekEnd={weekEnd} onAddDailyScrum={handleAddDailyScrum} onAddEndSprint={handleAddEndSprint} />
-      ) : null}
-      <div className="overflow-x-auto w-full">
-        <table className="min-w-full text-sm text-center w-auto">
-          <thead>
-            <tr className="bg-blue-50 border-b">
-              {headers.map(h => (
-                <th
-                  key={h.key}
-                  className={`px-3 py-2 font-semibold text-blue-900/80 text-center select-none ${h.sortable === false ? '' : 'cursor-pointer hover:bg-blue-100'}`}
-                  onClick={() => handleHeaderClick(h.key)}
-                >
-                  {h.label}
-                  {h.key === sortColumn && (
-                    <span className="ml-1">{sortDirection === 'asc' ? '▲' : '▼'}</span>
-                  )}
-                </th>
-              ))}
+    <div className="overflow-x-auto w-full">
+      <table className="min-w-full text-sm text-center w-auto">
+        <thead>
+          {weekStart && weekEnd ? (
+            <LogTableSectionHeading
+              weekStart={weekStart}
+              weekEnd={weekEnd}
+              onAddDailyScrum={handleAddDailyScrum}
+              onAddEndSprint={handleAddEndSprint}
+              dailyScrumAdded={dailyScrumClicked}
+              endSprintAdded={endSprintClicked}
+            />
+          ) : null}
+          <tr className="bg-blue-50 border-b">
+            {headers.map(h => (
+              <th
+                key={h.key}
+                className={`px-3 py-2 font-semibold text-blue-900/80 text-center select-none ${h.sortable === false ? '' : 'cursor-pointer hover:bg-blue-100'}`}
+                onClick={() => handleHeaderClick(h.key)}
+              >
+                {h.label}
+                {h.key === sortColumn && (
+                  <span className="ml-1">{sortDirection === 'asc' ? '▲' : '▼'}</span>
+                )}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {allEntries.length === 0 ? (
+            <tr>
+              <td colSpan={headers.length} className="text-center py-8 text-gray-400 text-lg">No entries in this range.</td>
             </tr>
-          </thead>
-          <tbody>
-            {allEntries.length === 0 ? (
-              <tr>
-                <td colSpan={headers.length} className="text-center py-8 text-gray-400 text-lg">No entries in this range.</td>
-              </tr>
-            ) : (
-              allEntries.map(entry => {
-                const keyId = `${entry.taskId}|${entry.date}`;
-                return (
-                  <LogTableRow
-                    key={keyId}
-                    entry={entry}
-                    keyId={keyId}
-                    dfoTaskColorMap={dfoTaskColorMap}
-                    editedHours={editedHours}
-                    setEditedHours={setEditedHours}
-                    loadingHeadings={loadingHeadings}
-                    headingsError={headingsError}
-                    issueHeadings={issueHeadings}
-                    loadingWorklogs={loadingWorklogs}
-                    worklogError={worklogError}
-                    worklogTotals={worklogTotals}
-                    handleSendToJira={handleSendToJira}
-                  />
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
-    </>
+          ) : (
+            allEntries.map(entry => {
+              const keyId = `${entry.taskId}|${entry.date}`;
+              return (
+                <LogTableRow
+                  key={keyId}
+                  entry={entry}
+                  keyId={keyId}
+                  dfoTaskColorMap={dfoTaskColorMap}
+                  editedHours={editedHours}
+                  setEditedHours={setEditedHours}
+                  loadingHeadings={loadingHeadings}
+                  headingsError={headingsError}
+                  issueHeadings={issueHeadings}
+                  loadingWorklogs={loadingWorklogs}
+                  worklogError={worklogError}
+                  worklogTotals={worklogTotals}
+                  handleSendToJira={handleSendToJira}
+                />
+              );
+            })
+          )}
+        </tbody>
+      </table>
+    </div>
   );
 }
