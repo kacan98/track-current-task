@@ -88,7 +88,6 @@ export function JiraCredentialsForm() {
         />
         <Button
           type="button"
-          variant="compact"
           className="text-xs text-blue-700 underline px-2 py-1 h-auto hover:text-blue-900 transition"
           onClick={() => setShowPassword(v => !v)}
         >

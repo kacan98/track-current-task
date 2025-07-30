@@ -1,11 +1,14 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useMemo } from 'react';
 import type { LogEntry } from '../components/types';
 import { LogTableRow } from './LogTable/LogTableRow';
 import { getDayOfWeek } from '../components/utils';
-import { getJiraIssuesDetails, getCachedJiraToken } from '../services/JiraIntegration';
-import { getSetting } from './SettingsPage';
-import type { RecurringEvent } from './RecurringEventsEditor';
-import { Button } from './Button';
+import { WeekHeader } from './LogTable/WeekHeader';
+import { TableHeaders } from './LogTable/TableHeaders';
+import { EmptyState } from './LogTable/EmptyState';
+import { useJiraHeadings } from '../hooks/useJiraHeadings';
+import { useJiraWorklogs } from '../hooks/useJiraWorklogs';
+import { useExtraRows } from '../hooks/useExtraRows';
+import { useSorting } from '../hooks/useSorting';
 
 interface LogTableProps {
   entries: LogEntry[];
@@ -16,73 +19,7 @@ interface LogTableProps {
   weekEnd?: string;
 }
 
-interface LogTableSectionHeadingProps {
-  weekStart: string;
-  weekEnd: string;
-}
-
-// Helper to get recurring events from localStorage
-function getRecurringEvents(): RecurringEvent[] {
-  const stored = localStorage.getItem('recurringEvents');
-  return stored ? JSON.parse(stored) : [];
-}
-
-function LogTableSectionHeading({ 
-  weekStart, 
-  weekEnd, 
-  onAddDailyScrum, 
-  onAddEvent, 
-  eventStates 
-}: LogTableSectionHeadingProps & { 
-  onAddDailyScrum: () => void; 
-  onAddEvent: (event: RecurringEvent) => void; 
-  eventStates: Record<string, boolean> 
-}) {
-  const recurringEvents = getRecurringEvents();
-  // Format week header: 'Month YYYY: dd – dd'
-  const startDate = new Date(weekStart);
-  const endDate = new Date(weekEnd);
-  const month = startDate.toLocaleString('default', { month: 'long' });
-  const year = startDate.getFullYear();
-  const startDay = String(startDate.getDate()).padStart(2, '0');
-  const endDay = String(endDate.getDate()).padStart(2, '0');
-  
-  return (
-    <tr className="bg-gray-50 border-b border-gray-200">
-      <td colSpan={7} className="px-6 py-3 text-left align-middle">
-        <div className="flex flex-row items-center justify-between w-full">
-          <div className="flex flex-col">
-            <span className="text-lg font-bold text-gray-900 tracking-tight">
-              {month} {year}: {startDay} – {endDay}
-            </span>
-          </div>
-          <div className="flex gap-3">
-            <Button
-              variant="secondary"
-              className="flex items-center gap-2"
-              onClick={onAddDailyScrum}
-              disabled={eventStates['dailyScrum']}
-            >
-              Add daily scrum events
-            </Button>
-            {recurringEvents.map((ev: RecurringEvent) => (
-              <Button
-                key={ev.id}
-                variant="secondary"
-                className="flex items-center gap-2"
-                onClick={() => onAddEvent(ev)}
-                disabled={eventStates[ev.id]}
-              >
-                Add {ev.name}
-              </Button>
-            ))}
-          </div>
-        </div>
-      </td>
-    </tr>
-  );
-}
-
+// Component
 export function LogTable({ 
   entries, 
   editedHours, 
@@ -91,14 +28,8 @@ export function LogTable({
   weekStart, 
   weekEnd 
 }: LogTableProps) {
-  // Sorting state
-  const [sortColumn, setSortColumn] = useState<'date' | 'day' | 'task' | 'hours' | 'sent'>('date');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
-
-  // --- Jira headings state ---
-  const [issueHeadings, setIssueHeadings] = useState<Record<string, string>>({});
-  const [loadingHeadings, setLoadingHeadings] = useState<Record<string, boolean>>({});
-  const [headingsError, setHeadingsError] = useState<Record<string, string>>({});
+  const { sortColumn, sortDirection, handleHeaderClick } = useSorting();
+  const { extraRows, eventStates, handleAddDailyScrum, handleAddEvent } = useExtraRows(weekStart, weekEnd);
 
   // Detect all unique DFO-1234 task IDs in the entries
   const dfoTaskIds = useMemo(() => {
@@ -109,38 +40,10 @@ export function LogTable({
     return Array.from(ids);
   }, [entries]);
 
-  useEffect(() => {
-    let cancelled = false;
-    if (dfoTaskIds.length === 0) {
-      setIssueHeadings({});
-      setLoadingHeadings({});
-      setHeadingsError({});
-      return;
-    }
-    // Set loading state for all
-    setLoadingHeadings(Object.fromEntries(dfoTaskIds.map(id => [id, true])));
-    setHeadingsError({});
-    getJiraIssuesDetails(dfoTaskIds)
-      .then(issues => {
-        if (cancelled) return;
-        const headings: Record<string, string> = {};
-        for (const issue of issues) {
-          headings[issue.key] = issue.fields?.summary || '(No summary)';
-        }
-        setIssueHeadings(headings);
-        setLoadingHeadings(Object.fromEntries(dfoTaskIds.map(id => [id, false])));
-      })
-      .catch(e => {
-        if (cancelled) return;
-        const errMsg = e?.message || 'Failed to fetch Jira headings';
-        setHeadingsError(Object.fromEntries(dfoTaskIds.map(id => [id, errMsg])));
-        setLoadingHeadings(Object.fromEntries(dfoTaskIds.map(id => [id, false])));
-      });
-    return () => { cancelled = true; };
-  }, [dfoTaskIds.join(',')]);
+  const { issueHeadings, loadingHeadings, headingsError } = useJiraHeadings(dfoTaskIds);
+  const { worklogTotals, loadingWorklogs, worklogError } = useJiraWorklogs(entries, dfoTaskIds);
 
-  // --- Color coding for same tasks ---
-  // Assign a color to each unique DFO-1234 taskId
+  // Color coding for same tasks
   const dfoTaskColorMap = useMemo(() => {
     const ids = dfoTaskIds;
     const palette = [
@@ -164,180 +67,10 @@ export function LogTable({
     return map;
   }, [dfoTaskIds.join(',')]);
 
-  // --- Jira worklog totals state ---
-  const [worklogTotals, setWorklogTotals] = useState<Record<string, number>>({});
-  const [loadingWorklogs, setLoadingWorklogs] = useState<Record<string, boolean>>({});
-  const [worklogError, setWorklogError] = useState<Record<string, string>>({});
-
-  // For each row (taskId+date), fetch total hours registered in Jira for that task on that day
-  useEffect(() => {
-    let cancelled = false;
-    // Find all unique (taskId, date) pairs for DFO tasks
-    const pairs = entries
-      .filter(e => /^DFO-\d+$/.test(e.taskId))
-      .map(e => ({ taskId: e.taskId, date: e.date }));
-    const uniquePairs = Array.from(new Set(pairs.map(p => `${p.taskId}|${p.date}`)))
-      .map(k => {
-        const [taskId, date] = k.split('|');
-        return { taskId, date };
-      });
-    if (uniquePairs.length === 0) {
-      setWorklogTotals({});
-      setLoadingWorklogs({});
-      setWorklogError({});
-      return;
-    }
-    setLoadingWorklogs(Object.fromEntries(uniquePairs.map(({taskId, date}) => [`${taskId}|${date}`, true])));
-    setWorklogError({});
-    // For each unique taskId, fetch all worklogs, then filter by date
-    Promise.all(
-      dfoTaskIds.map(async taskId => {
-        try {
-          // Get all worklogs for this issue
-          // 1. Fetch issue worklogs (returns worklog IDs)
-          const res = await fetch(`http://localhost:9999/api/jira/issues/details`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token: getCachedJiraToken(), issueKeys: [taskId], fields: ['worklog'] })
-          });
-          if (!res.ok) throw new Error('Failed to fetch worklogs');
-          const data = await res.json();
-          const worklogs = data.issues?.[0]?.fields?.worklog?.worklogs || [];
-          if (!Array.isArray(worklogs) || worklogs.length === 0) return { taskId, worklogs: [] };
-          return { taskId, worklogs };
-        } catch (e: any) {
-          return { taskId, worklogs: [], error: e?.message || 'Failed to fetch worklogs' };
-        }
-      })
-    ).then(async results => {
-      if (cancelled) return;
-      // Flatten all worklogs and map to (taskId, date, timeSpentSeconds)
-      const allWorklogs = results.flatMap(r =>
-        (r.worklogs || []).map((w: any) => ({
-          taskId: r.taskId,
-          started: w.started,
-          timeSpentSeconds: w.timeSpentSeconds
-        }))
-      );
-      // For each unique (taskId, date), sum timeSpentSeconds for worklogs started on that date
-      const totals: Record<string, number> = {};
-      for (const { taskId, date } of uniquePairs) {
-        const total = allWorklogs
-          .filter(w => w.taskId === taskId && w.started && w.started.startsWith(date))
-          .reduce((sum, w) => sum + (w.timeSpentSeconds || 0), 0);
-        totals[`${taskId}|${date}`] = total;
-      }
-      setWorklogTotals(totals);
-      setLoadingWorklogs(Object.fromEntries(uniquePairs.map(({taskId, date}) => [`${taskId}|${date}`, false])));
-    });
-    return () => { cancelled = true; };
-  }, [entries]);
-
-  // Header config
-  const headers = [
-    { key: 'date', label: 'Date' },
-    { key: 'day', label: 'Day' },
-    { key: 'task', label: 'Task' },
-    { key: 'heading', label: 'Heading' },
-    { key: 'hours', label: 'Hours' },
-    { key: 'sent', label: 'Sent' },
-    { key: 'action', label: 'Action', sortable: false },
-  ];
-
-  const handleHeaderClick = (key: string) => {
-    if (key === 'action') return;
-    if (sortColumn === key) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortColumn(key as any);
-      setSortDirection(key === 'date' ? 'desc' : 'asc');
-    }
-  };
-
-  // --- Extra rows for daily scrum and end sprint events ---
-  const [extraRows, setExtraRows] = useState<LogEntry[]>([]);
-  const [eventStates, setEventStates] = useState<Record<string, boolean>>({});
-
-  // Helper to get all dates in week for a specific day name
-  function getDatesForDayInWeek(start: string, end: string, dayName: string) {
-    const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-    const startDate = new Date(start);
-    const endDate = new Date(end);
-    const dates: string[] = [];
-    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-      if (days[d.getDay()] === dayName) {
-        dates.push(d.toISOString().slice(0, 10));
-      }
-    }
-    return dates;
-  }
-
-  // Helper to get all weekdays in week
-  function getWeekDates(start: string, end: string) {
-    const dates: string[] = [];
-    const startDate = new Date(start);
-    const endDate = new Date(end);
-    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-      const day = d.getDay();
-      if (day >= 1 && day <= 5) { // Monday–Friday
-        dates.push(d.toISOString().slice(0, 10));
-      }
-    }
-    return dates;
-  }
-
-  // Add daily scrum events for every weekday
-  const handleAddDailyScrum = () => {
-    const taskId = getSetting('scrumTaskId');
-    const minutes = parseFloat(getSetting('scrumDailyDurationMinutes'));
-    const hours = minutes / 60;
-    const weekDates = getWeekDates(weekStart!, weekEnd!);
-    const newRows: LogEntry[] = weekDates.map(date => ({
-      date,
-      taskId,
-      hours,
-      sentToJira: false,
-      eventName: 'Daily Scrum',
-      eventId: 'dailyScrum',
-    }));
-    setExtraRows(prev => {
-      // Avoid exact duplicates (same date and same eventId)
-      const allRows = [...prev, ...newRows];
-      const uniqueRows = allRows.filter((row, idx, arr) => arr.findIndex(r => r.date === row.date && r.eventId === row.eventId) === idx);
-      return uniqueRows;
-    });
-    setEventStates(prev => ({ ...prev, dailyScrum: true }));
-  };
-
-  // Add recurring event for all matching days in the current week
-  const handleAddEvent = (ev: RecurringEvent) => {
-    // Use the configured taskId and also store the event name
-    const taskId = getSetting('scrumTaskId');
-    const minutes = parseFloat(ev.durationMinutes);
-    const hours = minutes / 60;
-    const dates = getDatesForDayInWeek(weekStart!, weekEnd!, ev.day);
-    if (!dates.length) return;
-    const newRows: LogEntry[] = dates.map(date => ({
-      date,
-      taskId,
-      hours,
-      sentToJira: false,
-      eventName: ev.name, // Store the button name/event name
-      eventId: ev.id, // Add a unique id for the event
-    }));
-    setExtraRows(prev => {
-      // Avoid exact duplicates (same date and same eventId)
-      const allRows = [...prev, ...newRows];
-      const uniqueRows = allRows.filter((row, idx, arr) => arr.findIndex(r => r.date === row.date && r.eventId === row.eventId) === idx);
-      return uniqueRows;
-    });
-    setEventStates(prev => ({ ...prev, [ev.id]: true }));
-  };
-
   // Merge and sort all rows
   const allEntries = useMemo(() => {
     const merged = [...entries, ...extraRows];
-    // Use the same sorting logic as sortedEntries
+    // Sort entries
     merged.sort((a, b) => {
       let cmp = 0;
       if (sortColumn === 'date') {
@@ -361,41 +94,24 @@ export function LogTable({
       <div className="overflow-x-auto w-full">
         <table className="w-full text-left">
           <thead className="bg-gray-50">
-            {weekStart && weekEnd ? (
-              <LogTableSectionHeading
+            {weekStart && weekEnd && (
+              <WeekHeader
                 weekStart={weekStart}
                 weekEnd={weekEnd}
                 onAddDailyScrum={handleAddDailyScrum}
                 onAddEvent={handleAddEvent}
                 eventStates={eventStates}
               />
-            ) : null}
-            <tr className="border-b border-gray-200">
-              {headers.map(h => (
-                <th
-                  key={h.key}
-                  className={`px-6 py-3 text-gray-900 font-semibold text-center select-none ${
-                    h.sortable === false ? '' : 'cursor-pointer hover:bg-gray-100'
-                  }`}
-                  onClick={() => handleHeaderClick(h.key)}
-                >
-                  {h.label}
-                  {h.key === sortColumn && (
-                    <span className="ml-1 text-gray-700">
-                      {sortDirection === 'asc' ? '▲' : '▼'}
-                    </span>
-                  )}
-                </th>
-              ))}
-            </tr>
+            )}
+            <TableHeaders
+              sortColumn={sortColumn}
+              sortDirection={sortDirection}
+              onHeaderClick={handleHeaderClick}
+            />
           </thead>
           <tbody>
             {allEntries.length === 0 ? (
-              <tr>
-                <td colSpan={headers.length} className="text-center py-8 text-gray-700 text-lg">
-                  No entries in this range.
-                </td>
-              </tr>
+              <EmptyState colSpan={7} />
             ) : (
               allEntries.map((entry, idx) => {
                 // Guarantee unique key for each row
