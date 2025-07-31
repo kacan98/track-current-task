@@ -45,7 +45,6 @@ export function WeekHeader({
               variant="primary"
               className="flex items-center gap-2"
               onClick={sendEventsToJira}
-              disabled={eventStates['dailyScrum']}
             >
               Send all
             </Button>

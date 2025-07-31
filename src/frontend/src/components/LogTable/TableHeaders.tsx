@@ -1,4 +1,3 @@
-import React from 'react';
 
 export function TableHeaders({
   sortColumn,
@@ -10,8 +9,6 @@ export function TableHeaders({
   onHeaderClick: (key: string) => void;
 }) {
   const headers = [
-    { key: 'date', label: 'Date' },
-    { key: 'day', label: 'Day' },
     { key: 'task', label: 'Task' },
     { key: 'heading', label: 'Heading' },
     { key: 'hours', label: 'Hours' },

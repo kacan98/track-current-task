@@ -97,11 +97,7 @@ export function LogTable({
         ...group,
         entries: [...group.entries].sort((a, b) => {
           let cmp = 0;
-          if (sortColumn === 'date') {
-            cmp = a.date.localeCompare(b.date);
-          } else if (sortColumn === 'day') {
-            cmp = getDayOfWeek(a.date).localeCompare(getDayOfWeek(b.date));
-          } else if (sortColumn === 'task') {
+          if (sortColumn === 'task') {
             cmp = a.taskId.localeCompare(b.taskId);
           } else if (sortColumn === 'hours') {
             cmp = Number(a.hours) - Number(b.hours);
@@ -138,7 +134,7 @@ export function LogTable({
           </thead>
           <tbody>
             {sortedDates.length === 0 ? (
-              <EmptyState colSpan={7} />
+              <EmptyState colSpan={5} />
             ) : (
               sortedDates.map(date => {
                 const group = sortedDayGroups[date];
@@ -167,7 +163,6 @@ export function LogTable({
                         handleSendToJira={handleSendToJira}
                         isFirstInGroup={idx === 0}
                         isLastInGroup={idx === group.entries.length - 1}
-                        showDateColumn={idx === 0} // Only show date on first entry of each day
                       />
                     ))}
                   </>

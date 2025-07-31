@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { getJiraIssuesDetails, getCachedJiraToken } from '../services/JiraIntegration';
+import { useEffect, useState } from 'react';
+import { getJiraIssuesDetails } from '../services/JiraIntegration';
 
 export function useJiraHeadings(dfoTaskIds: string[]) {
   const [issueHeadings, setIssueHeadings] = useState<Record<string, string>>({});

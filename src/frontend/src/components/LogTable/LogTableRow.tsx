@@ -23,7 +23,6 @@ export type LogTableRowProps = {
   handleSendToJira: (entry: LogEntry) => void;
   isFirstInGroup?: boolean;
   isLastInGroup?: boolean;
-  showDateColumn?: boolean; // New prop to conditionally show date
 };
 
 export function LogTableRow({
@@ -41,7 +40,6 @@ export function LogTableRow({
   handleSendToJira,
   isFirstInGroup = false,
   isLastInGroup = false,
-  showDateColumn = true
 }: LogTableRowProps) {
   const url = getJiraTaskUrl(entry.taskId);
   const taskCellClass = /^DFO-\d+$/.test(entry.taskId)
@@ -57,18 +55,6 @@ export function LogTableRow({
 
   return (
     <tr className={rowClass}>
-      {showDateColumn && (
-        <>
-          <td className="px-3 py-2 whitespace-nowrap text-center text-gray-900">{entry.date}</td>
-          <td className="px-3 py-2 whitespace-nowrap text-center text-gray-900">{getDayOfWeek(entry.date)}</td>
-        </>
-      )}
-      {!showDateColumn && (
-        <>
-          <td className="px-3 py-2 whitespace-nowrap text-center text-gray-400">—</td>
-          <td className="px-3 py-2 whitespace-nowrap text-center text-gray-400">—</td>
-        </>
-      )}
       <td className={`px-3 py-2 whitespace-nowrap text-center ${taskCellClass}`}>
         {url ? (
           <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline">
