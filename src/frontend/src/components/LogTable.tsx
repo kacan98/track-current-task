@@ -1,20 +1,29 @@
 // components/LogTable.tsx - Updated to use day grouping
 import { useMemo } from 'react';
 import type { LogEntry } from '../components/types';
-import { LogTableRow } from './LogTable/LogTableRow';
-import { DayGroupHeader } from './LogTable/DayGroupHeader';
-import { getDayOfWeek } from '../components/utils';
-import { WeekHeader } from './LogTable/WeekHeader';
-import { TableHeaders } from './LogTable/TableHeaders';
-import { EmptyState } from './LogTable/EmptyState';
+import { useDayGrouping } from '../hooks/useDaysGrouping';
+import { useExtraRows } from '../hooks/useExtraRows';
 import { useJiraHeadings } from '../hooks/useJiraHeadings';
 import { useJiraWorklogs } from '../hooks/useJiraWorklogs';
-import { useExtraRows } from '../hooks/useExtraRows';
 import { useSorting } from '../hooks/useSorting';
-import { useDayGrouping } from '../hooks/useDaysGrouping';
+import { DayGroupHeader } from './LogTable/DayGroupHeader';
+import { EmptyState } from './LogTable/EmptyState';
+import { LogTableRow } from './LogTable/LogTableRow';
+import { TableHeaders } from './LogTable/TableHeaders';
+import { WeekHeader } from './LogTable/WeekHeader';
+import React from 'react';
 
 export interface EditedHours {
   [key: string]: number; // key format: taskId|date or taskId|date|eventId
+}
+
+interface SentTaskKey {
+  taskId: string;
+  date: string;
+  hours: number;
+}
+function makeSentTaskKey(entry: LogEntry) {
+  return `${entry.taskId}|${entry.date}|${entry.hours}`;
 }
 
 interface LogTableProps {
@@ -25,16 +34,18 @@ interface LogTableProps {
   handleSendEventsToJira?: () => void;
   weekStart?: string;
   weekEnd?: string;
+  sentTasks: Record<string, LogEntry>;
 }
 
 export function LogTable({
-  entries, 
+  entries,    
   editedHours, 
   setEditedHours, 
-  handleSendEventToJira: handleSendToJira, 
+  handleSendEventToJira, 
   weekStart, 
   weekEnd,
   handleSendEventsToJira = () => {},
+  sentTasks,
 }: LogTableProps) {
   const { sortColumn, sortDirection, handleHeaderClick } = useSorting();
   const { extraRows, eventStates, handleAddDailyScrum, handleAddEvent } = useExtraRows(weekStart, weekEnd);
@@ -107,14 +118,18 @@ export function LogTable({
           } else if (sortColumn === 'hours') {
             cmp = Number(a.hours) - Number(b.hours);
           } else if (sortColumn === 'sent') {
-            cmp = Number(a.sentToJira) - Number(b.sentToJira);
+            const aKey = `${a.taskId}|${a.date}`;
+            const bKey = `${b.taskId}|${b.date}`;
+            const aSent = !!sentTasks[aKey];
+            const bSent = !!sentTasks[bKey];
+            cmp = Number(aSent) - Number(bSent);
           }
           return sortDirection === 'asc' ? cmp : -cmp;
         })
       };
     });
     return sorted;
-  }, [dayGroups, sortedDates, sortColumn, sortDirection]);
+  }, [dayGroups, sortedDates, sortColumn, sortDirection, sentTasks]);
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
@@ -144,33 +159,38 @@ export function LogTable({
               sortedDates.map(date => {
                 const group = sortedDayGroups[date];
                 return (
-                  <>
+                  <React.Fragment key={date}>
                     <DayGroupHeader
                       date={date}
                       totalHours={group.totalHours}
                       entryCount={group.entries.length}
-                      key={date}
                     />
-                    {group.entries.map((entry, idx) => (
-                      <LogTableRow
-                        key={entry.keyId}
-                        entry={entry}
-                        keyId={entry.keyId}
-                        taskColorMap={taskColorMap}
-                        editedHours={editedHours}
-                        setEditedHours={setEditedHours}
-                        loadingHeadings={loadingHeadings}
-                        headingsError={headingsError}
-                        issueHeadings={issueHeadings}
-                        loadingWorklogs={loadingWorklogs}
-                        worklogError={worklogError}
-                        worklogTotals={worklogTotals}
-                        handleSendToJira={handleSendToJira}
-                        isFirstInGroup={idx === 0}
-                        isLastInGroup={idx === group.entries.length - 1}
-                      />
-                    ))}
-                  </>
+                    {group.entries.map((entry, idx) => {
+                      const key = makeSentTaskKey(entry);
+                      // Only disable if this specific entry (taskId+date+hours) has been sent
+                      const isSentToJira = !!sentTasks[key];
+                      return (
+                        <LogTableRow
+                          key={entry.keyId}
+                          entry={entry}
+                          keyId={entry.keyId}
+                          taskColorMap={taskColorMap}
+                          editedHours={editedHours}
+                          setEditedHours={setEditedHours}
+                          loadingHeadings={loadingHeadings}
+                          headingsError={headingsError}
+                          issueHeadings={issueHeadings}
+                          loadingWorklogs={loadingWorklogs}
+                          worklogError={worklogError}
+                          worklogTotals={worklogTotals}
+                          handleSendToJira={handleSendEventToJira}
+                          isFirstInGroup={idx === 0}
+                          isLastInGroup={idx === group.entries.length - 1}
+                          isSentToJira={isSentToJira}
+                        />
+                      );
+                    })}
+                  </React.Fragment>
                 );
               })
             )}

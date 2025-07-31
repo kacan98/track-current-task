@@ -1,12 +1,11 @@
-// components/LogTable/LogTableRow.tsx - Updated to support day grouping
-import type { LogEntry } from '../types';
-import { getDayOfWeek } from '../utils';
-import { getJiraTaskUrl } from '../jira-utils';
+// components/LogTable/LogTableRow.tsx - Updated to support day groupingimport type { LogEntry } from '../components/types';
 import { Button } from '../Button';
 import { HourAdjustButtons } from '../HourAdjustButtons';
+import { getJiraTaskUrl } from '../jira-utils';
+import type { EditedHours } from '../LogTable';
+import type { LogEntry } from '../types';
 import { JiraHeadingCell, type JiraHeadingCellProps } from './JiraHeadingCell';
 import { JiraWorklogCell, type JiraWorklogCellProps } from './JiraWorklogCell';
-import type { EditedHours } from '../LogTable';
 
 export type LogTableRowProps = {
   entry: LogEntry;
@@ -23,6 +22,7 @@ export type LogTableRowProps = {
   handleSendToJira: (entry: LogEntry) => void;
   isFirstInGroup?: boolean;
   isLastInGroup?: boolean;
+  isSentToJira: boolean;
 };
 
 export function LogTableRow({
@@ -40,6 +40,7 @@ export function LogTableRow({
   handleSendToJira,
   isFirstInGroup = false,
   isLastInGroup = false,
+  isSentToJira = false,
 }: LogTableRowProps) {
   const url = getJiraTaskUrl(entry.taskId);
   const taskCellClass = /^DFO-\d+$/.test(entry.taskId)
@@ -76,7 +77,7 @@ export function LogTableRow({
         <HourAdjustButtons
           value={editedHours[keyId] !== undefined ? editedHours[keyId] : entry.hours}
           onChange={v => setEditedHours({ ...editedHours, [keyId]: +v })}
-          disabled={entry.sentToJira}
+          disabled={isSentToJira}
         />
         <JiraWorklogCell
           keyId={keyId}
@@ -86,7 +87,7 @@ export function LogTableRow({
         />
       </td>
       <td className="px-3 py-2 text-center">
-        {entry.sentToJira ? (
+        {isSentToJira ? (
           <span className="text-green-600 text-lg">
             <span className="material-symbols-outlined">check_circle</span>
           </span>
@@ -99,16 +100,16 @@ export function LogTableRow({
       <td className="px-3 py-2 text-center">
         <div className="flex justify-center items-center">
           <Button
-            variant={entry.sentToJira ? "secondary" : "primary"}
+            variant={isSentToJira ? "secondary" : "primary"}
             className="flex items-center gap-2"
-            disabled={entry.sentToJira}
+            disabled={isSentToJira}
             onClick={() => handleSendToJira(entry)}
-            aria-label={entry.sentToJira ? 'Already sent to Jira' : 'Send to Jira'}
+            aria-label={isSentToJira ? 'Already sent to Jira' : 'Send to Jira'}
           >
             <span className="material-symbols-outlined text-sm">
-              {entry.sentToJira ? 'check_circle' : 'send'}
+              {isSentToJira ? 'check_circle' : 'send'}
             </span>
-            <span>{entry.sentToJira ? 'Sent' : 'Send'}</span>
+            <span>{isSentToJira ? 'Sent' : 'Send'}</span>
           </Button>
         </div>
       </td>

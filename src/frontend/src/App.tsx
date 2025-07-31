@@ -74,6 +74,10 @@ function App() {
     return d.toISOString().slice(0, 10);
   });
   const [editedHours, setEditedHours] = useState<{[key:string]: number}>({});
+  const [sentTasks, setSentTasks] = useState<Record<string, LogEntry>>(() => {
+    const stored = localStorage.getItem('sentTasks');
+    return stored ? JSON.parse(stored) : {};
+  });
   const settingsDialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -86,19 +90,15 @@ function App() {
           date: header.indexOf('date'),
           taskId: header.indexOf('taskId'),
           hours: header.indexOf('hours'),
-          sentToJira: header.indexOf('sentToJira'),
         };
-        if (idx.sentToJira === -1) {
-          setError('CSV missing sentToJira column.');
-          return;
-        }
+
         const data = lines.slice(1).map(line => {
           const cols = line.replace(/\r/g, '').split(',').map(c => c.trim());
           return {
             date: cols[idx.date],
             taskId: cols[idx.taskId],
             hours: parseFloat(cols[idx.hours]),
-            sentToJira: cols[idx.sentToJira] === 'true',
+            sentToJira: false,
           };
         });
         setEntries(data);
@@ -106,14 +106,18 @@ function App() {
       .catch(() => setError('Failed to load .TrackCurrentTask/activity_log.csv'));
   }, []);
 
+  useEffect(() => {
+    localStorage.setItem('sentTasks', JSON.stringify(sentTasks));
+  }, [sentTasks]);
+
   const handleSendToJira = async (entry: LogEntry) => {
-    const key = `${entry.taskId}|${entry.date}`;
+    const key = `${entry.taskId}|${entry.date}|${entry.hours}`;
     const hoursValue = editedHours[key] !== undefined ? editedHours[key] : entry.hours;
     try {
       // Format date for Jira: 'YYYY-MM-DDTHH:mm:ss.SSSZ'
       const started = `${entry.date}T09:00:00.000+0000`;
       await logWorkToJira(entry.taskId, hoursValue*60*60, started);
-      alert('Worklog sent to Jira!');
+      setSentTasks(prev => ({ ...prev, [key]: { ...entry, hours: hoursValue } }));
       // Optionally update UI to mark as sent
     } catch (e: any) {
       alert('Failed to send worklog to Jira: ' + (e?.message || e));
@@ -209,6 +213,7 @@ function App() {
                       handleSendEventsToJira={() => handleSendEventsToJira(week.entries)}
                       weekStart={format(week.start, 'yyyy-MM-dd')}
                       weekEnd={format(week.end, 'yyyy-MM-dd')}
+                      sentTasks={sentTasks}
                     />
                   </div>
                 ))
@@ -218,6 +223,7 @@ function App() {
                   setEditedHours={setEditedHours}
                   handleSendEventToJira={handleSendToJira}
                   handleSendEventsToJira={() => handleSendEventsToJira(filtered)}
+                  sentTasks={sentTasks}
                 />
             }
           </div>
