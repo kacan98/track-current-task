@@ -14,14 +14,9 @@ import { WeekHeader } from './LogTable/WeekHeader';
 import React from 'react';
 
 export interface EditedHours {
-  [key: string]: number; // key format: taskId|date or taskId|date|eventId
+  [key: string]: number;
 }
 
-interface SentTaskKey {
-  taskId: string;
-  date: string;
-  hours: number;
-}
 function makeSentTaskKey(entry: LogEntry) {
   return `${entry.taskId}|${entry.date}|${entry.hours}`;
 }
@@ -131,6 +126,23 @@ export function LogTable({
     return sorted;
   }, [dayGroups, sortedDates, sortColumn, sortDirection, sentTasks]);
 
+  // Clone event handler
+  const handleCloneEvent = (entry: LogEntry) => {
+    // Create a new keyId for the cloned entry
+    const newKeyId = `${entry.taskId}|${entry.date}|${entry.hours}|${Math.random().toString(36).slice(2, 8)}`;
+    const clonedEntry = {
+      ...entry,
+      keyId: newKeyId,
+      // Optionally reset sent status if tracked in entry
+    };
+    // Add to extraRows (or entries if you want)
+    setEditedHours({ ...editedHours, [newKeyId]: entry.hours });
+    // If you want to add to extraRows, you may need to update extraRows state in useExtraRows
+    // For now, just add to entries (if entries is stateful), otherwise you may need to lift state up
+    // This is a placeholder: you may need to handle this in useExtraRows or parent
+    // alert('Cloned!');
+  };
+
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
       <div className="overflow-x-auto w-full">
@@ -184,6 +196,7 @@ export function LogTable({
                           worklogError={worklogError}
                           worklogTotals={worklogTotals}
                           handleSendToJira={handleSendEventToJira}
+                          handleCloneEvent={handleCloneEvent}
                           isFirstInGroup={idx === 0}
                           isLastInGroup={idx === group.entries.length - 1}
                           isSentToJira={isSentToJira}

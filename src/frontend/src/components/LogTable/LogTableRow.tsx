@@ -20,6 +20,7 @@ export type LogTableRowProps = {
   worklogError: JiraWorklogCellProps['worklogError'];
   worklogTotals: JiraWorklogCellProps['worklogTotals'];
   handleSendToJira: (entry: LogEntry) => void;
+  handleCloneEvent?: (ev: LogEntry) => void;
   isFirstInGroup?: boolean;
   isLastInGroup?: boolean;
   isSentToJira: boolean;
@@ -38,6 +39,7 @@ export function LogTableRow({
   worklogError,
   worklogTotals,
   handleSendToJira,
+  handleCloneEvent,
   isFirstInGroup = false,
   isLastInGroup = false,
   isSentToJira = false,
@@ -77,7 +79,7 @@ export function LogTableRow({
         <HourAdjustButtons
           value={editedHours[keyId] !== undefined ? editedHours[keyId] : entry.hours}
           onChange={v => setEditedHours({ ...editedHours, [keyId]: +v })}
-          disabled={isSentToJira}
+          disabled={isSentToJira && !entry.isClone}
         />
         <JiraWorklogCell
           keyId={keyId}
@@ -98,19 +100,35 @@ export function LogTableRow({
         )}
       </td>
       <td className="px-3 py-2 text-center">
-        <div className="flex justify-center items-center">
+        <div className="flex justify-center items-center gap-2">
           <Button
-            variant={isSentToJira ? "secondary" : "primary"}
+            variant={isSentToJira && !entry.isClone ? "secondary" : "primary"}
             className="flex items-center gap-2"
-            disabled={isSentToJira}
-            onClick={() => handleSendToJira(entry)}
-            aria-label={isSentToJira ? 'Already sent to Jira' : 'Send to Jira'}
+            disabled={isSentToJira && !entry.isClone}
+            onClick={() => {
+              let sendHours = editedHours[keyId] !== undefined ? editedHours[keyId] : entry.hours;
+              if (!isSentToJira || entry.isClone) {
+                handleSendToJira({ ...entry, hours: sendHours });
+              }
+            }}
+            aria-label={isSentToJira && !entry.isClone ? 'Already sent to Jira' : 'Send to Jira'}
           >
             <span className="material-symbols-outlined text-sm">
-              {isSentToJira ? 'check_circle' : 'send'}
+              {(isSentToJira && !entry.isClone) ? 'check_circle' : 'send'}
             </span>
-            <span>{isSentToJira ? 'Sent' : 'Send'}</span>
+            <span>{(isSentToJira && !entry.isClone) ? 'Sent' : 'Send'}</span>
           </Button>
+          {handleCloneEvent && (
+            <Button
+              variant="secondary"
+              className="flex items-center gap-2"
+              onClick={() => handleCloneEvent({ ...entry, isClone: true })}
+              aria-label="Clone event"
+            >
+              <span className="material-symbols-outlined text-sm">content_copy</span>
+              <span>Clone</span>
+            </Button>
+          )}
         </div>
       </td>
     </tr>

@@ -82,10 +82,21 @@ export function useExtraRows(weekStart?: string, weekEnd?: string) {
     setEventStates(prev => ({ ...prev, [ev.id]: true }));
   };
 
+  const handleCloneExtraRow = (entry: LogEntry) => {
+    // Generate a new eventId for uniqueness
+    const newEventId = `clone-${entry.taskId}-${entry.date}-${entry.hours}-${Math.random().toString(36).slice(2, 8)}`;
+    const clonedEntry: LogEntry = {
+      ...entry,
+      eventId: newEventId,
+    };
+    setExtraRows(prev => [...prev, clonedEntry]);
+  };
+
   return {
     extraRows,
     eventStates,
     handleAddDailyScrum,
-    handleAddEvent
+    handleAddEvent,
+    handleCloneExtraRow,
   };
 }
