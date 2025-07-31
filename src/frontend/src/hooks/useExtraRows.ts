@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { LogEntry } from '../components/types';
 import { getSetting } from '../components/SettingsPage';
 import type { RecurringEvent } from '../components/RecurringEventsEditor';
@@ -32,6 +32,21 @@ function getWeekDates(start: string, end: string) {
 export function useExtraRows(weekStart?: string, weekEnd?: string) {
   const [extraRows, setExtraRows] = useState<LogEntry[]>([]);
   const [eventStates, setEventStates] = useState<Record<string, boolean>>({});
+
+  // Load from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('extraRows');
+    if (saved) {
+      try {
+        setExtraRows(JSON.parse(saved));
+      } catch {}
+    }
+  }, []);
+
+  // Save to localStorage whenever extraRows changes
+  useEffect(() => {
+    localStorage.setItem('extraRows', JSON.stringify(extraRows));
+  }, [extraRows]);
 
   const handleAddDailyScrum = () => {
     if (!weekStart || !weekEnd) return;

@@ -12,6 +12,7 @@ import { LogTableRow } from './LogTable/LogTableRow';
 import { TableHeaders } from './LogTable/TableHeaders';
 import { WeekHeader } from './LogTable/WeekHeader';
 import React from 'react';
+import { Toast } from './Toast';
 
 export interface EditedHours {
   [key: string]: number;
@@ -43,7 +44,7 @@ export function LogTable({
   sentTasks,
 }: LogTableProps) {
   const { sortColumn, sortDirection, handleHeaderClick } = useSorting();
-  const { extraRows, eventStates, handleAddDailyScrum, handleAddEvent } = useExtraRows(weekStart, weekEnd);
+  const { extraRows, eventStates, handleAddDailyScrum, handleAddEvent, handleCloneExtraRow } = useExtraRows(weekStart, weekEnd);
 
   // Merge entries with extra rows first
   const allEntries = useMemo(() => {
@@ -128,23 +129,40 @@ export function LogTable({
 
   // Clone event handler
   const handleCloneEvent = (entry: LogEntry) => {
-    // Create a new keyId for the cloned entry
-    const newKeyId = `${entry.taskId}|${entry.date}|${entry.hours}|${Math.random().toString(36).slice(2, 8)}`;
-    const clonedEntry = {
-      ...entry,
-      keyId: newKeyId,
-      // Optionally reset sent status if tracked in entry
+    handleCloneExtraRow(entry);
+    // Optionally set edited hours for the clone if needed
+  };
+
+  const [toastMsg, setToastMsg] = React.useState<string | null>(null);
+  const toastTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMsg(msg);
+    if (toastTimeoutRef.current) {
+      clearTimeout(toastTimeoutRef.current);
+    }
+    toastTimeoutRef.current = setTimeout(() => {
+      setToastMsg(null);
+      toastTimeoutRef.current = null;
+    }, 2500);
+  };
+
+  React.useEffect(() => {
+    return () => {
+      if (toastTimeoutRef.current) {
+        clearTimeout(toastTimeoutRef.current);
+      }
     };
-    // Add to extraRows (or entries if you want)
-    setEditedHours({ ...editedHours, [newKeyId]: entry.hours });
-    // If you want to add to extraRows, you may need to update extraRows state in useExtraRows
-    // For now, just add to entries (if entries is stateful), otherwise you may need to lift state up
-    // This is a placeholder: you may need to handle this in useExtraRows or parent
-    // alert('Cloned!');
+  }, []);
+
+  const handleSendEventToJiraWithToast = (entry: LogEntry) => {
+    handleSendEventToJira(entry);
+    showToast('Event sent!');
   };
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      {toastMsg && <Toast message={toastMsg} onClose={() => setToastMsg(null)} />}
       <div className="overflow-x-auto w-full">
         <table className="w-full text-left">
           <thead className="bg-gray-50">
@@ -195,7 +213,7 @@ export function LogTable({
                           loadingWorklogs={loadingWorklogs}
                           worklogError={worklogError}
                           worklogTotals={worklogTotals}
-                          handleSendToJira={handleSendEventToJira}
+                          handleSendToJira={handleSendEventToJiraWithToast}
                           handleCloneEvent={handleCloneEvent}
                           isFirstInGroup={idx === 0}
                           isLastInGroup={idx === group.entries.length - 1}
