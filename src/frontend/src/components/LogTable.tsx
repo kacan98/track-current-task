@@ -14,25 +14,27 @@ interface LogTableProps {
   entries: LogEntry[];
   editedHours: { [key: string]: string };
   setEditedHours: (v: { [key: string]: string }) => void;
-  handleSendToJira: (entry: LogEntry) => void;
+  handleSendEventToJira: (entry: LogEntry) => void;
+  handleSendEventsToJira?: () => void;
   weekStart?: string;
   weekEnd?: string;
 }
 
 // Component
-export function LogTable({ 
+export function LogTable({
   entries, 
   editedHours, 
   setEditedHours, 
-  handleSendToJira, 
+  handleSendEventToJira: handleSendToJira, 
   weekStart, 
-  weekEnd 
+  weekEnd,
+  handleSendEventsToJira = () => {},
 }: LogTableProps) {
   const { sortColumn, sortDirection, handleHeaderClick } = useSorting();
   const { extraRows, eventStates, handleAddDailyScrum, handleAddEvent } = useExtraRows(weekStart, weekEnd);
 
   // Detect all unique DFO-1234 task IDs in the entries
-  const dfoTaskIds = useMemo(() => {
+  const taskIds = useMemo(() => {
     const ids = new Set<string>();
     for (const entry of entries) {
       if (/^DFO-\d+$/.test(entry.taskId)) ids.add(entry.taskId);
@@ -40,12 +42,12 @@ export function LogTable({
     return Array.from(ids);
   }, [entries]);
 
-  const { issueHeadings, loadingHeadings, headingsError } = useJiraHeadings(dfoTaskIds);
-  const { worklogTotals, loadingWorklogs, worklogError } = useJiraWorklogs(entries, dfoTaskIds);
+  const { issueHeadings, loadingHeadings, headingsError } = useJiraHeadings(taskIds);
+  const { worklogTotals, loadingWorklogs, worklogError } = useJiraWorklogs(entries, taskIds);
 
   // Color coding for same tasks
-  const dfoTaskColorMap = useMemo(() => {
-    const ids = dfoTaskIds;
+  const taskColorMap = useMemo(() => {
+    const ids = taskIds;
     const palette = [
       'bg-yellow-100 text-yellow-900',
       'bg-green-100 text-green-900',
@@ -65,7 +67,7 @@ export function LogTable({
       map[id] = palette[i % palette.length];
     });
     return map;
-  }, [dfoTaskIds.join(',')]);
+  }, [taskIds.join(',')]);
 
   // Merge and sort all rows
   const allEntries = useMemo(() => {
@@ -101,6 +103,7 @@ export function LogTable({
                 onAddDailyScrum={handleAddDailyScrum}
                 onAddEvent={handleAddEvent}
                 eventStates={eventStates}
+                sendEventsToJira={handleSendEventsToJira}
               />
             )}
             <TableHeaders
@@ -121,7 +124,7 @@ export function LogTable({
                     key={keyId}
                     entry={entry}
                     keyId={keyId}
-                    dfoTaskColorMap={dfoTaskColorMap}
+                    taskColorMap={taskColorMap}
                     editedHours={editedHours}
                     setEditedHours={setEditedHours}
                     loadingHeadings={loadingHeadings}

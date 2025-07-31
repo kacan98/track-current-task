@@ -1,10 +1,10 @@
+import { useEffect, useRef, useState } from 'react';
+import { Button } from './components/Button';
 import { DateRangePicker } from './components/DateRangePicker';
 import { LogTable } from './components/LogTable';
-import type { LogEntry } from './components/types';
-import React, { useEffect, useRef, useState } from 'react';
 import SettingsPage from './components/SettingsPage';
+import type { LogEntry } from './components/types';
 import { logWorkToJira } from './services/JiraIntegration';
-import { Button } from './components/Button';
 
 function startOfWeek(date: Date, opts?: { weekStartsOn?: number }) {
   const d = new Date(date);
@@ -117,6 +117,17 @@ function App() {
     }
   };
 
+  const handleSendEventsToJira = async (entries: LogEntry[]) => {
+    for (const entry of entries) {
+      try {
+        await handleSendToJira(entry);
+      } catch (e) {
+        console.error('Failed to send entry to Jira:', entry, e);
+      }
+    }
+    alert('All events sent to Jira!');
+  };
+
   const filtered = getEntriesInRange(entries, new Date(from), new Date(to));
   const weeks = splitEntriesByWeek(filtered, new Date(from), new Date(to));
 
@@ -191,7 +202,8 @@ function App() {
                       entries={week.entries}
                       editedHours={editedHours}
                       setEditedHours={setEditedHours}
-                      handleSendToJira={handleSendToJira}
+                      handleSendEventToJira={handleSendToJira}
+                      handleSendEventsToJira={() => handleSendEventsToJira(week.entries)}
                       weekStart={format(week.start, 'yyyy-MM-dd')}
                       weekEnd={format(week.end, 'yyyy-MM-dd')}
                     />
@@ -201,7 +213,8 @@ function App() {
                   entries={filtered}
                   editedHours={editedHours}
                   setEditedHours={setEditedHours}
-                  handleSendToJira={handleSendToJira}
+                  handleSendEventToJira={handleSendToJira}
+                  handleSendEventsToJira={() => handleSendEventsToJira(filtered)}
                 />
             }
           </div>

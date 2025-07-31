@@ -9,7 +9,7 @@ import { JiraWorklogCell, type JiraWorklogCellProps } from './JiraWorklogCell';
 export type LogTableRowProps = {
   entry: LogEntry;
   keyId: string;
-  dfoTaskColorMap: Record<string, string>;
+  taskColorMap: Record<string, string>;
   editedHours: { [key: string]: string };
   setEditedHours: (v: { [key: string]: string }) => void;
   loadingHeadings: JiraHeadingCellProps['loadingHeadings'];
@@ -24,7 +24,7 @@ export type LogTableRowProps = {
 export function LogTableRow({
   entry,
   keyId,
-  dfoTaskColorMap,
+  taskColorMap: dfoTaskColorMap,
   editedHours,
   setEditedHours,
   loadingHeadings,

@@ -1,3 +1,5 @@
+import type { LogEntry } from "../components/types";
+
 const baseUrl = "http://localhost:9999";
 
 // Get Jira PAT and cache in localStorage
@@ -37,6 +39,7 @@ export async function logWorkToJira(issueKey: string, timeSpentSeconds: number, 
       comment,
     })
   });
+
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     if (err?.missingFields) {
