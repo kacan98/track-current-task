@@ -8,8 +8,9 @@ import { logWorkToJira } from './services/JiraIntegration';
 
 function startOfWeek(date: Date, opts?: { weekStartsOn?: number }) {
   const d = new Date(date);
+  const weekStartsOn = opts?.weekStartsOn ?? 0;
   const day = d.getDay();
-  const diff = (day < 1 ? 7 : day) - (opts?.weekStartsOn ?? 0);
+  const diff = (day + 7 - weekStartsOn) % 7;
   d.setDate(d.getDate() - diff);
   d.setHours(0, 0, 0, 0);
   return d;
@@ -45,15 +46,17 @@ function splitEntriesByWeek(entries: LogEntry[], from: Date, to: Date) {
   let current = startOfWeek(from, { weekStartsOn: 1 }); // Monday
   const last = endOfWeek(to, { weekStartsOn: 1 });
   while (current <= last) {
-    const weekStart = current;
-    const weekEnd = endOfWeek(current, { weekStartsOn: 1 });
+    const weekStart = new Date(current);
+    const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
     const weekEntries = entries.filter(e => {
       const d = new Date(e.date);
       return d >= weekStart && d <= weekEnd;
     });
     weeks.push({ start: weekStart, end: weekEnd, entries: weekEntries });
-    current = new Date(weekEnd);
-    current.setDate(current.getDate() + 1);
+    // Advance to next Monday
+    current = new Date(weekStart);
+    current.setDate(current.getDate() + 7);
+    current.setHours(0, 0, 0, 0);
   }
   return weeks;
 }
