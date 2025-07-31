@@ -1,6 +1,8 @@
+// components/LogTable.tsx - Updated to use day grouping
 import { useMemo } from 'react';
 import type { LogEntry } from '../components/types';
 import { LogTableRow } from './LogTable/LogTableRow';
+import { DayGroupHeader } from './LogTable/DayGroupHeader';
 import { getDayOfWeek } from '../components/utils';
 import { WeekHeader } from './LogTable/WeekHeader';
 import { TableHeaders } from './LogTable/TableHeaders';
@@ -9,18 +11,22 @@ import { useJiraHeadings } from '../hooks/useJiraHeadings';
 import { useJiraWorklogs } from '../hooks/useJiraWorklogs';
 import { useExtraRows } from '../hooks/useExtraRows';
 import { useSorting } from '../hooks/useSorting';
+import { useDayGrouping } from '../hooks/useDaysGrouping';
+
+export interface EditedHours {
+  [key: string]: number; // key format: taskId|date or taskId|date|eventId
+}
 
 interface LogTableProps {
   entries: LogEntry[];
-  editedHours: { [key: string]: string };
-  setEditedHours: (v: { [key: string]: string }) => void;
+  editedHours: EditedHours;
+  setEditedHours: (v: EditedHours) => void;
   handleSendEventToJira: (entry: LogEntry) => void;
   handleSendEventsToJira?: () => void;
   weekStart?: string;
   weekEnd?: string;
 }
 
-// Component
 export function LogTable({
   entries, 
   editedHours, 
@@ -33,17 +39,25 @@ export function LogTable({
   const { sortColumn, sortDirection, handleHeaderClick } = useSorting();
   const { extraRows, eventStates, handleAddDailyScrum, handleAddEvent } = useExtraRows(weekStart, weekEnd);
 
+  // Merge entries with extra rows first
+  const allEntries = useMemo(() => {
+    return [...entries, ...extraRows];
+  }, [entries, extraRows]);
+
+  // Use day grouping hook
+  const dayGroups = useDayGrouping(allEntries, editedHours);
+
   // Detect all unique DFO-1234 task IDs in the entries
   const taskIds = useMemo(() => {
     const ids = new Set<string>();
-    for (const entry of entries) {
+    for (const entry of allEntries) {
       if (/^DFO-\d+$/.test(entry.taskId)) ids.add(entry.taskId);
     }
     return Array.from(ids);
-  }, [entries]);
+  }, [allEntries]);
 
   const { issueHeadings, loadingHeadings, headingsError } = useJiraHeadings(taskIds);
-  const { worklogTotals, loadingWorklogs, worklogError } = useJiraWorklogs(entries, taskIds);
+  const { worklogTotals, loadingWorklogs, worklogError } = useJiraWorklogs(allEntries, taskIds);
 
   // Color coding for same tasks
   const taskColorMap = useMemo(() => {
@@ -69,27 +83,37 @@ export function LogTable({
     return map;
   }, [taskIds.join(',')]);
 
-  // Merge and sort all rows
-  const allEntries = useMemo(() => {
-    const merged = [...entries, ...extraRows];
-    // Sort entries
-    merged.sort((a, b) => {
-      let cmp = 0;
-      if (sortColumn === 'date') {
-        cmp = a.date.localeCompare(b.date);
-      } else if (sortColumn === 'day') {
-        cmp = getDayOfWeek(a.date).localeCompare(getDayOfWeek(b.date));
-      } else if (sortColumn === 'task') {
-        cmp = a.taskId.localeCompare(b.taskId);
-      } else if (sortColumn === 'hours') {
-        cmp = Number(a.hours) - Number(b.hours);
-      } else if (sortColumn === 'sent') {
-        cmp = Number(a.sentToJira) - Number(b.sentToJira);
-      }
-      return sortDirection === 'asc' ? cmp : -cmp;
+  // Sort dates for consistent display
+  const sortedDates = useMemo(() => {
+    return Object.keys(dayGroups).sort();
+  }, [dayGroups]);
+
+  // Sort entries within each day
+  const sortedDayGroups = useMemo(() => {
+    const sorted: typeof dayGroups = {};
+    sortedDates.forEach(date => {
+      const group = dayGroups[date];
+      sorted[date] = {
+        ...group,
+        entries: [...group.entries].sort((a, b) => {
+          let cmp = 0;
+          if (sortColumn === 'date') {
+            cmp = a.date.localeCompare(b.date);
+          } else if (sortColumn === 'day') {
+            cmp = getDayOfWeek(a.date).localeCompare(getDayOfWeek(b.date));
+          } else if (sortColumn === 'task') {
+            cmp = a.taskId.localeCompare(b.taskId);
+          } else if (sortColumn === 'hours') {
+            cmp = Number(a.hours) - Number(b.hours);
+          } else if (sortColumn === 'sent') {
+            cmp = Number(a.sentToJira) - Number(b.sentToJira);
+          }
+          return sortDirection === 'asc' ? cmp : -cmp;
+        })
+      };
     });
-    return merged;
-  }, [entries, extraRows, sortColumn, sortDirection]);
+    return sorted;
+  }, [dayGroups, sortedDates, sortColumn, sortDirection]);
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
@@ -113,28 +137,40 @@ export function LogTable({
             />
           </thead>
           <tbody>
-            {allEntries.length === 0 ? (
+            {sortedDates.length === 0 ? (
               <EmptyState colSpan={7} />
             ) : (
-              allEntries.map((entry, idx) => {
-                // Guarantee unique key for each row
-                const keyId = `${entry.taskId}|${entry.date}${entry.eventId ? `|${entry.eventId}` : entry.eventName ? `|${entry.eventName}` : `|${idx}`}`;
+              sortedDates.map(date => {
+                const group = sortedDayGroups[date];
                 return (
-                  <LogTableRow
-                    key={keyId}
-                    entry={entry}
-                    keyId={keyId}
-                    taskColorMap={taskColorMap}
-                    editedHours={editedHours}
-                    setEditedHours={setEditedHours}
-                    loadingHeadings={loadingHeadings}
-                    headingsError={headingsError}
-                    issueHeadings={issueHeadings}
-                    loadingWorklogs={loadingWorklogs}
-                    worklogError={worklogError}
-                    worklogTotals={worklogTotals}
-                    handleSendToJira={handleSendToJira}
-                  />
+                  <>
+                    <DayGroupHeader
+                      date={date}
+                      totalHours={group.totalHours}
+                      entryCount={group.entries.length}
+                      key={date}
+                    />
+                    {group.entries.map((entry, idx) => (
+                      <LogTableRow
+                        key={entry.keyId}
+                        entry={entry}
+                        keyId={entry.keyId}
+                        taskColorMap={taskColorMap}
+                        editedHours={editedHours}
+                        setEditedHours={setEditedHours}
+                        loadingHeadings={loadingHeadings}
+                        headingsError={headingsError}
+                        issueHeadings={issueHeadings}
+                        loadingWorklogs={loadingWorklogs}
+                        worklogError={worklogError}
+                        worklogTotals={worklogTotals}
+                        handleSendToJira={handleSendToJira}
+                        isFirstInGroup={idx === 0}
+                        isLastInGroup={idx === group.entries.length - 1}
+                        showDateColumn={idx === 0} // Only show date on first entry of each day
+                      />
+                    ))}
+                  </>
                 );
               })
             )}

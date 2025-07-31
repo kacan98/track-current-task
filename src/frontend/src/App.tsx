@@ -73,7 +73,7 @@ function App() {
     const d = new Date();
     return d.toISOString().slice(0, 10);
   });
-  const [editedHours, setEditedHours] = useState<{[key:string]: string}>({});
+  const [editedHours, setEditedHours] = useState<{[key:string]: number}>({});
   const settingsDialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -108,7 +108,7 @@ function App() {
 
   const handleSendToJira = async (entry: LogEntry) => {
     const key = `${entry.taskId}|${entry.date}`;
-    const hoursValue = editedHours[key] !== undefined ? parseFloat(editedHours[key]) : entry.hours;
+    const hoursValue = editedHours[key] !== undefined ? editedHours[key] : entry.hours;
     try {
       // Format date for Jira: 'YYYY-MM-DDTHH:mm:ss.SSSZ'
       const started = `${entry.date}T09:00:00.000+0000`;

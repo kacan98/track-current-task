@@ -1,3 +1,4 @@
+// components/LogTable/LogTableRow.tsx - Updated to support day grouping
 import type { LogEntry } from '../types';
 import { getDayOfWeek } from '../utils';
 import { getJiraTaskUrl } from '../jira-utils';
@@ -5,13 +6,14 @@ import { Button } from '../Button';
 import { HourAdjustButtons } from '../HourAdjustButtons';
 import { JiraHeadingCell, type JiraHeadingCellProps } from './JiraHeadingCell';
 import { JiraWorklogCell, type JiraWorklogCellProps } from './JiraWorklogCell';
+import type { EditedHours } from '../LogTable';
 
 export type LogTableRowProps = {
   entry: LogEntry;
   keyId: string;
   taskColorMap: Record<string, string>;
-  editedHours: { [key: string]: string };
-  setEditedHours: (v: { [key: string]: string }) => void;
+  editedHours: EditedHours;
+  setEditedHours: (v: EditedHours) => void;
   loadingHeadings: JiraHeadingCellProps['loadingHeadings'];
   headingsError: JiraHeadingCellProps['headingsError'];
   issueHeadings: JiraHeadingCellProps['issueHeadings'];
@@ -19,6 +21,9 @@ export type LogTableRowProps = {
   worklogError: JiraWorklogCellProps['worklogError'];
   worklogTotals: JiraWorklogCellProps['worklogTotals'];
   handleSendToJira: (entry: LogEntry) => void;
+  isFirstInGroup?: boolean;
+  isLastInGroup?: boolean;
+  showDateColumn?: boolean; // New prop to conditionally show date
 };
 
 export function LogTableRow({
@@ -33,17 +38,37 @@ export function LogTableRow({
   loadingWorklogs,
   worklogError,
   worklogTotals,
-  handleSendToJira
+  handleSendToJira,
+  isFirstInGroup = false,
+  isLastInGroup = false,
+  showDateColumn = true
 }: LogTableRowProps) {
   const url = getJiraTaskUrl(entry.taskId);
   const taskCellClass = /^DFO-\d+$/.test(entry.taskId)
     ? dfoTaskColorMap[entry.taskId] + ' font-mono rounded px-2 py-1'
     : 'text-gray-500';
 
+  // Add subtle grouping styling
+  const rowClass = `
+    border-t border-gray-200 hover:bg-gray-50 transition-colors
+    ${isFirstInGroup ? 'border-l-4 border-l-blue-300' : 'border-l-4 border-l-gray-100'}
+    ${isLastInGroup ? 'border-b-2 border-b-gray-300' : ''}
+  `;
+
   return (
-    <tr className="border-t border-gray-200 hover:bg-gray-50 transition-colors">
-      <td className="px-3 py-2 whitespace-nowrap text-center text-gray-900">{entry.date}</td>
-      <td className="px-3 py-2 whitespace-nowrap text-center text-gray-900">{getDayOfWeek(entry.date)}</td>
+    <tr className={rowClass}>
+      {showDateColumn && (
+        <>
+          <td className="px-3 py-2 whitespace-nowrap text-center text-gray-900">{entry.date}</td>
+          <td className="px-3 py-2 whitespace-nowrap text-center text-gray-900">{getDayOfWeek(entry.date)}</td>
+        </>
+      )}
+      {!showDateColumn && (
+        <>
+          <td className="px-3 py-2 whitespace-nowrap text-center text-gray-400">—</td>
+          <td className="px-3 py-2 whitespace-nowrap text-center text-gray-400">—</td>
+        </>
+      )}
       <td className={`px-3 py-2 whitespace-nowrap text-center ${taskCellClass}`}>
         {url ? (
           <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline">
@@ -64,7 +89,7 @@ export function LogTableRow({
       <td className="px-3 py-2 text-center">
         <HourAdjustButtons
           value={editedHours[keyId] !== undefined ? editedHours[keyId] : entry.hours}
-          onChange={v => setEditedHours({ ...editedHours, [keyId]: v })}
+          onChange={v => setEditedHours({ ...editedHours, [keyId]: +v })}
           disabled={entry.sentToJira}
         />
         <JiraWorklogCell
