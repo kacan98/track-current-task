@@ -85,7 +85,12 @@ export function LogTable({
 
   // Sort dates for consistent display
   const sortedDates = useMemo(() => {
-    return Object.keys(dayGroups).sort();
+    //start with the most recent date
+    return Object.keys(dayGroups).sort((a, b) => {
+      const dateA = new Date(a);
+      const dateB = new Date(b);
+      return dateB.getTime() - dateA.getTime();
+    });
   }, [dayGroups]);
 
   // Sort entries within each day
