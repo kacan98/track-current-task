@@ -1,8 +1,9 @@
 export interface LogEntry {
+  id: string;              // Unique GUID
   date: string;
   taskId: string;
   hours: number;
-  eventName?: string;
-  eventId?: string;
-  isClone?: boolean;
+  sentToJira: boolean;     // Direct property
+  eventName?: string;      // For recurring events
+  eventId?: string;        // For recurring events
 }

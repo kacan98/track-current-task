@@ -9,7 +9,6 @@ import { useLogEntries } from '../../contexts/LogEntriesContext';
 
 export type LogTableRowProps = {
   entry: LogEntry;
-  keyId: string;
   taskColorMap: Record<string, string>;
   loadingHeadings: JiraHeadingCellProps['loadingHeadings'];
   headingsError: JiraHeadingCellProps['headingsError'];
@@ -17,16 +16,15 @@ export type LogTableRowProps = {
   loadingWorklogs: JiraWorklogCellProps['loadingWorklogs'];
   worklogError: JiraWorklogCellProps['worklogError'];
   worklogTotals: JiraWorklogCellProps['worklogTotals'];
-  handleSendToJira: (entry: LogEntry) => void;
-  handleCloneEvent?: (ev: LogEntry) => void;
+  handleDeleteEntry: (id: string) => void;
+  handleSendToJira?: (entry: LogEntry) => void;
+  handleCloneEntry: (id: string) => void;
   isFirstInGroup?: boolean;
   isLastInGroup?: boolean;
-  isSentToJira: boolean;
 };
 
 export function LogTableRow({
   entry,
-  keyId,
   taskColorMap: dfoTaskColorMap,
   loadingHeadings,
   headingsError,
@@ -34,13 +32,13 @@ export function LogTableRow({
   loadingWorklogs,
   worklogError,
   worklogTotals,
+  handleDeleteEntry,
   handleSendToJira,
-  handleCloneEvent,
+  handleCloneEntry,
   isFirstInGroup = false,
   isLastInGroup = false,
-  isSentToJira = false,
 }: LogTableRowProps) {
-  const { updateEntryHours, getEffectiveHours } = useLogEntries();
+  const { updateEntryHours } = useLogEntries();
   const url = getJiraTaskUrl(entry.taskId);
   const taskCellClass = /^DFO-\d+$/.test(entry.taskId)
     ? dfoTaskColorMap[entry.taskId] + ' font-mono rounded px-2 py-1'
@@ -74,58 +72,51 @@ export function LogTableRow({
       </td>
       <td className="px-3 py-2 text-center">
         <HourAdjustButtons
-          value={getEffectiveHours(entry.taskId, entry.date, entry.hours)}
-          onChange={v => updateEntryHours(entry.taskId, entry.date, +v)}
-          disabled={isSentToJira && !entry.isClone}
+          value={entry.hours}
+          onChange={v => updateEntryHours(entry.id, +v)}
+          disabled={entry.sentToJira}
         />
         <JiraWorklogCell
-          keyId={keyId}
+          keyId={entry.id}
           loadingWorklogs={loadingWorklogs}
           worklogError={worklogError}
           worklogTotals={worklogTotals}
         />
       </td>
       <td className="px-3 py-2 text-center">
-        {isSentToJira ? (
-          <span className="text-green-600 text-lg">
-            <span className="material-symbols-outlined">check_circle</span>
-          </span>
-        ) : (
-          <span className="text-red-500 text-lg">
-            <span className="material-symbols-outlined">cancel</span>
-          </span>
-        )}
-      </td>
-      <td className="px-3 py-2 text-center">
         <div className="flex justify-center items-center gap-2">
-          <Button
-            variant={isSentToJira && !entry.isClone ? "secondary" : "primary"}
-            className="flex items-center gap-2"
-            disabled={isSentToJira && !entry.isClone}
-            onClick={() => {
-              let sendHours = getEffectiveHours(entry.taskId, entry.date, entry.hours);
-              if (!isSentToJira || entry.isClone) {
-                handleSendToJira({ ...entry, hours: sendHours });
-              }
-            }}
-            aria-label={isSentToJira && !entry.isClone ? 'Already sent to Jira' : 'Send to Jira'}
-          >
-            <span className="material-symbols-outlined text-sm">
-              {(isSentToJira && !entry.isClone) ? 'check_circle' : 'send'}
-            </span>
-            <span>{(isSentToJira && !entry.isClone) ? 'Sent' : 'Send'}</span>
-          </Button>
-          {handleCloneEvent && (
+          {handleSendToJira && (
             <Button
-              variant="secondary"
+              variant={entry.sentToJira ? "secondary" : "primary"}
               className="flex items-center gap-2"
-              onClick={() => handleCloneEvent({ ...entry, isClone: true })}
-              aria-label="Clone event"
+              disabled={entry.sentToJira}
+              onClick={() => handleSendToJira(entry)}
+              aria-label={entry.sentToJira ? 'Already sent to Jira' : 'Send to Jira'}
             >
-              <span className="material-symbols-outlined text-sm">content_copy</span>
-              <span>Clone</span>
+              <span className="material-symbols-outlined text-sm">
+                {entry.sentToJira ? 'check_circle' : 'send'}
+              </span>
+              <span>{entry.sentToJira ? 'Sent' : 'Send'}</span>
             </Button>
           )}
+          <Button
+            variant="secondary"
+            className="flex items-center gap-2"
+            onClick={() => handleCloneEntry(entry.id)}
+            aria-label="Clone entry"
+          >
+            <span className="material-symbols-outlined text-sm">content_copy</span>
+            <span>Clone</span>
+          </Button>
+          <Button
+            variant="secondary"
+            className="flex items-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+            onClick={() => handleDeleteEntry(entry.id)}
+            aria-label="Delete entry"
+          >
+            <span className="material-symbols-outlined text-sm">delete</span>
+            <span>Delete</span>
+          </Button>
         </div>
       </td>
     </tr>

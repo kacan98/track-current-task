@@ -4,7 +4,9 @@
       "Bash(npm ci:*)",
       "Bash(npm run build:*)",
       "Bash(git fetch:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(gh auth:*)",
+      "Bash(gh search commits:*)"
     ],
     "deny": []
   }

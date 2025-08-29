@@ -12,7 +12,6 @@ export function TableHeaders({
     { key: 'task', label: 'Task' },
     { key: 'heading', label: 'Heading' },
     { key: 'hours', label: 'Hours' },
-    { key: 'sent', label: 'Sent' },
     { key: 'action', label: 'Action', sortable: false },
   ];
 

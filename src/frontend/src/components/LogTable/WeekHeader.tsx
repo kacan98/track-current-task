@@ -12,14 +12,12 @@ export function WeekHeader({
   onAddDailyScrum, 
   onAddEvent, 
   eventStates,
-  sendEventsToJira,
 }: {
   weekStart: string;
   weekEnd: string;
   onAddDailyScrum: () => void;
   onAddEvent: (event: RecurringEvent) => void;
   eventStates: Record<string, boolean>;
-  sendEventsToJira: () => void;
 }) {
   const recurringEvents = getRecurringEvents();
   
@@ -41,13 +39,6 @@ export function WeekHeader({
             </span>
           </div>
           <div className="flex gap-3">
-            <Button
-              variant="primary"
-              className="flex items-center gap-2"
-              onClick={sendEventsToJira}
-            >
-              Send all
-            </Button>
           </div>
           <div className="flex gap-3">
             <Button

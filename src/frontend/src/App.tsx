@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { createEntry } from './utils/entryUtils';
 import { API_ROUTES } from '../../shared/apiRoutes';
 import { Button } from './components/Button';
 import { DateRangePicker } from './components/DateRangePicker';
 import { JiraCredentialsForm } from './components/JiraCredentialsForm';
 import { LogTable } from './components/LogTable';
 import SettingsPage from './components/SettingsPage';
+import { Toast } from './components/Toast';
 import type { LogEntry } from './components/types';
 import { useLogEntries } from './contexts/LogEntriesContext';
 import { getAuthStatus, logWorkToJira } from './services/JiraIntegration';
@@ -69,13 +71,13 @@ function App() {
   const { 
     entries, 
     setEntries, 
-    markAsSentToJira,
-    getEffectiveHours
+    markAsSentToJira
   } = useLogEntries();
   
   const [error, setError] = useState<string | null>(null);
   const [authStatus, setAuthStatus] = useState<any>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [loadingFromBackend, setLoadingFromBackend] = useState(false);
   const [from, setFrom] = useState<string>(() => {
     const d = new Date();
@@ -125,12 +127,11 @@ function App() {
 
       const data = lines.slice(1).map(line => {
         const cols = line.replace(/\r/g, '').split(',').map(c => c.trim());
-        return {
-          date: cols[idx.date],
-          taskId: cols[idx.taskId],
-          hours: parseFloat(cols[idx.hours]),
-          sentToJira: false,
-        };
+        return createEntry(
+          cols[idx.taskId],
+          cols[idx.date],
+          parseFloat(cols[idx.hours])
+        );
       });
       
       setEntries(data);
@@ -145,27 +146,17 @@ function App() {
   // Context handles all localStorage persistence now
 
   const handleSendToJira = async (entry: LogEntry) => {
-    const hoursValue = getEffectiveHours(entry.taskId, entry.date, entry.hours);
     try {
       // Format date for Jira: 'YYYY-MM-DDTHH:mm:ss.SSSZ'
       const started = `${entry.date}T09:00:00.000+0000`;
-      await logWorkToJira(entry.taskId, hoursValue*60*60, started);
-      markAsSentToJira(entry.taskId, entry.date, hoursValue);
+      await logWorkToJira(entry.taskId, entry.hours*60*60, started);
+      markAsSentToJira(entry.id);
+      setToast({ message: 'Worklog sent to Jira successfully!', type: 'success' });
     } catch (e: any) {
-      alert('Failed to send worklog to Jira: ' + (e?.message || e));
+      setToast({ message: 'Failed to send worklog to Jira: ' + (e?.message || e), type: 'error' });
     }
   };
 
-  const handleSendEventsToJira = async (entries: LogEntry[]) => {
-    for (const entry of entries) {
-      try {
-        await handleSendToJira(entry);
-      } catch (e) {
-        console.error('Failed to send entry to Jira:', entry, e);
-      }
-    }
-    alert('All events sent to Jira!');
-  };
 
   const handleDeleteAllRows = () => {
     setEntries([]);
@@ -197,12 +188,11 @@ function App() {
 
         const data = lines.slice(1).map(line => {
           const cols = line.replace(/\r/g, '').split(',').map(c => c.trim());
-          return {
-            date: cols[idx.date],
-            taskId: cols[idx.taskId],
-            hours: parseFloat(cols[idx.hours]),
-            sentToJira: false,
-          };
+          return createEntry(
+            cols[idx.taskId],
+            cols[idx.date],
+            parseFloat(cols[idx.hours])
+          );
         });
         setEntries(data);
         setError(null);
@@ -402,17 +392,15 @@ function App() {
                   <div key={week.start.toISOString()} className="mb-8 last:mb-0">
                     <LogTable
                       entries={week.entries}
-                      handleSendEventToJira={handleSendToJira}
-                      handleSendEventsToJira={() => handleSendEventsToJira(week.entries)}
                       weekStart={format(week.start, 'yyyy-MM-dd')}
                       weekEnd={format(week.end, 'yyyy-MM-dd')}
+                      onSendToJira={handleSendToJira}
                     />
                   </div>
                 ))
               : <LogTable
                   entries={filtered}
-                  handleSendEventToJira={handleSendToJira}
-                  handleSendEventsToJira={() => handleSendEventsToJira(filtered)}
+                  onSendToJira={handleSendToJira}
                 />
             }
           </div>
@@ -432,6 +420,14 @@ function App() {
           </div>
         </div>,
         document.body
+      )}
+
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
       )}
     </div>
   );

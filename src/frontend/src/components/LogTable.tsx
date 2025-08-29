@@ -25,42 +25,35 @@ function makeSentTaskKey(entry: LogEntry) {
 
 interface LogTableProps {
   entries: LogEntry[];
-  handleSendEventToJira: (entry: LogEntry) => void;
-  handleSendEventsToJira?: () => void;
   weekStart?: string;
   weekEnd?: string;
+  onSendToJira?: (entry: LogEntry) => void;
 }
 
 export function LogTable({
   entries,    
-  handleSendEventToJira, 
   weekStart, 
   weekEnd,
-  handleSendEventsToJira = () => {},
+  onSendToJira,
 }: LogTableProps) {
-  const { updateEntryHours, getEffectiveHours, getSentStatus } = useLogEntries();
+  const { deleteEntry, cloneEntry } = useLogEntries();
   const { sortColumn, sortDirection, handleHeaderClick } = useSorting();
-  const { extraRows, eventStates, handleAddDailyScrum, handleAddEvent, handleCloneExtraRow } = useExtraRows(weekStart, weekEnd);
-
-  // Merge entries with extra rows first
-  const allEntries = useMemo(() => {
-    return [...entries, ...extraRows];
-  }, [entries, extraRows]);
+  const { eventStates, handleAddDailyScrum, handleAddEvent, handleCloneExtraRow } = useExtraRows(weekStart, weekEnd);
 
   // Use day grouping hook
-  const dayGroups = useDayGrouping(allEntries);
+  const dayGroups = useDayGrouping(entries);
 
   // Detect all unique DFO-1234 task IDs in the entries
   const taskIds = useMemo(() => {
     const ids = new Set<string>();
-    for (const entry of allEntries) {
+    for (const entry of entries) {
       if (/^DFO-\d+$/.test(entry.taskId)) ids.add(entry.taskId);
     }
     return Array.from(ids);
-  }, [allEntries]);
+  }, [entries]);
 
   const { issueHeadings, loadingHeadings, headingsError } = useJiraHeadings(taskIds);
-  const { worklogTotals, loadingWorklogs, worklogError } = useJiraWorklogs(allEntries, taskIds);
+  const { worklogTotals, loadingWorklogs, worklogError } = useJiraWorklogs(entries, taskIds);
 
   // Color coding for same tasks
   const taskColorMap = useMemo(() => {
@@ -109,17 +102,13 @@ export function LogTable({
             cmp = a.taskId.localeCompare(b.taskId);
           } else if (sortColumn === 'hours') {
             cmp = Number(a.hours) - Number(b.hours);
-          } else if (sortColumn === 'sent') {
-            const aSent = getSentStatus(a.taskId, a.date, a.hours);
-            const bSent = getSentStatus(b.taskId, b.date, b.hours);
-            cmp = Number(aSent) - Number(bSent);
           }
           return sortDirection === 'asc' ? cmp : -cmp;
         })
       };
     });
     return sorted;
-  }, [dayGroups, sortedDates, sortColumn, sortDirection, getSentStatus]);
+  }, [dayGroups, sortedDates, sortColumn, sortDirection]);
 
   // Clone event handler
   const handleCloneEvent = (entry: LogEntry) => {
@@ -167,7 +156,6 @@ export function LogTable({
                 onAddDailyScrum={handleAddDailyScrum}
                 onAddEvent={handleAddEvent}
                 eventStates={eventStates}
-                sendEventsToJira={handleSendEventsToJira}
               />
             )}
             <TableHeaders
@@ -190,13 +178,10 @@ export function LogTable({
                       entryCount={group.entries.length}
                     />
                     {group.entries.map((entry, idx) => {
-                      // Only disable if this specific entry (taskId+date+hours) has been sent
-                      const isSentToJira = getSentStatus(entry.taskId, entry.date, entry.hours);
                       return (
                         <LogTableRow
-                          key={entry.keyId}
+                          key={entry.id}
                           entry={entry}
-                          keyId={entry.keyId}
                           taskColorMap={taskColorMap}
                           loadingHeadings={loadingHeadings}
                           headingsError={headingsError}
@@ -204,11 +189,11 @@ export function LogTable({
                           loadingWorklogs={loadingWorklogs}
                           worklogError={worklogError}
                           worklogTotals={worklogTotals}
-                          handleSendToJira={handleSendEventToJiraWithToast}
-                          handleCloneEvent={handleCloneEvent}
+                          handleDeleteEntry={deleteEntry}
+                          handleSendToJira={onSendToJira}
+                          handleCloneEntry={cloneEntry}
                           isFirstInGroup={idx === 0}
                           isLastInGroup={idx === group.entries.length - 1}
-                          isSentToJira={isSentToJira}
                         />
                       );
                     })}
