@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getJiraIssuesDetails } from '../services/JiraIntegration';
+import { jiraHeadingsCache } from '../utils/cache';
 
 export function useJiraHeadings(dfoTaskIds: string[]) {
   const [issueHeadings, setIssueHeadings] = useState<Record<string, string>>({});
@@ -14,26 +15,57 @@ export function useJiraHeadings(dfoTaskIds: string[]) {
       setHeadingsError({});
       return;
     }
-    setLoadingHeadings(Object.fromEntries(dfoTaskIds.map(id => [id, true])));
+
+    // Check cache first
+    const cachedHeadings: Record<string, string> = {};
+    const uncachedIds: string[] = [];
+    
+    for (const id of dfoTaskIds) {
+      const cached = jiraHeadingsCache.get(id);
+      if (cached) {
+        cachedHeadings[id] = cached;
+      } else {
+        uncachedIds.push(id);
+      }
+    }
+
+    // Set cached data immediately
+    if (Object.keys(cachedHeadings).length > 0) {
+      setIssueHeadings(prev => ({ ...prev, ...cachedHeadings }));
+    }
+
+    // If all data is cached, we're done
+    if (uncachedIds.length === 0) {
+      setLoadingHeadings({});
+      setHeadingsError({});
+      return;
+    }
+
+    // Fetch only uncached data
+    setLoadingHeadings(Object.fromEntries(uncachedIds.map(id => [id, true])));
     setHeadingsError({});
-    getJiraIssuesDetails(dfoTaskIds)
+    
+    getJiraIssuesDetails(uncachedIds)
       .then(issues => {
         if (cancelled) return;
         const headings: Record<string, string> = {};
         for (const issue of issues) {
-          headings[issue.key] = issue.fields?.summary || '(No summary)';
+          const heading = issue.fields?.summary || '(No summary)';
+          headings[issue.key] = heading;
+          // Cache the result
+          jiraHeadingsCache.set(issue.key, heading);
         }
-        setIssueHeadings(headings);
-        setLoadingHeadings(Object.fromEntries(dfoTaskIds.map(id => [id, false])));
+        setIssueHeadings(prev => ({ ...prev, ...headings }));
+        setLoadingHeadings(Object.fromEntries(uncachedIds.map(id => [id, false])));
       })
       .catch(e => {
         if (cancelled) return;
         const errMsg = e?.message || 'Failed to fetch Jira headings';
-        setHeadingsError(Object.fromEntries(dfoTaskIds.map(id => [id, errMsg])));
-        setLoadingHeadings(Object.fromEntries(dfoTaskIds.map(id => [id, false])));
+        setHeadingsError(Object.fromEntries(uncachedIds.map(id => [id, errMsg])));
+        setLoadingHeadings(Object.fromEntries(uncachedIds.map(id => [id, false])));
       });
     return () => { cancelled = true; };
-  }, [dfoTaskIds.join(',')]);
+  }, [JSON.stringify(dfoTaskIds.sort())]);
 
   return { issueHeadings, loadingHeadings, headingsError };
 }

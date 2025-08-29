@@ -1,5 +1,5 @@
 // components/LogTable.tsx - Updated to use day grouping
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import type { LogEntry } from '../components/types';
 import { useDayGrouping } from '../hooks/useDaysGrouping';
 import { useExtraRows } from '../hooks/useExtraRows';
@@ -36,9 +36,38 @@ export function LogTable({
   weekEnd,
   onSendToJira,
 }: LogTableProps) {
-  const { deleteEntry, cloneEntry } = useLogEntries();
+  const { deleteEntry, cloneEntry, updateEntryDate } = useLogEntries();
   const { sortColumn, sortDirection, handleHeaderClick } = useSorting();
   const { eventStates, handleAddDailyScrum, handleAddEvent, handleCloneExtraRow } = useExtraRows(weekStart, weekEnd);
+  const [dragOverDate, setDragOverDate] = useState<string | null>(null);
+
+  const handleDragOver = (date: string) => (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverDate(date);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    // Only clear if we're leaving the table entirely
+    const relatedTarget = e.relatedTarget as HTMLElement;
+    if (!relatedTarget || !relatedTarget.closest('tbody')) {
+      setDragOverDate(null);
+    }
+  };
+
+  const handleDrop = (date: string) => (e: React.DragEvent) => {
+    e.preventDefault();
+    const entryId = e.dataTransfer.getData('entryId');
+    if (entryId) {
+      updateEntryDate(entryId, date);
+    }
+    setDragOverDate(null);
+  };
+
+  const handleDragEnd = () => {
+    // Clear any lingering highlights when drag ends
+    setDragOverDate(null);
+  };
 
   // Use day grouping hook
   const dayGroups = useDayGrouping(entries);
@@ -164,18 +193,20 @@ export function LogTable({
               onHeaderClick={handleHeaderClick}
             />
           </thead>
-          <tbody>
+          <tbody onDragLeave={handleDragLeave}>
             {sortedDates.length === 0 ? (
-              <EmptyState colSpan={5} />
+              <EmptyState colSpan={6} />
             ) : (
               sortedDates.map(date => {
                 const group = sortedDayGroups[date];
+                const isDragOver = dragOverDate === date;
                 return (
                   <React.Fragment key={date}>
                     <DayGroupHeader
                       date={date}
                       totalHours={group.totalHours}
                       entryCount={group.entries.length}
+                      isDragOver={isDragOver}
                     />
                     {group.entries.map((entry, idx) => {
                       return (
@@ -194,6 +225,10 @@ export function LogTable({
                           handleCloneEntry={cloneEntry}
                           isFirstInGroup={idx === 0}
                           isLastInGroup={idx === group.entries.length - 1}
+                          isDragOver={isDragOver}
+                          onDragOver={handleDragOver(date)}
+                          onDrop={handleDrop(date)}
+                          onDragEnd={handleDragEnd}
                         />
                       );
                     })}

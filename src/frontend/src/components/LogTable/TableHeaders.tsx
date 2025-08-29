@@ -9,6 +9,7 @@ export function TableHeaders({
   onHeaderClick: (key: string) => void;
 }) {
   const headers = [
+    { key: 'drag', label: '', sortable: false, width: 'w-8' },
     { key: 'task', label: 'Task' },
     { key: 'heading', label: 'Heading' },
     { key: 'hours', label: 'Hours' },
@@ -22,8 +23,8 @@ export function TableHeaders({
           key={h.key}
           className={`px-6 py-3 text-gray-900 font-semibold text-center select-none ${
             h.sortable === false ? '' : 'cursor-pointer hover:bg-gray-100'
-          }`}
-          onClick={() => onHeaderClick(h.key)}
+          } ${h.width || ''}`}
+          onClick={() => h.sortable !== false ? onHeaderClick(h.key) : undefined}
         >
           {h.label}
           {h.key === sortColumn && (

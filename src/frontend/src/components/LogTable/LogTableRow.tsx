@@ -21,6 +21,10 @@ export type LogTableRowProps = {
   handleCloneEntry: (id: string) => void;
   isFirstInGroup?: boolean;
   isLastInGroup?: boolean;
+  isDragOver?: boolean;
+  onDragOver?: (e: React.DragEvent) => void;
+  onDrop?: (e: React.DragEvent) => void;
+  onDragEnd?: () => void;
 };
 
 export function LogTableRow({
@@ -37,8 +41,29 @@ export function LogTableRow({
   handleCloneEntry,
   isFirstInGroup = false,
   isLastInGroup = false,
+  isDragOver = false,
+  onDragOver,
+  onDrop,
+  onDragEnd,
 }: LogTableRowProps) {
   const { updateEntryHours } = useLogEntries();
+  
+  const handleDragStart = (e: React.DragEvent) => {
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('entryId', entry.id);
+    e.dataTransfer.setData('entryData', JSON.stringify(entry));
+    // Add visual feedback to the whole row
+    const row = e.currentTarget.closest('tr');
+    if (row) row.classList.add('opacity-50');
+  };
+  
+  const handleDragEnd = (e: React.DragEvent) => {
+    // Remove visual feedback from the row
+    const row = e.currentTarget.closest('tr');
+    if (row) row.classList.remove('opacity-50');
+    // Call parent's drag end to clear any highlights
+    if (onDragEnd) onDragEnd();
+  };
   const url = getJiraTaskUrl(entry.taskId);
   const taskCellClass = /^DFO-\d+$/.test(entry.taskId)
     ? dfoTaskColorMap[entry.taskId] + ' font-mono rounded px-2 py-1'
@@ -49,10 +74,30 @@ export function LogTableRow({
     border-t border-gray-200 hover:bg-gray-50 transition-colors
     ${isFirstInGroup ? 'border-l-4 border-l-blue-300' : 'border-l-4 border-l-gray-100'}
     ${isLastInGroup ? 'border-b-2 border-b-gray-300' : ''}
+    ${isDragOver ? 'bg-blue-50' : ''}
   `;
 
   return (
-    <tr className={rowClass}>
+    <tr 
+      className={rowClass}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+    >
+      <td className="px-2 py-2 text-center w-8">
+        {!entry.sentToJira && (
+          <div
+            draggable
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            className="cursor-move inline-block p-1 hover:bg-gray-200 rounded"
+            title="Drag to move to another day"
+          >
+            <span className="material-symbols-outlined text-gray-400 hover:text-gray-600" style={{ fontSize: '20px' }}>
+              drag_indicator
+            </span>
+          </div>
+        )}
+      </td>
       <td className={`px-3 py-2 whitespace-nowrap text-center ${taskCellClass}`}>
         {url ? (
           <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline">
