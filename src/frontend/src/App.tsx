@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { API_ROUTES } from '../../shared/apiRoutes';
 import { Button } from './components/Button';
 import { DateRangePicker } from './components/DateRangePicker';
@@ -86,7 +87,7 @@ function App() {
     return d.toISOString().slice(0, 10);
   });
   const [isDragging, setIsDragging] = useState(false);
-  const settingsDialogRef = useRef<HTMLDialogElement>(null);
+  const [showSettings, setShowSettings] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -174,29 +175,12 @@ function App() {
   const weeks = splitEntriesByWeek(filtered, new Date(from), new Date(to));
 
   const openSettingsModal = () => {
-    settingsDialogRef.current?.showModal();
+    setShowSettings(true);
   };
 
   const closeSettingsModal = () => {
-    settingsDialogRef.current?.close();
+    setShowSettings(false);
   };
-
-  useEffect(() => {
-    const dialogEl = settingsDialogRef.current;
-    if (!dialogEl) return;
-    const handleClick = (event: MouseEvent) => {
-      const modalContent = document.getElementById('settings-modal-content');
-      if (!modalContent) return;
-      // If the click target is not inside the modal content, close the dialog
-      if (!modalContent.contains(event.target as Node)) {
-        closeSettingsModal();
-      }
-    };
-    dialogEl.addEventListener('click', handleClick);
-    return () => {
-      dialogEl.removeEventListener('click', handleClick);
-    };
-  }, []);
 
   const processCSVFile = (file: File) => {
     const reader = new FileReader();
@@ -437,14 +421,18 @@ function App() {
 
       <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
       
-      <dialog 
-        ref={settingsDialogRef} 
-        className="fixed inset-0 z-50 w-full h-full bg-transparent border-0 p-0"
-      >
-        <div className="relative z-10" id="settings-modal-content">
-          <SettingsPage onClose={closeSettingsModal} onDeleteAllRows={handleDeleteAllRows}></SettingsPage>
-        </div>
-      </dialog>
+      {showSettings && createPortal(
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center cursor-pointer"
+          style={{ backgroundColor: 'rgba(0, 0, 0, 0.1)' }}
+          onClick={closeSettingsModal}
+        >
+          <div onClick={(e) => e.stopPropagation()}>
+            <SettingsPage onClose={closeSettingsModal} onDeleteAllRows={handleDeleteAllRows} />
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

@@ -6,12 +6,12 @@ import { Button } from './Button';
 
 export const SETTINGS_FIELDS = [
     { key: 'scrumTaskId', label: 'Scrum Jira Task ID', type: 'text', placeholder: 'Enter Scrum Jira Task ID' },
-    { key: 'scrumDailyDurationMinutes', label: 'Daily Scrum Duration (minutes)', type: 'number', placeholder: 'Enter daily scrum duration in minutes' },
+    { key: 'scrumDailyDurationMinutes', label: 'Daily Scrum Duration (minutes)', type: 'number', placeholder: 'Enter daily scrum duration in minutes', defaultValue: '15' },
 ] as const;
 
 const initialSettings: Record<string, string> = {};
 SETTINGS_FIELDS.forEach(f => {
-    initialSettings[f.key] = '';
+    initialSettings[f.key] = f.defaultValue || '';
 });
 
 export type ExtractKeys<T extends readonly { key: string }[]> = T[number]['key'];
@@ -22,7 +22,8 @@ export type SettingsObject = {
 };
 
 export function getSetting(key: SettingKey): string {
-    return localStorage.getItem(key) || '';
+    const field = SETTINGS_FIELDS.find(f => f.key === key);
+    return localStorage.getItem(key) || field?.defaultValue || '';
 }
 
 function SettingsPage({ onClose, onDeleteAllRows }: { onClose: () => void, onDeleteAllRows: () => void }) {
@@ -38,7 +39,7 @@ function SettingsPage({ onClose, onDeleteAllRows }: { onClose: () => void, onDel
     useEffect(() => {
         const loaded: Record<string, string> = {};
         SETTINGS_FIELDS.forEach(f => {
-            loaded[f.key] = localStorage.getItem(f.key) || '';
+            loaded[f.key] = localStorage.getItem(f.key) || f.defaultValue || '';
         });
         setSettings(loaded);
     }, []);
