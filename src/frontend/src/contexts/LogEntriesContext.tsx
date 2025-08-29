@@ -12,6 +12,7 @@ interface LogEntriesContextType {
   addEntries: (entries: LogEntry[]) => void;
   updateEntryHours: (id: string, hours: number) => void;
   updateEntryDate: (id: string, newDate: string) => void;
+  updateEntryTaskId: (id: string, newTaskId: string) => void;
   markAsSentToJira: (id: string) => void;
   deleteEntry: (id: string) => void;
   cloneEntry: (id: string) => void;
@@ -83,6 +84,14 @@ export function LogEntriesProvider({ children }: { children: ReactNode }) {
     );
   };
 
+  const updateEntryTaskId = (id: string, newTaskId: string) => {
+    setEntriesState(prev => 
+      prev.map(entry => 
+        entry.id === id ? { ...entry, taskId: newTaskId } : entry
+      )
+    );
+  };
+
   const markAsSentToJira = (id: string) => {
     setEntriesState(prev => 
       prev.map(entry => 
@@ -127,6 +136,7 @@ export function LogEntriesProvider({ children }: { children: ReactNode }) {
     addEntries,
     updateEntryHours,
     updateEntryDate,
+    updateEntryTaskId,
     markAsSentToJira,
     deleteEntry,
     cloneEntry: cloneEntryById,

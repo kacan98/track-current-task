@@ -1,4 +1,5 @@
 // components/LogTable/LogTableRow.tsx - Updated to support day grouping
+import React, { useState } from 'react';
 import { Button } from '../Button';
 import { HourAdjustButtons } from '../HourAdjustButtons';
 import { getJiraTaskUrl } from '../jira-utils';
@@ -6,6 +7,7 @@ import type { LogEntry } from '../types';
 import { JiraHeadingCell, type JiraHeadingCellProps } from './JiraHeadingCell';
 import { JiraWorklogCell, type JiraWorklogCellProps } from './JiraWorklogCell';
 import { useLogEntries } from '../../contexts/LogEntriesContext';
+import { jiraHeadingsCache } from '../../utils/cache';
 
 export type LogTableRowProps = {
   entry: LogEntry;
@@ -46,7 +48,41 @@ export function LogTableRow({
   onDrop,
   onDragEnd,
 }: LogTableRowProps) {
-  const { updateEntryHours } = useLogEntries();
+  const { updateEntryHours, updateEntryTaskId } = useLogEntries();
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTaskId, setEditTaskId] = useState(entry.taskId);
+  
+  const handleStartEdit = () => {
+    setIsEditing(true);
+    setEditTaskId(entry.taskId);
+  };
+  
+  const handleSaveEdit = () => {
+    const newTaskId = editTaskId.trim();
+    if (newTaskId !== entry.taskId) {
+      // Clear cache for both old and new task IDs to force refetch
+      if (entry.taskId && /^DFO-\d+$/.test(entry.taskId)) {
+        jiraHeadingsCache.delete(entry.taskId);
+      }
+      if (newTaskId && /^DFO-\d+$/.test(newTaskId)) {
+        jiraHeadingsCache.delete(newTaskId);
+      }
+      updateEntryTaskId(entry.id, newTaskId);
+    }
+    setIsEditing(false);
+  };
+  
+  const handleCancelEdit = () => {
+    setEditTaskId(entry.taskId);
+    setIsEditing(false);
+  };
+  
+  // Auto-edit if taskId is empty (new entry)
+  React.useEffect(() => {
+    if (entry.taskId === '') {
+      setIsEditing(true);
+    }
+  }, [entry.taskId]);
   
   const handleDragStart = (e: React.DragEvent) => {
     e.dataTransfer.effectAllowed = 'move';
@@ -99,13 +135,62 @@ export function LogTableRow({
         )}
       </td>
       <td className={`px-3 py-2 whitespace-nowrap text-center ${taskCellClass}`}>
-        {url ? (
-          <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline">
-            {entry.taskId}
-          </a>
-        ) : (
-          entry.taskId
-        )}
+        <div className="flex items-center justify-center gap-1">
+          {isEditing ? (
+            <>
+              <input
+                type="text"
+                value={editTaskId}
+                onChange={(e) => setEditTaskId(e.target.value)}
+                className="px-2 py-1 border border-gray-300 rounded text-sm w-24 text-center"
+                placeholder="Task ID"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleSaveEdit();
+                  if (e.key === 'Escape') handleCancelEdit();
+                }}
+              />
+              <Button
+                variant="secondary"
+                className="p-1"
+                onClick={handleSaveEdit}
+                title="Save"
+              >
+                <span className="material-symbols-outlined text-sm text-green-600">check</span>
+              </Button>
+              <Button
+                variant="secondary"
+                className="p-1"
+                onClick={handleCancelEdit}
+                title="Cancel"
+              >
+                <span className="material-symbols-outlined text-sm text-red-600">close</span>
+              </Button>
+            </>
+          ) : (
+            <>
+              <span>
+                {url ? (
+                  <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline">
+                    {entry.taskId || '(empty)'}
+                  </a>
+                ) : (
+                  entry.taskId || '(empty)'
+                )}
+              </span>
+              {!entry.sentToJira && (
+                <Button
+                  variant="secondary"
+                  className="p-0.5 ml-1"
+                  onClick={handleStartEdit}
+                  title="Edit task ID"
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>edit</span>
+                </Button>
+              )}
+            </>
+          )}
+        </div>
       </td>
       <td className="px-3 py-2 text-center">
         <JiraHeadingCell

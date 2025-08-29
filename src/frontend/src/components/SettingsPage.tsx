@@ -7,6 +7,7 @@ import { Button } from './Button';
 export const SETTINGS_FIELDS = [
     { key: 'scrumTaskId', label: 'Scrum Jira Task ID', type: 'text', placeholder: 'Enter Scrum Jira Task ID' },
     { key: 'scrumDailyDurationMinutes', label: 'Daily Scrum Duration (minutes)', type: 'number', placeholder: 'Enter daily scrum duration in minutes', defaultValue: '15' },
+    { key: 'hideWeekends', label: 'Hide Weekends', type: 'checkbox', defaultValue: 'true' },
 ] as const;
 
 const initialSettings: Record<string, string> = {};
@@ -24,6 +25,10 @@ export type SettingsObject = {
 export function getSetting(key: SettingKey): string {
     const field = SETTINGS_FIELDS.find(f => f.key === key);
     return localStorage.getItem(key) || field?.defaultValue || '';
+}
+
+export function getBooleanSetting(key: SettingKey): boolean {
+    return getSetting(key) === 'true';
 }
 
 function SettingsPage({ onClose, onDeleteAllRows }: { onClose: () => void, onDeleteAllRows: () => void }) {
@@ -97,17 +102,34 @@ function SettingsPage({ onClose, onDeleteAllRows }: { onClose: () => void, onDel
                     <div className="space-y-4">
                         {SETTINGS_FIELDS.map(field => (
                             <div key={field.key}>
-                                <label htmlFor={field.key} className="block text-sm font-medium text-gray-700 mb-2">
-                                    {field.label}
-                                </label>
-                                <input
-                                    id={field.key}
-                                    type={field.type}
-                                    value={settings[field.key]}
-                                    onChange={e => handleChange(field.key, e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    placeholder={field.placeholder}
-                                />
+                                {field.type === 'checkbox' ? (
+                                    <label htmlFor={field.key} className="flex items-center cursor-pointer">
+                                        <input
+                                            id={field.key}
+                                            type="checkbox"
+                                            checked={settings[field.key] === 'true'}
+                                            onChange={e => handleChange(field.key, e.target.checked ? 'true' : 'false')}
+                                            className="mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                        />
+                                        <span className="text-sm font-medium text-gray-700">
+                                            {field.label}
+                                        </span>
+                                    </label>
+                                ) : (
+                                    <>
+                                        <label htmlFor={field.key} className="block text-sm font-medium text-gray-700 mb-2">
+                                            {field.label}
+                                        </label>
+                                        <input
+                                            id={field.key}
+                                            type={field.type}
+                                            value={settings[field.key]}
+                                            onChange={e => handleChange(field.key, e.target.value)}
+                                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            placeholder={field.placeholder}
+                                        />
+                                    </>
+                                )}
                             </div>
                         ))}
                     </div>

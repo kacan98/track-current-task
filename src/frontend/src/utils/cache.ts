@@ -64,6 +64,11 @@ export class Cache<T> {
     return true;
   }
 
+  delete(key: string): void {
+    this.memCache.delete(key);
+    this.saveToStorage();
+  }
+
   clear(): void {
     this.memCache.clear();
     localStorage.removeItem(this.storageKey);

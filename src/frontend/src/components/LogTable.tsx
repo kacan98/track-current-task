@@ -14,6 +14,8 @@ import { WeekHeader } from './LogTable/WeekHeader';
 import React from 'react';
 import { Toast } from './Toast';
 import { useLogEntries } from '../contexts/LogEntriesContext';
+import { createEntry } from '../utils/entryUtils';
+import { getBooleanSetting } from './SettingsPage';
 
 export interface EditedHours {
   [key: string]: number;
@@ -36,10 +38,15 @@ export function LogTable({
   weekEnd,
   onSendToJira,
 }: LogTableProps) {
-  const { deleteEntry, cloneEntry, updateEntryDate } = useLogEntries();
+  const { deleteEntry, cloneEntry, updateEntryDate, addEntry } = useLogEntries();
   const { sortColumn, sortDirection, handleHeaderClick } = useSorting();
   const { eventStates, handleAddDailyScrum, handleAddEvent, handleCloneExtraRow } = useExtraRows(weekStart, weekEnd);
   const [dragOverDate, setDragOverDate] = useState<string | null>(null);
+
+  const handleAddTask = (date: string) => {
+    const newEntry = createEntry('', date, 0.5);
+    addEntry(newEntry);
+  };
 
   const handleDragOver = (date: string) => (e: React.DragEvent) => {
     e.preventDefault();
@@ -108,33 +115,75 @@ export function LogTable({
     return map;
   }, [taskIds.join(',')]);
 
-  // Sort dates for consistent display
-  const sortedDates = useMemo(() => {
-    //start with the most recent date
-    return Object.keys(dayGroups).sort((a, b) => {
+  // Helper function to check if a date is a weekend
+  const isWeekend = (dateStr: string): boolean => {
+    const date = new Date(dateStr);
+    const day = date.getDay(); // 0 = Sunday, 6 = Saturday
+    return day === 0 || day === 6;
+  };
+
+  // Generate all dates in the week range, even if empty
+  const allDatesInRange = useMemo(() => {
+    const hideWeekends = getBooleanSetting('hideWeekends');
+    
+    if (!weekStart || !weekEnd) {
+      // If no week range specified, just use dates that have entries
+      const existingDates = Object.keys(dayGroups).sort((a, b) => {
+        const dateA = new Date(a);
+        const dateB = new Date(b);
+        return dateB.getTime() - dateA.getTime();
+      });
+      
+      return hideWeekends ? existingDates.filter(date => !isWeekend(date)) : existingDates;
+    }
+    
+    const dates: string[] = [];
+    const start = new Date(weekStart);
+    const end = new Date(weekEnd);
+    
+    for (let date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
+      const dateStr = date.toISOString().split('T')[0];
+      if (!hideWeekends || !isWeekend(dateStr)) {
+        dates.push(dateStr);
+      }
+    }
+    
+    // Sort with most recent first
+    return dates.sort((a, b) => {
       const dateA = new Date(a);
       const dateB = new Date(b);
       return dateB.getTime() - dateA.getTime();
     });
-  }, [dayGroups]);
+  }, [dayGroups, weekStart, weekEnd]);
 
-  // Sort entries within each day
+  // Sort dates for consistent display
+  const sortedDates = allDatesInRange;
+
+  // Sort entries within each day (create empty groups for dates without entries)
   const sortedDayGroups = useMemo(() => {
     const sorted: typeof dayGroups = {};
     sortedDates.forEach(date => {
       const group = dayGroups[date];
-      sorted[date] = {
-        ...group,
-        entries: [...group.entries].sort((a, b) => {
-          let cmp = 0;
-          if (sortColumn === 'task') {
-            cmp = a.taskId.localeCompare(b.taskId);
-          } else if (sortColumn === 'hours') {
-            cmp = Number(a.hours) - Number(b.hours);
-          }
-          return sortDirection === 'asc' ? cmp : -cmp;
-        })
-      };
+      if (group) {
+        sorted[date] = {
+          ...group,
+          entries: [...group.entries].sort((a, b) => {
+            let cmp = 0;
+            if (sortColumn === 'task') {
+              cmp = a.taskId.localeCompare(b.taskId);
+            } else if (sortColumn === 'hours') {
+              cmp = Number(a.hours) - Number(b.hours);
+            }
+            return sortDirection === 'asc' ? cmp : -cmp;
+          })
+        };
+      } else {
+        // Create empty group for dates without entries
+        sorted[date] = {
+          entries: [],
+          totalHours: 0
+        };
+      }
     });
     return sorted;
   }, [dayGroups, sortedDates, sortColumn, sortDirection]);
@@ -207,6 +256,7 @@ export function LogTable({
                       totalHours={group.totalHours}
                       entryCount={group.entries.length}
                       isDragOver={isDragOver}
+                      onAddTask={handleAddTask}
                     />
                     {group.entries.map((entry, idx) => {
                       return (

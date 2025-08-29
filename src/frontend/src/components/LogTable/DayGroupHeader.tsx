@@ -1,14 +1,16 @@
 // components/LogTable/DayGroupHeader.tsx
 import { getDayOfWeek } from '../utils';
+import { Button } from '../Button';
 
 interface DayGroupHeaderProps {
   date: string;
   totalHours: number;
   entryCount: number;
   isDragOver: boolean;
+  onAddTask?: (date: string) => void;
 }
 
-export function DayGroupHeader({ date, totalHours, entryCount, isDragOver }: DayGroupHeaderProps) {
+export function DayGroupHeader({ date, totalHours, entryCount, isDragOver, onAddTask }: DayGroupHeaderProps) {
 
   return (
     <tr 
@@ -30,11 +32,22 @@ export function DayGroupHeader({ date, totalHours, entryCount, isDragOver }: Day
               </span>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <span className="text-sm text-gray-600">Total:</span>
             <span className="font-semibold text-lg text-gray-800 bg-white px-2 py-1 rounded border">
               {totalHours.toFixed(1)}h
             </span>
+            {onAddTask && (
+              <Button
+                variant="secondary"
+                className="flex items-center gap-1 text-xs px-2 py-1"
+                onClick={() => onAddTask(date)}
+                title={`Add new task for ${date}`}
+              >
+                <span className="material-symbols-outlined text-sm">add</span>
+                <span>Add Task</span>
+              </Button>
+            )}
           </div>
         </div>
       </td>
