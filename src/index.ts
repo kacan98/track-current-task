@@ -7,14 +7,13 @@ import { logTodaySummary } from './summary/log-todays-summary';
 import { formatLocalDateTime } from './utils/date-utils';
 import { createCountdownSpinner } from './utils/spinner';
 import { spinners } from './utils/spinners';
-import { resolvePathFromExecutable } from './utils/path-utils';
+import { resolvePathFromAppData, getAppDataDirectory } from './utils/path-utils';
 
-export const STORAGE_FOLDER_NAME = '.TrackCurrentTask';
-export const ACTIVITY_LOG_FILE_PATH = resolvePathFromExecutable(`${STORAGE_FOLDER_NAME}/activity_log.csv`);
-export const CONFIG_FILE_PATH = resolvePathFromExecutable(`${STORAGE_FOLDER_NAME}/config.json`);
-export const REPO_STATE_FILE_PATH = resolvePathFromExecutable(`${STORAGE_FOLDER_NAME}/repo_activity_state.json`);
+export const ACTIVITY_LOG_FILE_PATH = resolvePathFromAppData('activity_log.csv');
+export const CONFIG_FILE_PATH = resolvePathFromAppData('config.json');
+export const REPO_STATE_FILE_PATH = resolvePathFromAppData('repo_activity_state.json');
 
-const STORAGE_FOLDER_PATH = resolvePathFromExecutable(STORAGE_FOLDER_NAME);
+const STORAGE_FOLDER_PATH = getAppDataDirectory();
 
 if (!existsSync(STORAGE_FOLDER_PATH)) {
   mkdirSync(STORAGE_FOLDER_PATH);

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getCachedJiraToken } from '../services/JiraIntegration';
+import { getJiraIssuesDetails } from '../services/JiraIntegration';
 import type { LogEntry } from '../components/types';
 
 export function useJiraWorklogs(entries: LogEntry[], dfoTaskIds: string[]) {
@@ -28,14 +28,8 @@ export function useJiraWorklogs(entries: LogEntry[], dfoTaskIds: string[]) {
     Promise.all(
       dfoTaskIds.map(async taskId => {
         try {
-          const res = await fetch(`http://localhost:9999/api/jira/issues/details`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token: getCachedJiraToken(), issueKeys: [taskId], fields: ['worklog'] })
-          });
-          if (!res.ok) throw new Error('Failed to fetch worklogs');
-          const data = await res.json();
-          const worklogs = data.issues?.[0]?.fields?.worklog?.worklogs || [];
+          const data = await getJiraIssuesDetails([taskId]);
+          const worklogs = data[0]?.fields?.worklog?.worklogs || [];
           if (!Array.isArray(worklogs) || worklogs.length === 0) return { taskId, worklogs: [] };
           return { taskId, worklogs };
         } catch (e: any) {

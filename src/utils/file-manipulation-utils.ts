@@ -1,10 +1,10 @@
 import fs from 'fs';
 import path from 'path';
-import { resolvePathFromExecutable } from './path-utils';
+import { resolvePathFromAppData } from './path-utils';
 
 export const saveFileInFolder = (data: string, folderName: string, customFileNameWithoutExtension: string, fileExtension = 'md', makeFileNameUnique = true): string => {
-    // Make folder path relative to executable
-    const absoluteFolderPath = resolvePathFromExecutable(folderName);
+    // Make folder path relative to app data directory
+    const absoluteFolderPath = resolvePathFromAppData(folderName);
     
     if (!fs.existsSync(absoluteFolderPath) && folderName !== '') {
         fs.mkdirSync(absoluteFolderPath, { recursive: true });

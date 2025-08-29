@@ -1,236 +1,32 @@
 import express from 'express';
-import axios from 'axios';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
+import dotenv from 'dotenv';
+import { getAllowedOrigins } from './config/cors';
+import jiraRoutes from './routes/jira';
+import fileRoutes from './routes/files';
+
+// Load environment variables
+dotenv.config();
 
 const app = express();
-const PORT = 9999;
+const PORT = process.env.PORT || 9999;
 
-app.use(cors());
+// Get origins and validate
+const allowedOrigins = getAllowedOrigins();
+console.log(`[CORS] Allowed origins:`, allowedOrigins);
+
+// Middleware setup
+app.use(cors({
+    origin: allowedOrigins,
+    credentials: true // Allow cookies
+}));
 app.use(express.json());
+app.use(cookieParser(process.env.COOKIE_SECRET)); // Enable encrypted cookies
 
-// Helper for error responses
-function sendError(res: any, status: number, error: any, code: string, extra: any = {}) {
-    res.status(status).json({ error: error.message, code, ...extra });
-}
-
-// Proxy endpoint for Jira token
-app.post('/api/jira/token', async (req, res) => {
-    const { login, password, name } = req.body;
-    if (!login || !password) {
-        console.error('[JIRA_PROXY][TOKEN][400] Missing login or password');
-        return sendError(res, 400, new Error('Missing login or password'), 'JIRA_PROXY_TOKEN_MISSING_CREDENTIALS');
-    }
-    if (!name) {
-        console.error('[JIRA_PROXY][TOKEN][400] Missing token name');
-        return sendError(res, 400, new Error('Missing token name'), 'JIRA_PROXY_TOKEN_MISSING_NAME');
-    }
-    try {
-        const response = await axios.post(
-            'https://jira.eg.dk/rest/pat/latest/tokens',
-            { name },
-            {
-                auth: { username: login, password },
-                headers: {
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json',
-                },
-            }
-        );
-        res.json(response.data);
-    } catch (error: any) {
-        console.error('[JIRA_PROXY][TOKEN][JIRA_ERROR]', error?.response?.status, error?.message, error?.response?.data);
-        sendError(res, 502, error, 'JIRA_PROXY_TOKEN_JIRA_ERROR', {
-            jiraStatus: error?.response?.status,
-            jiraData: error?.response?.data,
-        });
-    }
-});
-
-
-// Proxy endpoint for logging work
-app.post('/api/jira/logwork', async (req, res) => {
-    let {
-        login,
-        apiToken,
-        token, // for backward compatibility, but prefer login/apiToken
-        issueKey,
-        timeSpentSeconds,
-        started,
-        comment,
-        cookies,
-        visibility,
-        notifyUsers,
-        adjustEstimate,
-        newEstimate,
-        reduceBy,
-        expand,
-        overrideEditableFlag
-    } = req.body;
-
-    // Accept timeSpentSeconds as string or number
-    if (typeof timeSpentSeconds === 'string') {
-        timeSpentSeconds = Number(timeSpentSeconds);
-    }
-    // Collect missing fields based on Jira API spec
-    const missingFields: string[] = [];
-    if (!(login && apiToken) && !token) missingFields.push('login/apiToken or token');
-    if (!issueKey) missingFields.push('issueKey');
-    if (typeof timeSpentSeconds !== 'number' || isNaN(timeSpentSeconds)) missingFields.push('timeSpentSeconds');
-    if (!started) missingFields.push('started');
-    // comment and visibility are optional
-
-    if (missingFields.length > 0) {
-        return res.status(400).json({
-            error: 'Missing required fields',
-            code: 'JIRA_PROXY_LOGWORK_MISSING_FIELDS',
-            missingFields
-        });
-    }
-
-    try {
-        // Build query params
-        const params: any = {};
-        if (notifyUsers !== undefined) params.notifyUsers = notifyUsers;
-        if (adjustEstimate !== undefined) params.adjustEstimate = adjustEstimate;
-        if (newEstimate !== undefined) params.newEstimate = newEstimate;
-        if (reduceBy !== undefined) params.reduceBy = reduceBy;
-        if (expand !== undefined) params.expand = expand;
-        if (overrideEditableFlag !== undefined) params.overrideEditableFlag = overrideEditableFlag;
-        // Jira v2 API endpoint
-        const url = `https://jira.eg.dk/rest/api/2/issue/${issueKey}/worklog`;
-        // Auth: prefer basic auth if login/apiToken, else Bearer
-        let axiosConfig: any = {
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json',
-                'User-Agent': 'PostmanRuntime/7.44.1',
-            },
-            params,
-        };
-        if (login && apiToken) {
-            axiosConfig.auth = { username: login, password: apiToken };
-        } else if (token) {
-            axiosConfig.headers['Authorization'] = `Bearer ${token}`;
-        }
-        if (cookies) axiosConfig.headers['Cookie'] = cookies;
-        // Build body
-        const payload: any = {
-            comment: comment || '',
-            started,
-            timeSpentSeconds,
-        };
-        if (visibility) payload.visibility = visibility;
-        const response = await axios.post(url, payload, axiosConfig);
-        res.json({
-            jiraResponse: response.data,
-            sent: true,
-            sentPayload: payload,
-            sentHeaders: axiosConfig.headers,
-            url,
-            params,
-        });
-    } catch (error: any) {
-        if (error?.response) {
-            sendError(res, 502, error, 'JIRA_PROXY_LOGWORK_JIRA_ERROR', {
-                jiraStatus: error.response.status,
-                jiraData: error.response.data,
-            });
-        } else {
-            sendError(res, 500, error, 'JIRA_PROXY_LOGWORK_SERVER_ERROR');
-        }
-    }
-});
-
-// Endpoint to get details for multiple Jira issues by key
-app.post('/api/jira/issues/details', async (req, res) => {
-    const { login, apiToken, token, issueKeys, jql, fields, cookies } = req.body;
-    if ((!login || !apiToken) && !token) {
-        return sendError(res, 400, new Error('Missing login/apiToken or token'), 'JIRA_PROXY_ISSUES_MISSING_CREDENTIALS');
-    }
-    if (!Array.isArray(issueKeys) || issueKeys.length === 0) {
-        return sendError(res, 400, new Error('Missing or empty issueKeys array'), 'JIRA_PROXY_ISSUES_MISSING_KEYS');
-    }
-    try {
-        const url = 'https://jira.eg.dk/rest/api/2/search';
-        const jqlQuery = jql || `issuekey in (${issueKeys.map(k => `'${k}'`).join(',')})`;
-        const payload = {
-            jql: jqlQuery,
-            fields: fields || ["summary", "description", "status", "assignee", "reporter", "priority"]
-        };
-        let axiosConfig: any = {
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json',
-                'User-Agent': 'PostmanRuntime/7.44.1',
-            },
-        };
-        if (login && apiToken) {
-            axiosConfig.auth = { username: login, password: apiToken };
-        } else if (token) {
-            axiosConfig.headers['Authorization'] = `Bearer ${token}`;
-        }
-        if (cookies) axiosConfig.headers['Cookie'] = cookies;
-        const response = await axios.post(url, payload, axiosConfig);
-        res.json({
-            issues: response.data.issues,
-            total: response.data.total,
-            jql: payload.jql,
-            sentFields: payload.fields
-        });
-    } catch (error: any) {
-        if (error?.response) {
-            sendError(res, 502, error, 'JIRA_PROXY_ISSUES_JIRA_ERROR', {
-                jiraStatus: error.response.status,
-                jiraData: error.response.data,
-            });
-        } else {
-            sendError(res, 500, error, 'JIRA_PROXY_ISSUES_SERVER_ERROR');
-        }
-    }
-});
-
-// Endpoint to get details for multiple worklogs by ID
-app.post('/api/jira/worklogs/details', async (req, res) => {
-    const { login, apiToken, token, worklogIds, cookies } = req.body;
-    if ((!login || !apiToken) && !token) {
-        return sendError(res, 400, new Error('Missing login/apiToken or token'), 'JIRA_PROXY_WORKLOGS_MISSING_CREDENTIALS');
-    }
-    if (!Array.isArray(worklogIds) || worklogIds.length === 0) {
-        return sendError(res, 400, new Error('Missing or empty worklogIds array'), 'JIRA_PROXY_WORKLOGS_MISSING_IDS');
-    }
-    try {
-        const url = 'https://jira.eg.dk/rest/api/2/worklog/list';
-        const payload = { ids: worklogIds };
-        let axiosConfig: any = {
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json',
-                'User-Agent': 'PostmanRuntime/7.44.1',
-            },
-        };
-        if (login && apiToken) {
-            axiosConfig.auth = { username: login, password: apiToken };
-        } else if (token) {
-            axiosConfig.headers['Authorization'] = `Bearer ${token}`;
-        }
-        if (cookies) axiosConfig.headers['Cookie'] = cookies;
-        const response = await axios.post(url, payload, axiosConfig);
-        res.json({
-            worklogs: response.data,
-            total: response.data.length,
-            sentIds: worklogIds
-        });
-    } catch (error: any) {
-        if (error?.response) {
-            sendError(res, 502, error, 'JIRA_PROXY_WORKLOGS_JIRA_ERROR', {
-                jiraStatus: error.response.status,
-                jiraData: error.response.data,
-            });
-        } else {
-            sendError(res, 500, error, 'JIRA_PROXY_WORKLOGS_SERVER_ERROR');
-        }
-    }
-});
+// Routes
+app.use('/api/jira', jiraRoutes);
+app.use('/api', fileRoutes);
 
 // Catch-all 404 handler for unknown routes
 app.use((req, res) => {
@@ -239,4 +35,8 @@ app.use((req, res) => {
 
 app.listen(PORT, () => {
     console.log(`Jira proxy server running on port ${PORT}`);
+    console.log(`Development mode: ${process.env.DEV === 'true' ? 'ENABLED' : 'DISABLED'}`);
+    if (process.env.DEV === 'true') {
+        console.log('→ Filesystem endpoints available at /api/activity-log');
+    }
 });

@@ -25,7 +25,7 @@ export function getSetting(key: SettingKey): string {
     return localStorage.getItem(key) || '';
 }
 
-function SettingsPage({ onClose }: { onClose: () => void }) {
+function SettingsPage({ onClose, onDeleteAllRows }: { onClose: () => void, onDeleteAllRows: () => void }) {
     const [settings, setSettings] = React.useState<Record<string, string>>(initialSettings);
     const [recurringEvents, setRecurringEvents] = React.useState<RecurringEvent[]>(() => {
         const stored = localStorage.getItem('recurringEvents');
@@ -102,8 +102,6 @@ function SettingsPage({ onClose }: { onClose: () => void }) {
                                 <input
                                     id={field.key}
                                     type={field.type}
-                                    min={field.type === 'number' ? '0' : undefined}
-                                    step={field.key === 'scrumDailyDurationMinutes' ? '5' : field.key.endsWith('DurationMinutes') ? '30' : undefined}
                                     value={settings[field.key]}
                                     onChange={e => handleChange(field.key, e.target.value)}
                                     className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -130,6 +128,27 @@ function SettingsPage({ onClose }: { onClose: () => void }) {
                                 <RecurringEventsEditor events={recurringEvents} onChange={setRecurringEvents} />
                             </tbody>
                         </table>
+                    </div>
+                </div>
+
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Data Management</h3>
+                    <div className="space-y-4">
+                        <Button
+                            variant="secondary"
+                            onClick={() => {
+                                if (window.confirm('Are you sure you want to clear all data from the browser? Your CSV file will not be affected.')) {
+                                    onDeleteAllRows();
+                                    onClose();
+                                }
+                            }}
+                            className="text-red-700 border-red-200 hover:bg-red-50"
+                        >
+                            Clear Browser Data
+                        </Button>
+                        <p className="text-xs text-gray-500">
+                            This will clear all data from your browser's local storage. Your original CSV file remains unchanged. You can re-upload or load from filesystem again.
+                        </p>
                     </div>
                 </div>
             </div>

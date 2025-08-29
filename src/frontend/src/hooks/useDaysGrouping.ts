@@ -1,8 +1,10 @@
 import { useMemo } from 'react';
 import type { LogEntry } from '../components/types';
-import type { EditedHours } from '../components/LogTable';
+import { useLogEntries } from '../contexts/LogEntriesContext';
 
-export function useDayGrouping(entries: LogEntry[], editedHours: EditedHours) {
+export function useDayGrouping(entries: LogEntry[]) {
+  const { getEffectiveHours } = useLogEntries();
+  
   return useMemo(() => {
     const dayGroups: { [date: string]: { entries: (LogEntry & { keyId: string })[], totalHours: number } } = {};
     
@@ -16,11 +18,11 @@ export function useDayGrouping(entries: LogEntry[], editedHours: EditedHours) {
       
       dayGroups[entry.date].entries.push(entryWithKey);
       
-      // Use edited hours if available, otherwise use original hours
-      const hours = editedHours[keyId] !== undefined ? editedHours[keyId] : entry.hours;
+      // Use effective hours from context
+      const hours = getEffectiveHours(entry.taskId, entry.date, entry.hours);
       dayGroups[entry.date].totalHours += hours || 0;
     });
     
     return dayGroups;
-  }, [entries, editedHours]);
+  }, [entries, getEffectiveHours]);
 }

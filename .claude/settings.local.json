@@ -3,7 +3,8 @@
     "allow": [
       "Bash(npm ci:*)",
       "Bash(npm run build:*)",
-      "Bash(git fetch:*)"
+      "Bash(git fetch:*)",
+      "WebSearch"
     ],
     "deny": []
   }

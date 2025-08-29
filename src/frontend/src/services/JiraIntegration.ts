@@ -1,38 +1,54 @@
 import type { LogEntry } from "../components/types";
+import { API_ROUTES } from "../../../shared/apiRoutes";
 
 const baseUrl = "http://localhost:9999";
 
-// Get Jira PAT and cache in localStorage
-export async function getAndCacheJiraToken(login: string, password: string, name: string = `Track current task`) {
-  const res = await fetch(baseUrl + '/api/jira/token', {
+// Login and store encrypted token in httpOnly cookie
+export async function loginToJira(login: string, password: string, name: string = `Track current task`) {
+  const res = await fetch(baseUrl + '/api' + API_ROUTES.JIRA.AUTH.LOGIN, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify({ login, password, name })
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err?.error || 'Failed to get Jira token');
+    throw new Error(err?.error || 'Failed to authenticate with Jira');
   }
-  const data = await res.json();
-  if (data.rawToken) {
-    localStorage.setItem('jiraToken', data.rawToken);
-  }
-  return data;
+  return await res.json();
 }
 
-export function getCachedJiraToken() {
-  return localStorage.getItem('jiraToken');
+// Check authentication status
+export async function getAuthStatus() {
+  const res = await fetch(baseUrl + '/api' + API_ROUTES.JIRA.AUTH.STATUS, {
+    method: 'GET',
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    throw new Error('Failed to check authentication status');
+  }
+  return await res.json();
 }
 
-// Minimal implementation to restore Jira worklog functionality
+// Logout and clear encrypted cookie
+export async function logoutFromJira() {
+  const res = await fetch(baseUrl + '/api' + API_ROUTES.JIRA.AUTH.LOGOUT, {
+    method: 'POST',
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    throw new Error('Failed to logout');
+  }
+  return await res.json();
+}
+
+// Log work to Jira using encrypted cookie authentication
 export async function logWorkToJira(issueKey: string, timeSpentSeconds: number, started: string, comment: string = '') {
-  const token = getCachedJiraToken();
-  if (!token) throw new Error('No Jira token found. Please authenticate first.');
-  const res = await fetch(baseUrl + '/api/jira/logwork', {
+  const res = await fetch(baseUrl + '/api' + API_ROUTES.JIRA.LOGWORK, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify({
-      token,
       issueKey,
       timeSpentSeconds,
       started,
@@ -52,13 +68,11 @@ export async function logWorkToJira(issueKey: string, timeSpentSeconds: number, 
 
 // Fetch details for multiple Jira issues by their keys
 export async function getJiraIssuesDetails(issueKeys: string[]): Promise<any[]> {
-  const token = getCachedJiraToken();
-  if (!token) throw new Error('No Jira token found. Please authenticate first.');
-  const res = await fetch(baseUrl + '/api/jira/issues/details', {
+  const res = await fetch(baseUrl + '/api' + API_ROUTES.JIRA.ISSUES_DETAILS, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify({
-      token,
       issueKeys
     })
   });
@@ -72,13 +86,11 @@ export async function getJiraIssuesDetails(issueKeys: string[]): Promise<any[]> 
 
 // Fetch details for multiple Jira worklogs by their IDs
 export async function getJiraWorklogsDetails(worklogIds: number[]): Promise<any[]> {
-  const token = getCachedJiraToken();
-  if (!token) throw new Error('No Jira token found. Please authenticate first.');
-  const res = await fetch(baseUrl + '/api/jira/worklogs/details', {
+  const res = await fetch(baseUrl + '/api' + API_ROUTES.JIRA.WORKLOGS_DETAILS, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify({
-      token,
       worklogIds
     })
   });

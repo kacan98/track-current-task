@@ -1,18 +1,16 @@
-// components/LogTable/LogTableRow.tsx - Updated to support day groupingimport type { LogEntry } from '../components/types';
+// components/LogTable/LogTableRow.tsx - Updated to support day grouping
 import { Button } from '../Button';
 import { HourAdjustButtons } from '../HourAdjustButtons';
 import { getJiraTaskUrl } from '../jira-utils';
-import type { EditedHours } from '../LogTable';
 import type { LogEntry } from '../types';
 import { JiraHeadingCell, type JiraHeadingCellProps } from './JiraHeadingCell';
 import { JiraWorklogCell, type JiraWorklogCellProps } from './JiraWorklogCell';
+import { useLogEntries } from '../../contexts/LogEntriesContext';
 
 export type LogTableRowProps = {
   entry: LogEntry;
   keyId: string;
   taskColorMap: Record<string, string>;
-  editedHours: EditedHours;
-  setEditedHours: (v: EditedHours) => void;
   loadingHeadings: JiraHeadingCellProps['loadingHeadings'];
   headingsError: JiraHeadingCellProps['headingsError'];
   issueHeadings: JiraHeadingCellProps['issueHeadings'];
@@ -30,8 +28,6 @@ export function LogTableRow({
   entry,
   keyId,
   taskColorMap: dfoTaskColorMap,
-  editedHours,
-  setEditedHours,
   loadingHeadings,
   headingsError,
   issueHeadings,
@@ -44,6 +40,7 @@ export function LogTableRow({
   isLastInGroup = false,
   isSentToJira = false,
 }: LogTableRowProps) {
+  const { updateEntryHours, getEffectiveHours } = useLogEntries();
   const url = getJiraTaskUrl(entry.taskId);
   const taskCellClass = /^DFO-\d+$/.test(entry.taskId)
     ? dfoTaskColorMap[entry.taskId] + ' font-mono rounded px-2 py-1'
@@ -77,8 +74,8 @@ export function LogTableRow({
       </td>
       <td className="px-3 py-2 text-center">
         <HourAdjustButtons
-          value={editedHours[keyId] !== undefined ? editedHours[keyId] : entry.hours}
-          onChange={v => setEditedHours({ ...editedHours, [keyId]: +v })}
+          value={getEffectiveHours(entry.taskId, entry.date, entry.hours)}
+          onChange={v => updateEntryHours(entry.taskId, entry.date, +v)}
           disabled={isSentToJira && !entry.isClone}
         />
         <JiraWorklogCell
@@ -106,7 +103,7 @@ export function LogTableRow({
             className="flex items-center gap-2"
             disabled={isSentToJira && !entry.isClone}
             onClick={() => {
-              let sendHours = editedHours[keyId] !== undefined ? editedHours[keyId] : entry.hours;
+              let sendHours = getEffectiveHours(entry.taskId, entry.date, entry.hours);
               if (!isSentToJira || entry.isClone) {
                 handleSendToJira({ ...entry, hours: sendHours });
               }

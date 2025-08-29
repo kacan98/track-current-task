@@ -13,6 +13,7 @@ import { TableHeaders } from './LogTable/TableHeaders';
 import { WeekHeader } from './LogTable/WeekHeader';
 import React from 'react';
 import { Toast } from './Toast';
+import { useLogEntries } from '../contexts/LogEntriesContext';
 
 export interface EditedHours {
   [key: string]: number;
@@ -24,25 +25,20 @@ function makeSentTaskKey(entry: LogEntry) {
 
 interface LogTableProps {
   entries: LogEntry[];
-  editedHours: EditedHours;
-  setEditedHours: (v: EditedHours) => void;
   handleSendEventToJira: (entry: LogEntry) => void;
   handleSendEventsToJira?: () => void;
   weekStart?: string;
   weekEnd?: string;
-  sentTasks: Record<string, LogEntry>;
 }
 
 export function LogTable({
   entries,    
-  editedHours, 
-  setEditedHours, 
   handleSendEventToJira, 
   weekStart, 
   weekEnd,
   handleSendEventsToJira = () => {},
-  sentTasks,
 }: LogTableProps) {
+  const { updateEntryHours, getEffectiveHours, getSentStatus } = useLogEntries();
   const { sortColumn, sortDirection, handleHeaderClick } = useSorting();
   const { extraRows, eventStates, handleAddDailyScrum, handleAddEvent, handleCloneExtraRow } = useExtraRows(weekStart, weekEnd);
 
@@ -52,7 +48,7 @@ export function LogTable({
   }, [entries, extraRows]);
 
   // Use day grouping hook
-  const dayGroups = useDayGrouping(allEntries, editedHours);
+  const dayGroups = useDayGrouping(allEntries);
 
   // Detect all unique DFO-1234 task IDs in the entries
   const taskIds = useMemo(() => {
@@ -114,10 +110,8 @@ export function LogTable({
           } else if (sortColumn === 'hours') {
             cmp = Number(a.hours) - Number(b.hours);
           } else if (sortColumn === 'sent') {
-            const aKey = `${a.taskId}|${a.date}`;
-            const bKey = `${b.taskId}|${b.date}`;
-            const aSent = !!sentTasks[aKey];
-            const bSent = !!sentTasks[bKey];
+            const aSent = getSentStatus(a.taskId, a.date, a.hours);
+            const bSent = getSentStatus(b.taskId, b.date, b.hours);
             cmp = Number(aSent) - Number(bSent);
           }
           return sortDirection === 'asc' ? cmp : -cmp;
@@ -125,7 +119,7 @@ export function LogTable({
       };
     });
     return sorted;
-  }, [dayGroups, sortedDates, sortColumn, sortDirection, sentTasks]);
+  }, [dayGroups, sortedDates, sortColumn, sortDirection, getSentStatus]);
 
   // Clone event handler
   const handleCloneEvent = (entry: LogEntry) => {
@@ -196,17 +190,14 @@ export function LogTable({
                       entryCount={group.entries.length}
                     />
                     {group.entries.map((entry, idx) => {
-                      const key = makeSentTaskKey(entry);
                       // Only disable if this specific entry (taskId+date+hours) has been sent
-                      const isSentToJira = !!sentTasks[key];
+                      const isSentToJira = getSentStatus(entry.taskId, entry.date, entry.hours);
                       return (
                         <LogTableRow
                           key={entry.keyId}
                           entry={entry}
                           keyId={entry.keyId}
                           taskColorMap={taskColorMap}
-                          editedHours={editedHours}
-                          setEditedHours={setEditedHours}
                           loadingHeadings={loadingHeadings}
                           headingsError={headingsError}
                           issueHeadings={issueHeadings}

@@ -87,13 +87,7 @@ export function useExtraRows(weekStart?: string, weekEnd?: string) {
       eventName: ev.name,
       eventId: ev.id,
     }));
-    setExtraRows(prev => {
-      const allRows = [...prev, ...newRows];
-      const uniqueRows = allRows.filter((row, idx, arr) => 
-        arr.findIndex(r => r.date === row.date && r.eventId === row.eventId) === idx
-      );
-      return uniqueRows;
-    });
+    addEntries(newRows);
     setEventStates(prev => ({ ...prev, [ev.id]: true }));
   };
 
@@ -103,8 +97,9 @@ export function useExtraRows(weekStart?: string, weekEnd?: string) {
     const clonedEntry: LogEntry = {
       ...entry,
       eventId: newEventId,
+      isClone: true,
     };
-    setExtraRows(prev => [...prev, clonedEntry]);
+    addEntries([clonedEntry]);
   };
 
   return {

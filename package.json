@@ -32,9 +32,15 @@
     "url": "https://github.com/kacan98/track-current-task/issues"
   },
   "homepage": "https://github.com/kacan98/track-current-task#readme",
+  "workspaces": [
+    "src/frontend"
+  ],
   "dependencies": {
+    "@types/cookie-parser": "^1.4.9",
     "@types/inquirer": "^9.0.8",
     "chalk": "^4.1.2",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^17.2.1",
     "inquirer": "^12.6.3",
     "typescript": "^5.3.3"
   },

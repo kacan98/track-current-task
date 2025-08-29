@@ -1,26 +1,73 @@
-# Git Branch Activity Logger
+# Track Current Task
 
-## Overview
-Tracks time spent on Git branches by monitoring changes in your repositories. It automatically associates time with task IDs (e.g., DFO-xxxx) extracted from branch names and logs activity to a CSV file.
+## How It Works
 
-## Key Features
-* Tracks time based on actual Git activity (new changes or commits)
-* Monitors multiple repositories simultaneously
-* Extracts task IDs from branch names
-* Logs time to a single CSV file
-* Provides daily activity summaries
-* Generates monthly reports with task breakdowns
-* Groups monthly summaries by week
+```
+┌─────────────────┐                    ┌─────────────────┐
+│  CLI Tracker    │────────────────────▶│    Frontend     │
+│                 │     CSV Files       │                 │
+│ • Watches Git   │                     │ • View hours    │
+│ • Logs time     │                     │ • Edit entries  │
+│ • Extracts      │                     │ • Upload CSV    │
+│   task IDs      │                     │ • Send to Jira  │
+└─────────────────┘                     └─────────────────┘
+        │                                        │
+        │ CSV Files                              │ HTTP/Auth
+        │                                        │
+        ▼                                        ▼
+┌─────────────────┐                    ┌─────────────────┐
+│   User Folder   │────────────────────▶│    Backend      │
+│                 │    Serve CSV        │                 │
+│ • activity.csv  │    (dev mode)       │ • Proxy to Jira │
+│ • config.json   │                     │ • Auth cookies  │
+│                 │                     │ • Serve files   │
+└─────────────────┘                     └─────────────────┘
+                                                 │
+                                                 │ Jira API
+                                                 ▼
+                                        ┌─────────────────┐
+                                        │      Jira       │
+                                        │                 │
+                                        │ • Store logs    │
+                                        │ • Track tasks   │
+                                        └─────────────────┘
+```
 
-## Getting started
-- Go to [the latest release](https://github.com/kacan98/track-current-task/releases/latest)
-- on Windows you can add it to a special folder found by searching for "Run", typing in "shell:startup" and putting the .exe file in there to automatically run the executable on startup
-- run it once manually to set up the configuration
+**Data Flow:**
+1. CLI Tracker → User Folder (logs time to CSV)
+2. Backend → User Folder (serves CSV in dev mode)
+3. Frontend ← Backend (loads CSV data)
+4. Frontend → Backend (sends worklogs with encrypted cookie auth)
+5. Backend → Jira (proxies API calls with stored token)
 
-## Start development
-1. Install [Node.js](https://nodejs.org/en/download)
-2. Run `npm install`
-3. Run `npm start` to run it
+**Authentication:**
+- Frontend sends login credentials to Backend
+- Backend authenticates with Jira and stores encrypted token in httpOnly cookie
+- Frontend never sees or stores the actual token
+- All subsequent API calls use secure cookies for authentication
+- Cookies are encrypted, httpOnly (XSS protection), and secure in production
+
+## Setup
+
+1. **Install Node.js** from [nodejs.org](https://nodejs.org)
+2. **Clone and install:**
+   ```bash
+   git clone <this-repo>
+   cd track-current-task
+   npm install
+   ```
+3. **Configure environment:**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your settings
+   ```
+4. **Start development:**
+   ```bash
+   npm start
+   ```
+   This runs:
+   - Frontend at http://localhost:5173
+   - Backend at http://localhost:9999
 
 ## Configuration
 ```json
