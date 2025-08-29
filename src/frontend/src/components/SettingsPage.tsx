@@ -3,11 +3,14 @@ import { JiraCredentialsForm } from './JiraCredentialsForm';
 import { RecurringEventsEditor } from './RecurringEventsEditor';
 import type { RecurringEvent } from './RecurringEventsEditor';
 import { Button } from './Button';
+import { Modal } from './Modal';
 
 export const SETTINGS_FIELDS = [
-    { key: 'scrumTaskId', label: 'Scrum Jira Task ID', type: 'text', placeholder: 'Enter Scrum Jira Task ID' },
-    { key: 'scrumDailyDurationMinutes', label: 'Daily Scrum Duration (minutes)', type: 'number', placeholder: 'Enter daily scrum duration in minutes', defaultValue: '15' },
-    { key: 'hideWeekends', label: 'Hide Weekends', type: 'checkbox', defaultValue: 'true' },
+    { key: 'scrumTaskId', label: 'Scrum Jira Task ID', type: 'text', placeholder: 'Enter Scrum Jira Task ID' } as const,
+    { key: 'scrumDailyDurationMinutes', label: 'Daily Scrum Duration (minutes)', type: 'number', placeholder: 'Enter daily scrum duration in minutes', defaultValue: '15' } as const,
+    { key: 'hideWeekends', label: 'Hide Weekends', type: 'checkbox', defaultValue: 'true' } as const,
+    { key: 'githubUsername', label: 'GitHub Username', type: 'text', placeholder: 'Enter your GitHub username' } as const,
+    { key: 'githubToken', label: 'GitHub Personal Access Token', type: 'password', placeholder: 'Enter your GitHub PAT' } as const,
 ] as const;
 
 const initialSettings: Record<string, string> = {};
@@ -69,140 +72,112 @@ function SettingsPage({ onClose, onDeleteAllRows }: { onClose: () => void, onDel
         setSettings(prev => ({ ...prev, [key]: newValue }));
     };
 
-    useEffect(() => {
-        const onKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') onClose();
-        };
-        document.addEventListener('keydown', onKeyDown);
-        return () => document.removeEventListener('keydown', onKeyDown);
-    }, [onClose]);
-
-    let modalContent: React.ReactNode;
-    try {
-        modalContent = (
-            <div className="space-y-8">
-                <div className="flex items-center justify-between">
-                    <h2 className="text-3xl font-bold text-gray-900">Settings</h2>
-                    <Button
-                        variant="secondary"
-                        className="flex items-center justify-center w-10 h-10 rounded-lg"
-                        onClick={onClose}
-                        aria-label="Close settings"
-                    >
-                        <span className="material-symbols-outlined text-sm">close</span>
-                    </Button>
-                </div>
-
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                    <JiraCredentialsForm />
-                </div>
-
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">General Settings</h3>
-                    <div className="space-y-4">
-                        {SETTINGS_FIELDS.map(field => (
-                            <div key={field.key}>
-                                {field.type === 'checkbox' ? (
-                                    <label htmlFor={field.key} className="flex items-center cursor-pointer">
-                                        <input
-                                            id={field.key}
-                                            type="checkbox"
-                                            checked={settings[field.key] === 'true'}
-                                            onChange={e => handleChange(field.key, e.target.checked ? 'true' : 'false')}
-                                            className="mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                                        />
-                                        <span className="text-sm font-medium text-gray-700">
-                                            {field.label}
-                                        </span>
-                                    </label>
-                                ) : (
-                                    <>
-                                        <label htmlFor={field.key} className="block text-sm font-medium text-gray-700 mb-2">
-                                            {field.label}
-                                        </label>
-                                        <input
-                                            id={field.key}
-                                            type={field.type}
-                                            value={settings[field.key]}
-                                            onChange={e => handleChange(field.key, e.target.value)}
-                                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                            placeholder={field.placeholder}
-                                        />
-                                    </>
-                                )}
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Recurring Events</h3>
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full">
-                            <thead>
-                                <tr className="border-b border-gray-200">
-                                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Name</th>
-                                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Day</th>
-                                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Duration (min)</th>
-                                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <RecurringEventsEditor events={recurringEvents} onChange={setRecurringEvents} />
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Data Management</h3>
-                    <div className="space-y-4">
-                        <Button
-                            variant="secondary"
-                            onClick={() => {
-                                if (window.confirm('Are you sure you want to clear all data from the browser? Your CSV file will not be affected.')) {
-                                    onDeleteAllRows();
-                                    onClose();
-                                }
-                            }}
-                            className="text-red-700 border-red-200 hover:bg-red-50"
-                        >
-                            Clear Browser Data
-                        </Button>
-                        <p className="text-xs text-gray-500">
-                            This will clear all data from your browser's local storage. Your original CSV file remains unchanged. You can re-upload or load from filesystem again.
-                        </p>
-                    </div>
-                </div>
-            </div>
-        );
-    } catch (err: any) {
-        modalContent = (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md mx-auto">
-                <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
-                        <span className="material-symbols-outlined text-red-600 text-sm">error</span>
-                    </div>
-                    <div>
-                        <h3 className="font-semibold text-red-800">Error</h3>
-                        <p className="text-red-700 text-sm">
-                            Error rendering settings: {err?.message || String(err)}
-                        </p>
-                    </div>
-                </div>
-            </div>
-        );
-    }
 
     return (
-        <div className="flex items-start justify-center min-h-full p-4 pt-16">
-            <div
-                className="relative bg-gray-50 rounded-lg shadow-sm border border-gray-200 p-6 w-full max-w-4xl max-h-[80vh] overflow-y-auto"
-                onClick={e => e.stopPropagation()}
-            >
-                {modalContent}
+        <Modal title="Settings" onClose={onClose} maxWidth="4xl">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <JiraCredentialsForm />
             </div>
-        </div>
+
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">General Settings</h3>
+                <div className="space-y-4">
+                    {SETTINGS_FIELDS.filter(f => !f.key.startsWith('github')).map(field => (
+                        <div key={field.key}>
+                            {field.type === 'checkbox' ? (
+                                <label htmlFor={field.key} className="flex items-center cursor-pointer">
+                                    <input
+                                        id={field.key}
+                                        type="checkbox"
+                                        checked={settings[field.key] === 'true'}
+                                        onChange={e => handleChange(field.key, e.target.checked ? 'true' : 'false')}
+                                        className="mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                    />
+                                    <span className="text-sm font-medium text-gray-700">
+                                        {field.label}
+                                    </span>
+                                </label>
+                            ) : (
+                                <>
+                                    <label htmlFor={field.key} className="block text-sm font-medium text-gray-700 mb-2">
+                                        {field.label}
+                                    </label>
+                                    <input
+                                        id={field.key}
+                                        type={field.type}
+                                        value={settings[field.key]}
+                                        onChange={e => handleChange(field.key, e.target.value)}
+                                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        placeholder={field.placeholder}
+                                    />
+                                </>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">GitHub Integration</h3>
+                <div className="space-y-4">
+                    {SETTINGS_FIELDS.filter(f => f.key.startsWith('github')).map(field => (
+                        <div key={field.key}>
+                            <label htmlFor={field.key} className="block text-sm font-medium text-gray-700 mb-2">
+                                {field.label}
+                            </label>
+                            <input
+                                id={field.key}
+                                type={field.type}
+                                value={settings[field.key]}
+                                onChange={e => handleChange(field.key, e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                placeholder={field.placeholder}
+                            />
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Recurring Events</h3>
+                <div className="overflow-x-auto">
+                    <table className="min-w-full">
+                        <thead>
+                            <tr className="border-b border-gray-200">
+                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Name</th>
+                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Day</th>
+                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Duration (min)</th>
+                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <RecurringEventsEditor events={recurringEvents} onChange={setRecurringEvents} />
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Data Management</h3>
+                <div className="space-y-4">
+                    <Button
+                        variant="secondary"
+                        onClick={() => {
+                            if (window.confirm('Are you sure you want to clear all data from the browser? Your CSV file will not be affected.')) {
+                                onDeleteAllRows();
+                                onClose();
+                            }
+                        }}
+                        className="text-red-700 border-red-200 hover:bg-red-50"
+                    >
+                        Clear Browser Data
+                    </Button>
+                    <p className="text-xs text-gray-500">
+                        This will clear all data from your browser's local storage. Your original CSV file remains unchanged. You can re-upload or load from filesystem again.
+                    </p>
+                </div>
+            </div>
+        </Modal>
     );
 }
 

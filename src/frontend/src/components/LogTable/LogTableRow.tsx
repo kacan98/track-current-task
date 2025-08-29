@@ -192,7 +192,7 @@ export function LogTableRow({
           )}
         </div>
       </td>
-      <td className="px-3 py-2 text-center">
+      <td className="hidden sm:table-cell px-3 py-2 text-center">
         <JiraHeadingCell
           entry={entry}
           loadingHeadings={loadingHeadings}
@@ -206,19 +206,13 @@ export function LogTableRow({
           onChange={v => updateEntryHours(entry.id, +v)}
           disabled={entry.sentToJira}
         />
-        <JiraWorklogCell
-          keyId={entry.id}
-          loadingWorklogs={loadingWorklogs}
-          worklogError={worklogError}
-          worklogTotals={worklogTotals}
-        />
       </td>
-      <td className="px-3 py-2 text-center">
-        <div className="flex justify-center items-center gap-2">
+      <td className="px-2 sm:px-3 py-2 text-center">
+        <div className="flex justify-center items-center gap-1 sm:gap-2">
           {handleSendToJira && (
             <Button
               variant={entry.sentToJira ? "secondary" : "primary"}
-              className="flex items-center gap-2"
+              className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3"
               disabled={entry.sentToJira}
               onClick={() => handleSendToJira(entry)}
               aria-label={entry.sentToJira ? 'Already sent to Jira' : 'Send to Jira'}
@@ -226,26 +220,27 @@ export function LogTableRow({
               <span className="material-symbols-outlined text-sm">
                 {entry.sentToJira ? 'check_circle' : 'send'}
               </span>
-              <span>{entry.sentToJira ? 'Sent' : 'Send'}</span>
+              <span className="hidden sm:inline">{entry.sentToJira ? 'Sent' : 'Send'}</span>
             </Button>
           )}
           <Button
             variant="secondary"
-            className="flex items-center gap-2"
+            className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3"
             onClick={() => handleCloneEntry(entry.id)}
             aria-label="Clone entry"
           >
             <span className="material-symbols-outlined text-sm">content_copy</span>
-            <span>Clone</span>
+            <span className="hidden sm:inline">Clone</span>
           </Button>
           <Button
             variant="secondary"
-            className="flex items-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+            className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 text-red-600 hover:text-red-700 hover:bg-red-50"
+            disabled={entry.sentToJira}
             onClick={() => handleDeleteEntry(entry.id)}
             aria-label="Delete entry"
           >
             <span className="material-symbols-outlined text-sm">delete</span>
-            <span>Delete</span>
+            <span className="hidden sm:inline">Delete</span>
           </Button>
         </div>
       </td>

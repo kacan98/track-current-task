@@ -16,6 +16,7 @@ import { Toast } from './Toast';
 import { useLogEntries } from '../contexts/LogEntriesContext';
 import { createEntry } from '../utils/entryUtils';
 import { getBooleanSetting } from './SettingsPage';
+import { CommitsModal } from './CommitsModal';
 
 export interface EditedHours {
   [key: string]: number;
@@ -42,10 +43,15 @@ export function LogTable({
   const { sortColumn, sortDirection, handleHeaderClick } = useSorting();
   const { eventStates, handleAddDailyScrum, handleAddEvent, handleCloneExtraRow } = useExtraRows(weekStart, weekEnd);
   const [dragOverDate, setDragOverDate] = useState<string | null>(null);
+  const [commitsModalDate, setCommitsModalDate] = useState<string | null>(null);
 
   const handleAddTask = (date: string) => {
     const newEntry = createEntry('', date, 0.5);
     addEntry(newEntry);
+  };
+
+  const handleViewCommits = (date: string) => {
+    setCommitsModalDate(date);
   };
 
   const handleDragOver = (date: string) => (e: React.DragEvent) => {
@@ -257,6 +263,9 @@ export function LogTable({
                       entryCount={group.entries.length}
                       isDragOver={isDragOver}
                       onAddTask={handleAddTask}
+                      onViewCommits={handleViewCommits}
+                      onDragOver={handleDragOver(date)}
+                      onDrop={handleDrop(date)}
                     />
                     {group.entries.map((entry, idx) => {
                       return (
@@ -289,6 +298,13 @@ export function LogTable({
           </tbody>
         </table>
       </div>
+      
+      {commitsModalDate && (
+        <CommitsModal
+          date={commitsModalDate}
+          onClose={() => setCommitsModalDate(null)}
+        />
+      )}
     </div>
   );
 }

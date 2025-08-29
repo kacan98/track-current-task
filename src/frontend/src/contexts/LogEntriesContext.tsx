@@ -101,14 +101,7 @@ export function LogEntriesProvider({ children }: { children: ReactNode }) {
   };
   
   const deleteEntry = (id: string) => {
-    console.log('deleteEntry called with id:', id);
-    console.log('current entries:', entries);
-    setEntriesState(prev => {
-      console.log('filtering entries, before:', prev.length);
-      const filtered = prev.filter(entry => entry.id !== id);
-      console.log('filtering entries, after:', filtered.length);
-      return filtered;
-    });
+    setEntriesState(prev => prev.filter(entry => entry.id !== id));
   };
 
   const cloneEntryById = (id: string) => {

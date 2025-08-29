@@ -79,10 +79,21 @@ function App() {
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [loadingFromBackend, setLoadingFromBackend] = useState(false);
+  const getStartOfWeek = (date: Date): Date => {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = (day + 6) % 7; // Calculate days from Monday
+    d.setDate(d.getDate() - diff);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  };
+
   const [from, setFrom] = useState<string>(() => {
-    const d = new Date();
-    d.setDate(d.getDate() - 30);
-    return d.toISOString().slice(0, 10);
+    // Default to last 5 weeks, starting from Monday
+    const fiveWeeksAgo = new Date();
+    fiveWeeksAgo.setDate(fiveWeeksAgo.getDate() - 35);
+    const startOfWeek = getStartOfWeek(fiveWeeksAgo);
+    return startOfWeek.toISOString().slice(0, 10);
   });
   const [to, setTo] = useState<string>(() => {
     const d = new Date();
@@ -381,7 +392,13 @@ function App() {
           <DateRangePicker 
             from={from} 
             to={to} 
-            onChange={(f, t) => { setFrom(f); setTo(t); }} 
+            onChange={(f, t) => { 
+              // Auto-snap 'from' date to start of week (Monday)
+              const fromDate = getStartOfWeek(new Date(f));
+              const snappedFrom = fromDate.toISOString().slice(0, 10);
+              setFrom(snappedFrom); 
+              setTo(t); 
+            }} 
           />
         </div>
 

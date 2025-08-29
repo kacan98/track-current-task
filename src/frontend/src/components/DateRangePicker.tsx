@@ -22,28 +22,50 @@ export function DateRangePicker({ from, to, onChange }: DateRangePickerProps) {
     }
   }
 
-  function getQuickRange(range: 'currentWeek' | 'lastWeek' | 'last30Days' | 'thisYear') {
+  function getStartOfWeek(date: Date): Date {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = (day + 6) % 7; // Calculate days from Monday (0=Sunday, 1=Monday, etc)
+    d.setDate(d.getDate() - diff);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
+
+  function getEndOfWeek(date: Date): Date {
+    const start = getStartOfWeek(date);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    end.setHours(23, 59, 59, 999);
+    return end;
+  }
+
+  function getQuickRange(range: 'currentWeek' | 'lastWeek' | 'last2Weeks' | 'last5Weeks' | 'thisYear') {
     const today = new Date();
     let start: Date, end: Date;
+    
     if (range === 'currentWeek') {
-      const day = today.getDay() || 7;
-      start = new Date(today);
-      start.setDate(today.getDate() - day + 1);
+      start = getStartOfWeek(today);
       end = new Date(today);
     } else if (range === 'lastWeek') {
-      const day = today.getDay() || 7;
+      const lastWeekDate = new Date(today);
+      lastWeekDate.setDate(today.getDate() - 7);
+      start = getStartOfWeek(lastWeekDate);
+      end = getEndOfWeek(lastWeekDate);
+    } else if (range === 'last2Weeks') {
+      start = getStartOfWeek(new Date(today.getTime() - 14 * 24 * 60 * 60 * 1000));
       end = new Date(today);
-      end.setDate(today.getDate() - day);
-      start = new Date(end);
-      start.setDate(end.getDate() - 6);
+    } else if (range === 'last5Weeks') {
+      start = getStartOfWeek(new Date(today.getTime() - 35 * 24 * 60 * 60 * 1000));
+      end = new Date(today);
     } else if (range === 'thisYear') {
       start = new Date(today.getFullYear(), 0, 1);
       end = new Date(today);
     } else {
+      // Default fallback
+      start = getStartOfWeek(new Date(today.getTime() - 35 * 24 * 60 * 60 * 1000));
       end = new Date(today);
-      start = new Date(today);
-      start.setDate(today.getDate() - 29);
     }
+    
     return {
       from: start.toISOString().slice(0, 10),
       to: end.toISOString().slice(0, 10),
@@ -56,7 +78,8 @@ export function DateRangePicker({ from, to, onChange }: DateRangePickerProps) {
         {[
           { label: 'Current week', range: 'currentWeek' },
           { label: 'Last week', range: 'lastWeek' },
-          { label: 'Last 30 days', range: 'last30Days' },
+          { label: 'Last 2 weeks', range: 'last2Weeks' },
+          { label: 'Last 5 weeks', range: 'last5Weeks' },
           { label: 'This year', range: 'thisYear' },
         ].map(({ label, range }) => (
           <Button
