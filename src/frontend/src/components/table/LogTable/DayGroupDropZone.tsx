@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useLogEntries } from '../../contexts/LogEntriesContext';
+import { useLogEntries } from '@/contexts/LogEntriesContext';
 
 interface DayGroupDropZoneProps {
   date: string;

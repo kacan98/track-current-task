@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { getJiraIssuesDetails } from '../services/JiraIntegration';
-import type { LogEntry } from '../components/types';
+import type { LogEntry } from '@/types';
 import { jiraWorklogsCache } from '../utils/cache';
 
 export function useJiraWorklogs(entries: LogEntry[], dfoTaskIds: string[]) {
@@ -8,13 +8,6 @@ export function useJiraWorklogs(entries: LogEntry[], dfoTaskIds: string[]) {
   const [loadingWorklogs, setLoadingWorklogs] = useState<Record<string, boolean>>({});
   const [worklogError, setWorklogError] = useState<Record<string, string>>({});
 
-  // Only compute unique task/date pairs, ignore hour changes
-  const taskDatePairs = useMemo(() => {
-    const pairs = entries
-      .filter(e => /^DFO-\d+$/.test(e.taskId))
-      .map(e => `${e.taskId}|${e.date}`);
-    return [...new Set(pairs)].sort();
-  }, [entries]);
 
   useEffect(() => {
     let cancelled = false;
@@ -36,12 +29,12 @@ export function useJiraWorklogs(entries: LogEntry[], dfoTaskIds: string[]) {
     setWorklogError({});
     // Check cache and only fetch uncached tasks
     const uncachedTaskIds: string[] = [];
-    const cachedResults: any[] = [];
+    const cachedResults: { taskId: string; worklogs: unknown[] }[] = [];
     
     for (const taskId of dfoTaskIds) {
       const cached = jiraWorklogsCache.get(taskId);
       if (cached) {
-        cachedResults.push({ taskId, worklogs: cached });
+        cachedResults.push({ taskId, worklogs: Array.isArray(cached) ? cached : [] });
       } else {
         uncachedTaskIds.push(taskId);
       }
@@ -54,19 +47,23 @@ export function useJiraWorklogs(entries: LogEntry[], dfoTaskIds: string[]) {
       ...uncachedTaskIds.map(async taskId => {
         try {
           const data = await getJiraIssuesDetails([taskId]);
-          const worklogs = data[0]?.fields?.worklog?.worklogs || [];
+          const worklogSection = data[0]?.fields?.worklog;
+          const worklogData = worklogSection && typeof worklogSection === 'object' && 'worklogs' in worklogSection 
+            ? worklogSection.worklogs 
+            : undefined;
+          const worklogs = Array.isArray(worklogData) ? worklogData : [];
           // Cache the result
           jiraWorklogsCache.set(taskId, worklogs);
           if (!Array.isArray(worklogs) || worklogs.length === 0) return { taskId, worklogs: [] };
           return { taskId, worklogs };
-        } catch (e: any) {
-          return { taskId, worklogs: [], error: e?.message || 'Failed to fetch worklogs' };
+        } catch (e: unknown) {
+          return { taskId, worklogs: [], error: e instanceof Error ? e.message : 'Failed to fetch worklogs' };
         }
       })
     ]).then(async results => {
       if (cancelled) return;
       const allWorklogs = results.flatMap(r =>
-        (r.worklogs || []).map((w: any) => ({
+        (Array.isArray(r.worklogs) ? r.worklogs : []).map((w: { started: string; timeSpentSeconds: number }) => ({
           taskId: r.taskId,
           started: w.started,
           timeSpentSeconds: w.timeSpentSeconds
@@ -83,7 +80,7 @@ export function useJiraWorklogs(entries: LogEntry[], dfoTaskIds: string[]) {
       setLoadingWorklogs(Object.fromEntries(uniquePairs.map(({taskId, date}) => [`${taskId}|${date}`, false])));
     });
     return () => { cancelled = true; };
-  }, [taskDatePairs.join(','), dfoTaskIds.join(',')]);
+  }, [entries, dfoTaskIds]);
 
   return { worklogTotals, loadingWorklogs, worklogError };
 }

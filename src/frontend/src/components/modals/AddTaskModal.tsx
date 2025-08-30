@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Button } from './Button';
-import { useLogEntries } from '../contexts/LogEntriesContext';
-import { createEntry } from '../utils/entryUtils';
+import { Button } from '../ui/Button';
+import { useLogEntries } from '../../contexts/LogEntriesContext';
+import { createEntry } from '../../utils/entryUtils';
 
 interface AddTaskModalProps {
   date: string;
@@ -40,7 +40,7 @@ export function AddTaskModal({ date, isOpen, onClose }: AddTaskModalProps) {
     onClose();
   };
 
-  const handleKeyDown = (e: React.KeyEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
       onClose();
     }

@@ -2,13 +2,15 @@ import React, { useEffect } from 'react';
 
 export interface ToastProps {
   message: string;
-  onClose: () => void;
+  onClose?: () => void;
   duration?: number;
   type?: 'success' | 'error' | 'info';
 }
 
 export const Toast: React.FC<ToastProps> = ({ message, onClose, duration = 2500, type = 'info' }) => {
   useEffect(() => {
+    if (!onClose) return;
+    
     const timer = setTimeout(onClose, duration);
     return () => clearTimeout(timer);
   }, [onClose, duration]);

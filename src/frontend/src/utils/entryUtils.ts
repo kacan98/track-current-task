@@ -1,4 +1,4 @@
-import type { LogEntry } from '../components/types';
+import type { LogEntry } from "@/types";
 
 export function generateId(): string {
   return crypto.randomUUID();
@@ -14,15 +14,22 @@ export function createEntry(
     sentToJira?: boolean;
   } = {}
 ): LogEntry {
-  return {
+  const entry: LogEntry = {
     id: generateId(),
     taskId,
     date,
     hours,
     sentToJira: options.sentToJira ?? false,
-    eventName: options.eventName,
-    eventId: options.eventId,
   };
+
+  if (options.eventName !== undefined) {
+    entry.eventName = options.eventName;
+  }
+  if (options.eventId !== undefined) {
+    entry.eventId = options.eventId;
+  }
+
+  return entry;
 }
 
 export function cloneEntry(entry: LogEntry): LogEntry {

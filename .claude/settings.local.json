@@ -6,7 +6,10 @@
       "Bash(git fetch:*)",
       "WebSearch",
       "Bash(gh auth:*)",
-      "Bash(gh search commits:*)"
+      "Bash(gh search commits:*)",
+      "Bash(npx vite build:*)",
+      "Bash(npm run check:*)",
+      "Bash(npx tsc:*)"
     ],
     "deny": []
   }

@@ -1,6 +1,6 @@
 // components/LogTable/DayGroupHeader.tsx
-import { getDayOfWeek } from '../utils';
-import { Button } from '../Button';
+import { getDayOfWeek } from '@/utils/componentUtils';
+import { Button } from '../../ui/Button';
 
 interface DayGroupHeaderProps {
   date: string;

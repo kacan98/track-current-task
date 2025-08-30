@@ -15,11 +15,13 @@ export class Cache<T> {
       const stored = localStorage.getItem(this.storageKey);
       if (stored) {
         const parsed = JSON.parse(stored);
-        Object.entries(parsed).forEach(([key, value]: [string, any]) => {
-          this.memCache.set(key, value);
+        Object.entries(parsed).forEach(([key, value]: [string, unknown]) => {
+          if (value && typeof value === 'object' && 'data' in value && 'timestamp' in value) {
+            this.memCache.set(key, value as { data: T; timestamp: number });
+          }
         });
       }
-    } catch (e) {
+    } catch (e: unknown) {
       console.error('Failed to load cache from storage:', e);
     }
   }
@@ -28,7 +30,7 @@ export class Cache<T> {
     try {
       const obj = Object.fromEntries(this.memCache.entries());
       localStorage.setItem(this.storageKey, JSON.stringify(obj));
-    } catch (e) {
+    } catch (e: unknown) {
       console.error('Failed to save cache to storage:', e);
     }
   }
@@ -77,4 +79,4 @@ export class Cache<T> {
 
 // Global caches for Jira data - persist to localStorage
 export const jiraHeadingsCache = new Cache<string>('jiraHeadingsCache', 30 * 60 * 1000); // 30 minutes
-export const jiraWorklogsCache = new Cache<any>('jiraWorklogsCache', 10 * 60 * 1000); // 10 minutes
+export const jiraWorklogsCache = new Cache<unknown>('jiraWorklogsCache', 10 * 60 * 1000); // 10 minutes

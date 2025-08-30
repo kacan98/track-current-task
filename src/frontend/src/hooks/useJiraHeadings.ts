@@ -65,7 +65,7 @@ export function useJiraHeadings(dfoTaskIds: string[]) {
         setLoadingHeadings(Object.fromEntries(uncachedIds.map(id => [id, false])));
       });
     return () => { cancelled = true; };
-  }, [JSON.stringify(dfoTaskIds.sort())]);
+  }, [dfoTaskIds]);
 
   return { issueHeadings, loadingHeadings, headingsError };
 }

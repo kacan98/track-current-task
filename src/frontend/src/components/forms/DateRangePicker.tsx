@@ -1,4 +1,6 @@
-import { Button } from './Button';
+import { Button } from '../ui/Button';
+
+type QuickRangeType = 'currentWeek' | 'lastWeek' | 'last2Weeks' | 'last5Weeks' | 'thisYear';
 
 interface DateRangePickerProps {
   from: string;
@@ -12,10 +14,10 @@ export function DateRangePicker({ from, to, onChange }: DateRangePickerProps) {
     if (el) {
       const wasReadOnly = el.readOnly;
       el.readOnly = false;
-      // @ts-ignore: showPicker is not in TS types but is supported in modern browsers
-      if (typeof (el as any).showPicker === 'function') {
-        (el as any).showPicker();
-      } else {
+      try {
+        el.showPicker();
+      } catch {
+        // Fallback to click if showPicker fails or isn't supported
         el.click();
       }
       el.readOnly = wasReadOnly;
@@ -39,7 +41,7 @@ export function DateRangePicker({ from, to, onChange }: DateRangePickerProps) {
     return end;
   }
 
-  function getQuickRange(range: 'currentWeek' | 'lastWeek' | 'last2Weeks' | 'last5Weeks' | 'thisYear') {
+  function getQuickRange(range: QuickRangeType) {
     const today = new Date();
     let start: Date, end: Date;
     
@@ -75,18 +77,18 @@ export function DateRangePicker({ from, to, onChange }: DateRangePickerProps) {
   return (
     <div className="flex flex-col gap-2 w-full items-center">
       <div className="flex gap-2 mb-2 flex-wrap justify-center">
-        {[
+        {([
           { label: 'Current week', range: 'currentWeek' },
           { label: 'Last week', range: 'lastWeek' },
           { label: 'Last 2 weeks', range: 'last2Weeks' },
           { label: 'Last 5 weeks', range: 'last5Weeks' },
           { label: 'This year', range: 'thisYear' },
-        ].map(({ label, range }) => (
+        ] as const satisfies readonly { label: string; range: QuickRangeType }[]).map(({ label, range }) => (
           <Button
             key={range}
             variant="secondary"
             className="px-3 py-1 rounded-full font-semibold border"
-            onClick={() => { const r = getQuickRange(range as any); onChange(r.from, r.to); }}
+            onClick={() => { const r = getQuickRange(range); onChange(r.from, r.to); }}
           >
             {label}
           </Button>

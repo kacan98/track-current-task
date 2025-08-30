@@ -1,5 +1,5 @@
-import { Button } from '../Button';
-import type { RecurringEvent } from '../RecurringEventsEditor';
+import { Button } from '@/components/ui/Button';
+import type { RecurringEvent } from '@/components/RecurringEventsEditor';
 
 function getRecurringEvents(): RecurringEvent[] {
   const stored = localStorage.getItem('recurringEvents');

@@ -1,8 +1,8 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import type { LogEntry } from '../components/types';
-import { generateId, createEntry, cloneEntry } from '../utils/entryUtils';
+import { createContext, type ReactNode, useContext, useEffect, useState } from 'react';
+import { cloneEntry } from '../utils/entryUtils';
+import type { LogEntry } from '@/types';
 
-interface LogEntriesContextType {
+export interface LogEntriesContextType {
   // All log entries
   entries: LogEntry[];
   
@@ -19,27 +19,14 @@ interface LogEntriesContextType {
   clearAllData: () => void;
 }
 
-const LogEntriesContext = createContext<LogEntriesContextType | undefined>(undefined);
-
-function migrateOldEntry(oldEntry: any): LogEntry {
-  // Handle old entries without IDs
-  return {
-    id: oldEntry.id || generateId(),
-    date: oldEntry.date,
-    taskId: oldEntry.taskId,
-    hours: oldEntry.hours,
-    sentToJira: oldEntry.sentToJira || false,
-    eventName: oldEntry.eventName,
-    eventId: oldEntry.eventId,
-  };
-}
+export const LogEntriesContext = createContext<LogEntriesContextType | undefined>(undefined);
 
 export function LogEntriesProvider({ children }: { children: ReactNode }) {
   const [entries, setEntriesState] = useState<LogEntry[]>(() => {
     const stored = localStorage.getItem('allLogEntries');
     if (stored) {
-      const parsed = JSON.parse(stored);
-      return parsed.map(migrateOldEntry);
+      const parsed = JSON.parse(stored) as LogEntry[];
+      return parsed;
     }
     return [];
   });
@@ -50,11 +37,7 @@ export function LogEntriesProvider({ children }: { children: ReactNode }) {
   }, [entries]);
 
   const setEntries = (newEntries: LogEntry[]) => {
-    // Migrate entries that might not have IDs
-    const migratedEntries = newEntries.map(entry => 
-      entry.id ? entry : migrateOldEntry(entry)
-    );
-    setEntriesState(migratedEntries);
+    setEntriesState(newEntries);
   };
 
   const addEntry = (entry: LogEntry) => {
@@ -62,10 +45,7 @@ export function LogEntriesProvider({ children }: { children: ReactNode }) {
   };
   
   const addEntries = (newEntries: LogEntry[]) => {
-    const migratedEntries = newEntries.map(entry => 
-      entry.id ? entry : migrateOldEntry(entry)
-    );
-    setEntriesState(prev => [...prev, ...migratedEntries]);
+    setEntriesState(prev => [...prev, ...newEntries]);
   };
 
   const updateEntryHours = (id: string, hours: number) => {
@@ -150,3 +130,4 @@ export function useLogEntries() {
   }
   return context;
 }
+

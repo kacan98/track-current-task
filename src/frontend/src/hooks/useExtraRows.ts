@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
-import type { LogEntry } from '../components/types';
-import { getSetting } from '../components/SettingsPage';
-import type { RecurringEvent } from '../components/RecurringEventsEditor';
-import { createEntry, cloneEntry } from '../utils/entryUtils';
-import { useLogEntries } from '../contexts/LogEntriesContext';
+import { getSetting } from '@/components/modals/SettingsPage';
+import type { RecurringEvent } from '@/components/RecurringEventsEditor';
+import { useLogEntries } from '@/contexts/LogEntriesContext';
+import type { LogEntry } from '@/types';
+import { cloneEntry, createEntry } from '@/utils/entryUtils';
+import { useState } from 'react';
 
 function getDatesForDayInWeek(start: string, end: string, dayName: string) {
   const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];

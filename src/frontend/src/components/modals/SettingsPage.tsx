@@ -1,9 +1,9 @@
 import React, { useEffect } from 'react';
-import { JiraCredentialsForm } from './JiraCredentialsForm';
-import { RecurringEventsEditor } from './RecurringEventsEditor';
-import type { RecurringEvent } from './RecurringEventsEditor';
-import { Button } from './Button';
-import { Modal } from './Modal';
+import { JiraCredentialsForm } from '../forms/JiraCredentialsForm';
+import { RecurringEventsEditor } from '../RecurringEventsEditor';
+import type { RecurringEvent } from '../RecurringEventsEditor';
+import { Button } from '../ui/Button';
+import { Modal } from '../ui/Modal';
 
 export const SETTINGS_FIELDS = [
     { key: 'scrumTaskId', label: 'Scrum Jira Task ID', type: 'text', placeholder: 'Enter Scrum Jira Task ID' } as const,
@@ -15,7 +15,7 @@ export const SETTINGS_FIELDS = [
 
 const initialSettings: Record<string, string> = {};
 SETTINGS_FIELDS.forEach(f => {
-    initialSettings[f.key] = f.defaultValue || '';
+    initialSettings[f.key] = 'defaultValue' in f ? f.defaultValue : '';
 });
 
 export type ExtractKeys<T extends readonly { key: string }[]> = T[number]['key'];
@@ -27,7 +27,7 @@ export type SettingsObject = {
 
 export function getSetting(key: SettingKey): string {
     const field = SETTINGS_FIELDS.find(f => f.key === key);
-    return localStorage.getItem(key) || field?.defaultValue || '';
+    return localStorage.getItem(key) || (field && 'defaultValue' in field ? field.defaultValue : '') || '';
 }
 
 export function getBooleanSetting(key: SettingKey): boolean {
@@ -47,7 +47,7 @@ function SettingsPage({ onClose, onDeleteAllRows }: { onClose: () => void, onDel
     useEffect(() => {
         const loaded: Record<string, string> = {};
         SETTINGS_FIELDS.forEach(f => {
-            loaded[f.key] = localStorage.getItem(f.key) || f.defaultValue || '';
+            loaded[f.key] = localStorage.getItem(f.key) || ('defaultValue' in f ? f.defaultValue : '');
         });
         setSettings(loaded);
     }, []);
@@ -108,7 +108,7 @@ function SettingsPage({ onClose, onDeleteAllRows }: { onClose: () => void, onDel
                                         value={settings[field.key]}
                                         onChange={e => handleChange(field.key, e.target.value)}
                                         className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                        placeholder={field.placeholder}
+                                        placeholder={'placeholder' in field ? field.placeholder : undefined}
                                     />
                                 </>
                             )}
@@ -131,7 +131,7 @@ function SettingsPage({ onClose, onDeleteAllRows }: { onClose: () => void, onDel
                                 value={settings[field.key]}
                                 onChange={e => handleChange(field.key, e.target.value)}
                                 className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                placeholder={field.placeholder}
+                                placeholder={'placeholder' in field ? field.placeholder : undefined}
                             />
                         </div>
                     ))}

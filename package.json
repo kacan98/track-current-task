@@ -13,7 +13,13 @@
     "dev": "nodemon --exec ts-node src/index.ts",
     "frontend:dev": "npm run dev --prefix src/frontend",
     "backend": "ts-node src/backend/index.ts",
-    "backend:dev": "nodemon --watch src/backend --ext ts --exec ts-node src/backend/index.ts"
+    "backend:dev": "nodemon --watch src/backend --ext ts --exec ts-node src/backend/index.ts",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "src/frontend/src/**/*.{ts,tsx}": [
+      "npm run check --prefix src/frontend"
+    ]
   },
   "repository": {
     "type": "git",
@@ -53,6 +59,8 @@
     "cors": "^2.8.5",
     "esbuild": "^0.25.5",
     "express": "^5.1.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.1.5",
     "nodemon": "^3.1.10",
     "pkg": "^5.8.1",
     "ts-node": "^10.9.2"

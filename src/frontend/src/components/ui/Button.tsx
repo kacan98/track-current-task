@@ -5,7 +5,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 export function Button({ className = '', variant = 'secondary', ...props }: ButtonProps) {
-  let base =
+  const base =
     variant === 'primary'
       ? 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-300'
       : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 focus:ring-gray-200';

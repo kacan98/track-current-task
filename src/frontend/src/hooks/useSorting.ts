@@ -9,7 +9,7 @@ export function useSorting() {
     if (sortColumn === key) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
-      setSortColumn(key as any);
+      setSortColumn(key as 'date' | 'day' | 'task' | 'hours' | 'sent');
       setSortDirection(key === 'date' ? 'desc' : 'asc');
     }
   };

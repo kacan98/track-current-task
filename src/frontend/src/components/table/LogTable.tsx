@@ -1,30 +1,26 @@
 // components/LogTable.tsx - Updated to use day grouping
 import { useMemo, useState } from 'react';
-import type { LogEntry } from '../components/types';
-import { useDayGrouping } from '../hooks/useDaysGrouping';
-import { useExtraRows } from '../hooks/useExtraRows';
-import { useJiraHeadings } from '../hooks/useJiraHeadings';
-import { useJiraWorklogs } from '../hooks/useJiraWorklogs';
-import { useSorting } from '../hooks/useSorting';
+import type { LogEntry } from '@/types';
+import { useExtraRows } from '@/hooks/useExtraRows';
+import { useJiraHeadings } from '@/hooks/useJiraHeadings';
+import { useJiraWorklogs } from '@/hooks/useJiraWorklogs';
+import { useSorting } from '@/hooks/useSorting';
 import { DayGroupHeader } from './LogTable/DayGroupHeader';
 import { EmptyState } from './LogTable/EmptyState';
 import { LogTableRow } from './LogTable/LogTableRow';
 import { TableHeaders } from './LogTable/TableHeaders';
 import { WeekHeader } from './LogTable/WeekHeader';
 import React from 'react';
-import { Toast } from './Toast';
-import { useLogEntries } from '../contexts/LogEntriesContext';
-import { createEntry } from '../utils/entryUtils';
-import { getBooleanSetting } from './SettingsPage';
-import { CommitsModal } from './CommitsModal';
+import { Toast } from '@/components/ui/Toast';
+import { useLogEntries } from '@/contexts/LogEntriesContext';
+import { createEntry } from '@/utils/entryUtils';
+import { getBooleanSetting } from '@/components/modals/SettingsPage';
+import { CommitsModal } from '@/components/modals/CommitsModal';
 
 export interface EditedHours {
   [key: string]: number;
 }
 
-function makeSentTaskKey(entry: LogEntry) {
-  return `${entry.taskId}|${entry.date}|${entry.hours}`;
-}
 
 interface LogTableProps {
   entries: LogEntry[];
@@ -41,7 +37,7 @@ export function LogTable({
 }: LogTableProps) {
   const { deleteEntry, cloneEntry, updateEntryDate, addEntry } = useLogEntries();
   const { sortColumn, sortDirection, handleHeaderClick } = useSorting();
-  const { eventStates, handleAddDailyScrum, handleAddEvent, handleCloneExtraRow } = useExtraRows(weekStart, weekEnd);
+  const { eventStates, handleAddDailyScrum, handleAddEvent } = useExtraRows(weekStart, weekEnd);
   const [dragOverDate, setDragOverDate] = useState<string | null>(null);
   const [commitsModalDate, setCommitsModalDate] = useState<string | null>(null);
 
@@ -82,8 +78,21 @@ export function LogTable({
     setDragOverDate(null);
   };
 
-  // Use day grouping hook
-  const dayGroups = useDayGrouping(entries);
+  // Group entries by day
+  const dayGroups = useMemo(() => {
+    const groups: { [date: string]: { entries: LogEntry[], totalHours: number } } = {};
+    
+    entries.forEach((entry) => {
+      if (!groups[entry.date]) {
+        groups[entry.date] = { entries: [], totalHours: 0 };
+      }
+      
+      groups[entry.date].entries.push(entry);
+      groups[entry.date].totalHours += entry.hours || 0;
+    });
+    
+    return groups;
+  }, [entries]);
 
   // Detect all unique DFO-1234 task IDs in the entries
   const taskIds = useMemo(() => {
@@ -119,7 +128,7 @@ export function LogTable({
       map[id] = palette[i % palette.length];
     });
     return map;
-  }, [taskIds.join(',')]);
+  }, [taskIds]);
 
   // Helper function to check if a date is a weekend
   const isWeekend = (dateStr: string): boolean => {
@@ -194,38 +203,20 @@ export function LogTable({
     return sorted;
   }, [dayGroups, sortedDates, sortColumn, sortDirection]);
 
-  // Clone event handler
-  const handleCloneEvent = (entry: LogEntry) => {
-    handleCloneExtraRow(entry);
-    // Optionally set edited hours for the clone if needed
-  };
 
   const [toastMsg, setToastMsg] = React.useState<string | null>(null);
   const toastTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const showToast = (msg: string) => {
-    setToastMsg(msg);
-    if (toastTimeoutRef.current) {
-      clearTimeout(toastTimeoutRef.current);
-    }
-    toastTimeoutRef.current = setTimeout(() => {
-      setToastMsg(null);
-      toastTimeoutRef.current = null;
-    }, 2500);
-  };
 
   React.useEffect(() => {
     return () => {
-      if (toastTimeoutRef.current) {
-        clearTimeout(toastTimeoutRef.current);
+      const timeoutId = toastTimeoutRef.current;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
       }
     };
   }, []);
 
-  const handleSendEventToJiraWithToast = (entry: LogEntry) => {
-    handleSendEventToJira(entry);
-    showToast('Event sent!');
-  };
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
@@ -280,7 +271,7 @@ export function LogTable({
                           worklogError={worklogError}
                           worklogTotals={worklogTotals}
                           handleDeleteEntry={deleteEntry}
-                          handleSendToJira={onSendToJira}
+                          {...(onSendToJira ? { handleSendToJira: onSendToJira } : {})}
                           handleCloneEntry={cloneEntry}
                           isFirstInGroup={idx === 0}
                           isLastInGroup={idx === group.entries.length - 1}

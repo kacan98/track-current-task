@@ -1,13 +1,13 @@
 // components/LogTable/LogTableRow.tsx - Updated to support day grouping
 import React, { useState } from 'react';
-import { Button } from '../Button';
-import { HourAdjustButtons } from '../HourAdjustButtons';
-import { getJiraTaskUrl } from '../jira-utils';
-import type { LogEntry } from '../types';
+import { Button } from '@/components/ui/Button';
+import { HourAdjustButtons } from '@/components/forms/HourAdjustButtons';
+import { getJiraTaskUrl } from '@/utils/jiraUtils';
+import type { LogEntry } from '@/types';
 import { JiraHeadingCell, type JiraHeadingCellProps } from './JiraHeadingCell';
-import { JiraWorklogCell, type JiraWorklogCellProps } from './JiraWorklogCell';
-import { useLogEntries } from '../../contexts/LogEntriesContext';
-import { jiraHeadingsCache } from '../../utils/cache';
+import type { JiraWorklogCellProps } from './JiraWorklogCell';
+import { useLogEntries } from '@/contexts/LogEntriesContext';
+import { jiraHeadingsCache } from '@/utils/cache';
 
 export type LogTableRowProps = {
   entry: LogEntry;
@@ -35,9 +35,6 @@ export function LogTableRow({
   loadingHeadings,
   headingsError,
   issueHeadings,
-  loadingWorklogs,
-  worklogError,
-  worklogTotals,
   handleDeleteEntry,
   handleSendToJira,
   handleCloneEntry,

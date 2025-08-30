@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { Button } from './Button';
+import { useState } from 'react';
+import { Button } from '../ui/Button';
 import { getSetting } from './SettingsPage';
-import { Modal } from './Modal';
+import { Modal } from '../ui/Modal';
 
 interface CommitsModalProps {
   date: string;
@@ -104,7 +104,7 @@ Write-Host "✨ Found $($results.Count) commits with branch information" -Foregr
       await navigator.clipboard.writeText(simpleCommand);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to copy to clipboard:', err);
     }
   };
@@ -114,7 +114,7 @@ Write-Host "✨ Found $($results.Count) commits with branch information" -Foregr
       await navigator.clipboard.writeText(detailedCommand);
       setCopiedDetailed(true);
       setTimeout(() => setCopiedDetailed(false), 2000);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to copy to clipboard:', err);
     }
   };

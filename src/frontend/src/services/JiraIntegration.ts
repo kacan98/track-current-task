@@ -1,16 +1,23 @@
-import type { LogEntry } from "../components/types";
-import { API_ROUTES } from "../../../shared/apiRoutes";
+import { api } from './apiClient';
 
-const baseUrl = "http://localhost:9999";
+interface JiraIssue {
+  key: string;
+  fields: {
+    summary: string;
+    [key: string]: unknown;
+  };
+}
+
+interface JiraWorklog {
+  id: number;
+  timeSpentSeconds: number;
+  started: string;
+  [key: string]: unknown;
+}
 
 // Login and store encrypted token in httpOnly cookie
 export async function loginToJira(login: string, password: string, name: string = `Track current task`) {
-  const res = await fetch(baseUrl + '/api' + API_ROUTES.JIRA.AUTH.LOGIN, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: JSON.stringify({ login, password, name })
-  });
+  const res = await api.jira.login(login, password, name);
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err?.error || 'Failed to authenticate with Jira');
@@ -20,10 +27,7 @@ export async function loginToJira(login: string, password: string, name: string 
 
 // Check authentication status
 export async function getAuthStatus() {
-  const res = await fetch(baseUrl + '/api' + API_ROUTES.JIRA.AUTH.STATUS, {
-    method: 'GET',
-    credentials: 'include'
-  });
+  const res = await api.jira.getStatus();
   if (!res.ok) {
     throw new Error('Failed to check authentication status');
   }
@@ -32,10 +36,7 @@ export async function getAuthStatus() {
 
 // Logout and clear encrypted cookie
 export async function logoutFromJira() {
-  const res = await fetch(baseUrl + '/api' + API_ROUTES.JIRA.AUTH.LOGOUT, {
-    method: 'POST',
-    credentials: 'include'
-  });
+  const res = await api.jira.logout();
   if (!res.ok) {
     throw new Error('Failed to logout');
   }
@@ -44,17 +45,7 @@ export async function logoutFromJira() {
 
 // Log work to Jira using encrypted cookie authentication
 export async function logWorkToJira(issueKey: string, timeSpentSeconds: number, started: string, comment: string = '') {
-  const res = await fetch(baseUrl + '/api' + API_ROUTES.JIRA.LOGWORK, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: JSON.stringify({
-      issueKey,
-      timeSpentSeconds,
-      started,
-      comment,
-    })
-  });
+  const res = await api.jira.logWork(issueKey, timeSpentSeconds, started, comment);
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -67,15 +58,8 @@ export async function logWorkToJira(issueKey: string, timeSpentSeconds: number, 
 }
 
 // Fetch details for multiple Jira issues by their keys
-export async function getJiraIssuesDetails(issueKeys: string[]): Promise<any[]> {
-  const res = await fetch(baseUrl + '/api' + API_ROUTES.JIRA.ISSUES_DETAILS, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: JSON.stringify({
-      issueKeys
-    })
-  });
+export async function getJiraIssuesDetails(issueKeys: string[]): Promise<JiraIssue[]> {
+  const res = await api.jira.getIssuesDetails(issueKeys);
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err?.error || 'Failed to fetch Jira issue details');
@@ -85,15 +69,8 @@ export async function getJiraIssuesDetails(issueKeys: string[]): Promise<any[]> 
 }
 
 // Fetch details for multiple Jira worklogs by their IDs
-export async function getJiraWorklogsDetails(worklogIds: number[]): Promise<any[]> {
-  const res = await fetch(baseUrl + '/api' + API_ROUTES.JIRA.WORKLOGS_DETAILS, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: JSON.stringify({
-      worklogIds
-    })
-  });
+export async function getJiraWorklogsDetails(worklogIds: number[]): Promise<JiraWorklog[]> {
+  const res = await api.jira.getWorklogsDetails(worklogIds);
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err?.error || 'Failed to fetch Jira worklog details');

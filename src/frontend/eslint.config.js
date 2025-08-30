@@ -20,4 +20,10 @@ export default tseslint.config([
       globals: globals.browser,
     },
   },
+  {
+    files: ['**/contexts/*.{ts,tsx}', '**/modals/SettingsPage.tsx'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
 ])

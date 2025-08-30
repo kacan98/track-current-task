@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { loginToJira, getAuthStatus, logoutFromJira } from '../services/JiraIntegration';
-import { Button } from './Button';
+import { loginToJira, getAuthStatus, logoutFromJira } from '../../services/JiraIntegration';
+import { Button } from '../ui/Button';
 
 interface JiraCredentialsFormProps {
   onAuthSuccess?: () => void;
@@ -10,7 +10,7 @@ export function JiraCredentialsForm({ onAuthSuccess }: JiraCredentialsFormProps 
   const loginRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
   const [showPassword, setShowPassword] = useState(false);
-  const [authStatus, setAuthStatus] = useState<any>(null);
+  const [authStatus, setAuthStatus] = useState<{ authenticated: boolean } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -23,7 +23,7 @@ export function JiraCredentialsForm({ onAuthSuccess }: JiraCredentialsFormProps 
     try {
       const status = await getAuthStatus();
       setAuthStatus(status);
-    } catch (e) {
+    } catch {
       setAuthStatus({ authenticated: false });
     } finally {
       setLoading(false);
@@ -44,14 +44,14 @@ export function JiraCredentialsForm({ onAuthSuccess }: JiraCredentialsFormProps 
     setError(null);
     setSuccess(null);
     try {
-      const result = await loginToJira(login, password);
+      await loginToJira(login, password);
       setAuthStatus({ authenticated: true });
       setSuccess('Successfully authenticated! Redirecting...');
       setTimeout(() => {
         onAuthSuccess?.();
       }, 2000);
-    } catch (e: any) {
-      setError(e?.message || 'Failed to authenticate');
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed to authenticate');
     } finally {
       setLoading(false);
     }
@@ -62,8 +62,8 @@ export function JiraCredentialsForm({ onAuthSuccess }: JiraCredentialsFormProps 
     try {
       await logoutFromJira();
       setAuthStatus({ authenticated: false });
-    } catch (e: any) {
-      setError(e?.message || 'Failed to logout');
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed to logout');
     } finally {
       setLoading(false);
     }
