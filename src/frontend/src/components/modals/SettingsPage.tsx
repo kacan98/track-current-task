@@ -10,6 +10,7 @@ export const SETTINGS_FIELDS = [
     { key: 'scrumTaskId', label: 'Scrum Jira Task ID', type: 'text', placeholder: 'Enter Scrum Jira Task ID' } as const,
     { key: 'scrumDailyDurationMinutes', label: 'Daily Scrum Duration (minutes)', type: 'number', placeholder: 'Enter daily scrum duration in minutes', defaultValue: '15' } as const,
     { key: 'hideWeekends', label: 'Hide Weekends', type: 'checkbox', defaultValue: 'true' } as const,
+    { key: 'weekStartDay', label: 'Week Start Day', type: 'select', options: [{ value: '0', label: 'Sunday' }, { value: '1', label: 'Monday' }], defaultValue: '1' } as const,
     { key: 'githubUsername', label: 'GitHub Username', type: 'text', placeholder: 'Enter your GitHub username' } as const,
     { key: 'githubToken', label: 'GitHub Personal Access Token', type: 'password', placeholder: 'Enter your GitHub PAT' } as const,
 ] as const;
@@ -81,6 +82,24 @@ function SettingsPage({ onClose, onDeleteAllRows }: { onClose: () => void, onDel
                                         {field.label}
                                     </span>
                                 </label>
+                            ) : field.type === 'select' ? (
+                                <>
+                                    <label htmlFor={field.key} className="block text-sm font-medium text-gray-700 mb-2">
+                                        {field.label}
+                                    </label>
+                                    <select
+                                        id={field.key}
+                                        value={settings[field.key]}
+                                        onChange={e => handleChange(field.key, e.target.value)}
+                                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    >
+                                        {'options' in field && field.options.map(option => (
+                                            <option key={option.value} value={option.value}>
+                                                {option.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </>
                             ) : (
                                 <>
                                     <label htmlFor={field.key} className="block text-sm font-medium text-gray-700 mb-2">

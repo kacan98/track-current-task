@@ -17,28 +17,26 @@ interface WeeklyLogDisplayProps {
 
 export const WeeklyLogDisplay: React.FC<WeeklyLogDisplayProps> = ({
   weeks,
-  filtered,
+  filtered: _filtered, // eslint-disable-line @typescript-eslint/no-unused-vars
   onSendToJira
 }) => {
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200">
       <div className="overflow-x-auto">
-        {weeks.length > 1
-          ? [...weeks].sort((a, b) => b.start.getTime() - a.start.getTime()).map(week => (
-              <div key={week.start.toISOString()} className="mb-8 last:mb-0">
-                <LogTable
-                  entries={week.entries}
-                  weekStart={format(week.start, 'yyyy-MM-dd')}
-                  weekEnd={format(week.end, 'yyyy-MM-dd')}
-                  onSendToJira={onSendToJira}
-                />
-              </div>
-            ))
-          : <LogTable
-              entries={filtered}
-              onSendToJira={onSendToJira}
-            />
-        }
+        {[...weeks].sort((a, b) => b.start.getTime() - a.start.getTime()).map(week => {
+          const weekStartStr = format(week.start, 'yyyy-MM-dd');
+          const weekEndStr = format(week.end, 'yyyy-MM-dd');
+          return (
+            <div key={week.start.toISOString()} className={weeks.length > 1 ? "mb-8 last:mb-0" : ""}>
+              <LogTable
+                entries={week.entries}
+                weekStart={weekStartStr}
+                weekEnd={weekEndStr}
+                onSendToJira={onSendToJira}
+              />
+            </div>
+          );
+        })}
       </div>
     </div>
   );

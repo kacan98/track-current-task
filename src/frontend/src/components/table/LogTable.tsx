@@ -166,6 +166,7 @@ export function LogTable({
       }
     }
     
+    
     // Sort with most recent first
     return dates.sort((a, b) => {
       const dateA = new Date(a);

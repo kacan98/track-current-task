@@ -10,6 +10,7 @@
     "build": "tsc",
     "build:executables": "node scripts/pre-build-executables.js && npm run build && pkg . --out-path ./dist-executables --targets node18-win-x64,node18-macos-x64 && node scripts/post-build-executables.js",
     "build:executables:start": "node scripts/pre-build-executables.js && npm run build && pkg . --out-path ./dist-executables --targets node18-win-x64,node18-macos-x64 && node scripts/post-build-executables.js -- --start",
+    "check": "tsc --noEmit && npm run check --prefix src/frontend",
     "start": "concurrently \"npm run frontend:dev\" \"npm run backend:dev\"",
     "dev": "nodemon --exec ts-node src/index.ts",
     "frontend:dev": "npm run dev --prefix src/frontend",
