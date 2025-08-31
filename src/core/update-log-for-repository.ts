@@ -1,4 +1,3 @@
-import chalk from 'chalk';
 import { Config, RepositoryConfig } from '../config/config-types';
 import { RepoState } from './repo-state-types';
 import { LogEntry } from './file-operations';
@@ -8,6 +7,7 @@ import {
 } from '../git/git-utils';
 import { getFileDiffStats, getWorkingDirDiffStats } from '../git/diff-analysis';
 import { extractTaskId } from '../utils/date-utils';
+import { logger } from '../utils/logger';
 
 // Takes mutable entries and repoState, modifies them directly.
 // Returns true if time was logged, false otherwise
@@ -24,7 +24,7 @@ export async function updateLogForRepository(
   const repositoryName = await getRepositoryName(repoPath);
   
   if (!repoInfo.currentBranch) {
-    console.log(`Could not determine current branch for ${repoPath}. Skipping activity check for this repository.`);
+    logger.warn(`Could not determine current branch for ${repositoryName}. Skipping activity check for this repository.`);
     return false;
   }
 
@@ -118,17 +118,17 @@ export async function updateLogForRepository(
       } else {
         entries.push({ date: today, taskId: taskIdToLog, repository: repositoryName, hours: logIntervalHours });
       }
-      console.log(chalk.green(`Logged ${logIntervalHours.toFixed(2)} hours for ${chalk.cyan(taskIdToLog)} (repo: ${chalk.yellow(repoPath)}, branch: ${chalk.yellow(branchName)})`));
+      logger.success(`Logged ${logIntervalHours.toFixed(2)} hours for ${taskIdToLog} (repo: ${repositoryName}, branch: ${branchName})`);
       return true;
     } else if (isFirstTimeSeeing) {
-      console.log(chalk.blue(`Initial state captured for ${chalk.cyan(taskIdToLog)} (repo: ${chalk.yellow(repoPath)}, branch: ${chalk.yellow(branchName)}). No time logged on first run.`));
+      logger.info(`Initial state captured for ${taskIdToLog} (repo: ${repositoryName}, branch: ${branchName}). No time logged on first run.`);
       return false;
     } else {
-      console.log(chalk.yellow(`Changes detected in ${chalk.cyan(repoPath)} on branch ${chalk.cyan(branchName)}, but tracking interval (${config.trackingIntervalMinutes} minutes) has not passed since last log. No time logged.`));
+      logger.warn(`Changes detected in ${repositoryName} on branch ${branchName}, but tracking interval (${config.trackingIntervalMinutes} minutes) has not passed since last log. No time logged.`);
       return false;
     }
   } else {
-    console.log(chalk.gray(`No new changes in ${chalk.cyan(repoPath)} on branch ${chalk.cyan(branchName)}.`));
+    logger.debug(`No new changes in ${repositoryName} on branch ${branchName}.`);
     return false;
   }
 }

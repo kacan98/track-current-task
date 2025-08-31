@@ -1,8 +1,8 @@
-import chalk from 'chalk';
 import { Config } from '../config/config-types';
 import { EnhancedLogEntry } from '../core/file-operations';
 import { getFormattedWeekRange, getFormattedHours } from '../utils/date-utils';
 import { printTaskSummary, renderDailyDetails } from './summary-formatters';
+import { logger } from '../utils/logger';
 
 // Utility types for grouping data
 type WeeklyEntries = Record<number, EnhancedLogEntry[]>;
@@ -40,10 +40,11 @@ export function generateWeeklyBreakdown(entries: EnhancedLogEntry[], config: Con
         const weeklyHours = entriesForWeek.reduce((sum, entry) => sum + entry.hours, 0);
 
         // Print week header with date range
-        console.log(chalk.magenta.bold(`\n  ${getFormattedWeekRange(weekStart, weekEnd)} (Week ${weekNum}): ${chalk.yellow(getFormattedHours(weeklyHours))}`));        // Print task breakdown for the week
+        logger.info(`\n  ${getFormattedWeekRange(weekStart, weekEnd)} (Week ${weekNum}): ${getFormattedHours(weeklyHours)}`);
+        // Print task breakdown for the week
         printTaskSummary(entriesForWeek, config, '    ');
         // Print daily details
-        console.log(chalk.blue(`\n    Daily Details:`));
+        logger.info(`\n    Daily Details:`);
         renderDailyDetails(entriesForWeek, config);
     });
 
@@ -62,8 +63,8 @@ export function generateWeeklyBreakdown(entries: EnhancedLogEntry[], config: Con
 export function logMonthSummary(entries: EnhancedLogEntry[], year: number, monthName: string, config: Config, isPrevious = false): void {
     if (entries.length === 0 && !isPrevious) {
         const title = isPrevious ? `${monthName} ${year} (Previous Month):` : `${monthName} ${year}:`;
-        console.log(chalk.green.bold(`\n${title}`));
-        console.log(chalk.yellow('  No entries found for this month.'));
+        logger.info(`\n${title}`);
+        logger.warn('  No entries found for this month.');
         return
     }
     

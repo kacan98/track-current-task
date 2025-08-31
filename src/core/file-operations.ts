@@ -1,6 +1,7 @@
 import { readFile, writeFile } from 'fs/promises';
 import { ACTIVITY_LOG_FILE_PATH, REPO_STATE_FILE_PATH } from '..';
 import { RepoState } from './repo-state-types';
+import { logger } from '../utils/logger';
 
 export interface LogEntry {
   date: string; // YYYY-MM-DD
@@ -45,11 +46,12 @@ export async function getLogEntries(): Promise<LogEntry[]> {
       const [date, taskId, repository, hoursStr] = parts;
       return { date, taskId, repository, hours: parseFloat(hoursStr) };
     });
-  } catch (error: any) {
-    if (error.code === 'ENOENT') {
+  } catch (error: unknown) {
+    const nodeError = error as NodeJS.ErrnoException;
+    if (nodeError.code === 'ENOENT') {
       return []; // File not found, return empty array
     }
-    console.error(`Error reading log file ${ACTIVITY_LOG_FILE_PATH}:`, error);
+    logger.error(`Error reading log file ${ACTIVITY_LOG_FILE_PATH}:`, String(error));
     return [];
   }
 }
@@ -91,7 +93,7 @@ export async function writeLogFile(filePath: string, entries: LogEntry[]): Promi
     await writeFile(filePath, csvContent, 'utf-8');
     return true;
   } catch (error) {
-    console.error(`Error writing log file ${filePath}:`, error);
+    logger.error(`Error writing log file ${filePath}:`, String(error));
     return false;
   }
 }
@@ -105,11 +107,12 @@ export async function getRepoState(filePath: string = REPO_STATE_FILE_PATH): Pro
   try {
     const data = await readFile(filePath, 'utf-8');
     return JSON.parse(data) as RepoState;
-  } catch (error: any) {
-    if (error.code === 'ENOENT') {
+  } catch (error: unknown) {
+    const nodeError = error as NodeJS.ErrnoException;
+    if (nodeError.code === 'ENOENT') {
       return {}; // File not found, return empty state
     }
-    console.error(`Error reading repo state file ${filePath}:`, error);
+    logger.error(`Error reading repo state file ${filePath}:`, String(error));
     return {};
   }
 }
@@ -125,7 +128,7 @@ export async function writeRepoState(state: RepoState, filePath: string = REPO_S
     await writeFile(filePath, JSON.stringify(state, null, 2), 'utf-8');
     return true;
   } catch (error) {
-    console.error(`Error writing repo state file ${filePath}:`, error);
+    logger.error(`Error writing repo state file ${filePath}:`, String(error));
     return false;
   }
 }

@@ -1,18 +1,14 @@
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { RepositoryConfig } from '../config/config-types';
+import { logger } from '../utils/logger';
 
 const execFileAsync = promisify(execFile);
 
 // Helper function to execute git commands
 export async function execGit(args: string[], options: { cwd: string }): Promise<{ stdout: string; stderr: string }> {
-  try {
-    const result = await execFileAsync('git', args, options);
-    return { stdout: result.stdout || '', stderr: result.stderr || '' };
-  } catch (error: any) {
-    // If the command fails, throw the error so callers can handle it
-    throw error;
-  }
+  const result = await execFileAsync('git', args, options);
+  return { stdout: result.stdout || '', stderr: result.stderr || '' };
 }
 
 export async function getCurrentBranch(repoPath: string): Promise<string | null> {
@@ -20,7 +16,7 @@ export async function getCurrentBranch(repoPath: string): Promise<string | null>
     const { stdout } = await execGit(['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: repoPath });
     return stdout.trim();
   } catch (error) {
-    console.error(`Error getting current branch in ${repoPath}:`, error);
+    logger.error(`Error getting current branch in ${repoPath}:`, String(error));
     return null;
   }
 }
@@ -30,7 +26,7 @@ export async function getGitStatus(repoPath: string): Promise<string | null> {
     const { stdout } = await execGit(['status', '--porcelain'], { cwd: repoPath });
     return stdout.trim();
   } catch (error) {
-    console.error(`Error getting git status in ${repoPath}:`, error);
+    logger.error(`Error getting git status in ${repoPath}:`, String(error));
     return null;
   }
 }
@@ -52,7 +48,7 @@ export async function getRepositoryName(repoPath: string): Promise<string> {
       // Extract repo name from URLs like:
       // https://github.com/user/repo.git -> repo
       // git@github.com:user/repo.git -> repo
-      const match = remoteUrl.trim().match(/\/([^\/]+?)(?:\.git)?$/);
+      const match = remoteUrl.trim().match(/\/([^/]+?)(?:\.git)?$/);
       if (match && match[1]) {
         return match[1];
       }
@@ -82,7 +78,7 @@ export async function getAvailableBranches(repoPath: string): Promise<string[]> 
       .filter((branch, index, arr) => arr.indexOf(branch) === index) // Remove duplicates
       .sort();
   } catch (error) {
-    console.error(`Error getting available branches in ${repoPath}:`, error);
+    logger.error(`Error getting available branches in ${repoPath}:`, String(error));
     return [];
   }
 }
@@ -93,7 +89,7 @@ export async function getDefaultBaseBranch(repoPath: string, configuredMainBranc
     if (await branchExists(repoPath, configuredMainBranch)) {
       return configuredMainBranch;
     }
-    console.warn(`Configured main branch '${configuredMainBranch}' does not exist in ${repoPath}, falling back to defaults.`);
+    logger.warn(`Configured main branch '${configuredMainBranch}' does not exist in ${repoPath}, falling back to defaults.`);
   }
   
   // Otherwise try master, then main
@@ -108,7 +104,7 @@ export async function getLatestCommitHash(repoPath: string, branch: string): Pro
     const { stdout } = await execGit(['rev-parse', branch], { cwd: repoPath });
     return stdout.trim();
   } catch (error) {
-    console.error(`Error getting latest commit hash for ${branch} in ${repoPath}:`, error);
+    logger.error(`Error getting latest commit hash for ${branch} in ${repoPath}:`, String(error));
     return null;
   }
 }
@@ -119,7 +115,7 @@ export async function getDiffFilesWithBase(repoPath: string, base: string, branc
     const { stdout } = await execGit(['diff', '--name-only', `${base}...${branch}`], { cwd: repoPath });
     return stdout.trim() ? stdout.trim().split('\n') : [];
   } catch (error) {
-    console.error(`Error getting diff files between ${base} and ${branch} in ${repoPath}:`, error);
+    logger.error(`Error getting diff files between ${base} and ${branch} in ${repoPath}:`, String(error));
     return null;
   }
 }
@@ -130,7 +126,7 @@ export async function getCommitsNotInBase(repoPath: string, base: string, branch
     const { stdout } = await execGit(['log', '--pretty=%H', `${base}..${branch}`], { cwd: repoPath });
     return stdout.trim() ? stdout.trim().split('\n') : [];
   } catch (error) {
-    console.error(`Error getting commits not in ${base} for ${branch} in ${repoPath}:`, error);
+    logger.error(`Error getting commits not in ${base} for ${branch} in ${repoPath}:`, String(error));
     return null;
   }
 }
@@ -197,7 +193,7 @@ export async function getRepositoryInfo(repoPath: string, mainBranch?: string): 
       commitsNotInBase: commitsResult.stdout.trim() ? commitsResult.stdout.trim().split('\n') : []
     };
   } catch (error) {
-    console.error(`Error getting repository info for ${repoPath}:`, error);
+    logger.error(`Error getting repository info for ${repoPath}:`, String(error));
     return {
       currentBranch: null,
       baseBranch: 'main',
@@ -249,7 +245,7 @@ export async function discoverRepositories(parentPath: string): Promise<Reposito
         }
       } catch (entryError) {
         // Skip entries that can't be processed (permissions, etc.)
-        console.warn(`Skipping ${fullPath}: ${entryError}`);
+        logger.warn(`Skipping ${fullPath}: ${entryError}`);
       }
     }
   } catch (error) {

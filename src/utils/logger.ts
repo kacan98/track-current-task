@@ -53,7 +53,7 @@ class Logger {
     };
   }
   
-  private format(level: string, levelColor: string, message: string, ...args: any[]): string {
+  private format(level: string, levelColor: string, message: string, ..._args: unknown[]): string {
     const parts = [];
     
     if (this.config.showTimestamp) {
@@ -73,31 +73,31 @@ class Logger {
     return parts.join(' ');
   }
   
-  debug(message: string, ...args: any[]) {
+  debug(message: string, ...args: unknown[]) {
     if (this.config.level <= LogLevel.DEBUG) {
       console.log(this.format('DEBUG', colors.gray, message), ...args);
     }
   }
   
-  info(message: string, ...args: any[]) {
+  info(message: string, ...args: unknown[]) {
     if (this.config.level <= LogLevel.INFO) {
       console.log(this.format('INFO', colors.blue, message), ...args);
     }
   }
   
-  success(message: string, ...args: any[]) {
+  success(message: string, ...args: unknown[]) {
     if (this.config.level <= LogLevel.SUCCESS) {
       console.log(this.format('✓', colors.green, message), ...args);
     }
   }
   
-  warn(message: string, ...args: any[]) {
+  warn(message: string, ...args: unknown[]) {
     if (this.config.level <= LogLevel.WARN) {
       console.warn(this.format('WARN', colors.yellow, message), ...args);
     }
   }
   
-  error(message: string, ...args: any[]) {
+  error(message: string, ...args: unknown[]) {
     if (this.config.level <= LogLevel.ERROR) {
       console.error(this.format('ERROR', colors.red, message), ...args);
     }

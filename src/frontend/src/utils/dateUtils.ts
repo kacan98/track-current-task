@@ -21,7 +21,7 @@ export function getEntriesInRange(entries: LogEntry[], from: Date, to: Date): Lo
   });
 }
 
-export function splitEntriesByWeek(entries: LogEntry[], from: Date, to: Date, _weekStartDay = 1) { // eslint-disable-line @typescript-eslint/no-unused-vars
+export function splitEntriesByWeek(entries: LogEntry[], from: Date, to: Date, _weekStartDay = 1) {  
   const weeks: Array<{ start: Date; end: Date; entries: LogEntry[] }> = [];
   
   // Start from the 'from' date directly - DateRangePicker already calculated the correct week start

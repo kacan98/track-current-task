@@ -9,7 +9,9 @@
       "Bash(gh search commits:*)",
       "Bash(npx vite build:*)",
       "Bash(npm run check:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(gh api:*)",
+      "Bash(npx eslint:*)"
     ],
     "deny": []
   }

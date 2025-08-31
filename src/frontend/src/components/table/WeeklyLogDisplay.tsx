@@ -17,7 +17,7 @@ interface WeeklyLogDisplayProps {
 
 export const WeeklyLogDisplay: React.FC<WeeklyLogDisplayProps> = ({
   weeks,
-  filtered: _filtered, // eslint-disable-line @typescript-eslint/no-unused-vars
+  filtered: _filtered,
   onSendToJira
 }) => {
   return (

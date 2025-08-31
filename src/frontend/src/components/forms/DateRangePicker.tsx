@@ -22,7 +22,7 @@ export function DateRangePicker({ from, to, onChange }: DateRangePickerProps) {
       const range = getDateRangeForPreset(currentPreset, weekStartDay);
       onChange(range.from, range.to);
     }
-  }, [weekStartDay]); // Re-run when weekStartDay changes
+  }, [weekStartDay, from, to, onChange]);
   
   // Check if button is selected
   const isSelected = (preset: DateRangePreset): boolean => {

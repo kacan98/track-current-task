@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import { createLogger } from '../../utils/logger';
 
 const authLogger = createLogger('AUTH');
@@ -18,11 +18,12 @@ export async function getJiraToken(login: string, password: string, name: string
         });
         
         return response.data;
-    } catch (error: any) {
-        authLogger.error(`Jira authentication failed: ${error?.response?.status || error?.message}`);
+    } catch (error: unknown) {
+        const axiosError = error as AxiosError;
+        authLogger.error(`Jira authentication failed: ${axiosError?.response?.status || axiosError?.message}`);
         // Log error details but NOT the password or token data
-        if (error?.response?.data) {
-            authLogger.debug('Error details:', error.response.data);
+        if (axiosError?.response?.data) {
+            authLogger.debug('Error details:', axiosError.response.data);
         }
         throw error;
     }

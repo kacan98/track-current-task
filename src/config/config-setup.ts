@@ -1,4 +1,3 @@
-import chalk from 'chalk';
 import { existsSync } from 'fs';
 import { writeFile } from 'fs/promises';
 import inquirer from 'inquirer';
@@ -6,10 +5,11 @@ import path from 'path';
 import { CONFIG_FILE_PATH } from '..';
 import { branchExists, getAvailableBranches, discoverRepositories } from '../git/git-utils';
 import { Config, RepositoryConfig } from './config-types';
+import { logger } from '../utils/logger';
 
 // Interactive configuration setup
 export async function createConfigInteractively(): Promise<Config> {
-    console.log(chalk.cyan.bold(`\n🔧 No ${CONFIG_FILE_PATH} found. Let\`s set up your Git Activity Logger!\n`));
+    logger.info(`\nNo ${CONFIG_FILE_PATH} found. Let's set up your Git Activity Logger!\n`);
 
     // Ask how they want to track repositories
     let trackingModeAnswer;
@@ -26,8 +26,9 @@ export async function createConfigInteractively(): Promise<Config> {
             ]
         }
     ]);
-    } catch (error: any) {
-        if (error.message && error.message.includes('force closed')) {
+    } catch (error: unknown) {
+        const nodeError = error as Error;
+        if (nodeError.message && nodeError.message.includes('force closed')) {
             throw new Error('Cannot run interactive setup in non-interactive mode. Please run this application in a terminal/console window.');
         }
         throw error;
@@ -64,7 +65,7 @@ export async function createConfigInteractively(): Promise<Config> {
                 const discoveredRepos = await discoverRepositories(repositoriesFolder as string);
                 
                 if (discoveredRepos.length === 0) {
-                    console.log(chalk.yellow('No git repositories found in the specified folder.'));
+                    logger.warn('No git repositories found in the specified folder.');
                     
                     const retryAnswer = await inquirer.prompt([
                         {
@@ -85,9 +86,9 @@ export async function createConfigInteractively(): Promise<Config> {
                     }
                     // If retry, continue the loop
                 } else {
-                    console.log(chalk.green(`Found ${discoveredRepos.length} git repositories:`));
+                    logger.info(`Found ${discoveredRepos.length} git repositories:`);
                     discoveredRepos.forEach(repo => {
-                        console.log(chalk.white(`  📁 ${repo.path} (main branch: ${chalk.cyan(repo.mainBranch)}))`));
+                        logger.info(`  ${repo.path} (main branch: ${repo.mainBranch})`);
                     });
                     
                     const confirmAnswer = await inquirer.prompt([
@@ -106,7 +107,7 @@ export async function createConfigInteractively(): Promise<Config> {
                     // If they don't want to use these repos, continue the loop to try again
                 }
             } catch (error) {
-                console.error(chalk.red('Error discovering repositories:'), error);
+                logger.error('Error discovering repositories: ' + String(error));
                 
                 const errorRetryAnswer = await inquirer.prompt([
                     {
@@ -134,7 +135,7 @@ export async function createConfigInteractively(): Promise<Config> {
     if (trackingModeAnswer.mode === 'single' || trackingModeAnswer.mode === 'multiple') {
         let addingRepos = true;
         while (addingRepos) {
-        console.log(chalk.yellow(`\n📁 Repository ${repositories.length + 1}:`));
+        logger.info(`\nRepository ${repositories.length + 1}:`);
 
         // First, get the repository path
         const pathAnswer = await inquirer.prompt([
@@ -231,7 +232,7 @@ export async function createConfigInteractively(): Promise<Config> {
     }
 
     // Get other configuration options
-    console.log(chalk.yellow('\n⚙️  Configuration options:'));
+    logger.info('\nConfiguration options:');
     const trackingInterval = await inquirer.prompt({
         type: 'number',
         name: 'value',
@@ -253,8 +254,8 @@ export async function createConfigInteractively(): Promise<Config> {
             try {
                 new RegExp(input);
                 return true;
-            } catch (e) {
-                return 'Please enter a valid regular expression.';
+            } catch {
+                return 'Please enter a valid regular expression.'
             }
         }
     });
@@ -271,7 +272,7 @@ export async function createConfigInteractively(): Promise<Config> {
             try {
                 new URL(input);
                 return true;
-            } catch (e) {
+            } catch {
                 return 'Please enter a valid URL or leave empty.';
             }
         }
@@ -285,10 +286,10 @@ export async function createConfigInteractively(): Promise<Config> {
     // Save the config
     try {
         await writeFile(CONFIG_FILE_PATH, JSON.stringify(config, null, 2), 'utf-8');
-        console.log(chalk.green.bold(`\n✅ Configuration saved to ${CONFIG_FILE_PATH}`));
-        console.log(chalk.blue('You can edit this file later to make changes.'));
+        logger.success(`\nConfiguration saved to ${CONFIG_FILE_PATH}`);
+        logger.info('You can edit this file later to make changes.');
     } catch (error) {
-        console.error(chalk.red('❌ Error saving configuration:'), error);
+        logger.error('Error saving configuration: ' + String(error));
         throw error;
     }
 

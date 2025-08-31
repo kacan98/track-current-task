@@ -56,7 +56,7 @@ async function postBuild() {
     try {
         // Step 1: CRITICAL - Kill running processes or file copy will fail with EBUSY
         console.log('🔍 Checking for running processes...');
-        await stopExistingProcess(executableName);
+        const processWasStopped = await stopExistingProcess(executableName);
         
         // Step 2: Copy with retry logic (Windows can be slow to release file locks)
         if (fs.existsSync(sourcePath)) {
@@ -109,27 +109,25 @@ async function postBuild() {
             return;
         }
         
-        // Step 3: CRITICAL - Wait for Windows to fully release the process
-        // Without this, the new process might fail to start or cause issues
-        console.log('⏳ Waiting for previous process to fully terminate...');
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        // Step 3: CRITICAL - Wait for Windows to fully release the process (only if we stopped one)
+        if (processWasStopped) {
+            console.log('⏳ Waiting for previous process to fully terminate...');
+            await new Promise(resolve => setTimeout(resolve, 3000));
+        }
         
         // Step 4: Open the folder to show where the executable is
         console.log('✅ Executable copied to startup folder:');
         console.log(`📁 ${targetPath}`);
-        console.log('📂 Opening folder to show location...');
         
         // Open Windows Explorer to the startup folder
         try {
             exec(`explorer.exe "${startupFolder}"`, (error) => {
-                if (error) {
-                    console.log('⚠️  Could not open folder automatically');
-                } else {
-                    console.log('✅ Folder opened in Windows Explorer');
-                }
+                // Don't log anything here - the operation is async and happens after we finish
+                // The folder usually opens successfully even if this callback shows an error
             });
+            console.log('📂 Opening startup folder in Windows Explorer...');
         } catch (error) {
-            console.log('⚠️  Could not open folder:', error.message);
+            console.log('⚠️  Could not open folder automatically');
         }
         
         console.log('🎉 Post-build complete!');
@@ -162,28 +160,36 @@ function stopExistingProcess(executableName) {
         // SAFETY: Remove quotes to prevent command injection
         const safeExeName = executableName.replace(/["']/g, '');
         exec(`taskkill /F /IM "${safeExeName}" 2>nul`, (error, stdout, stderr) => {
+            let processWasStopped = false;
+            
             if (error) {
                 // Error code 128 means process not found, which is okay
                 if (error.code === 128 || stderr.includes('not found')) {
                     console.log('No existing process found');
+                    resolve(false); // Return false - no process was stopped
+                    return;
                 } else {
                     console.log('Note: Process might not be running or already stopped');
                 }
             } else {
                 console.log('✅ Existing process(es) stopped');
+                processWasStopped = true;
             }
             
-            // CRITICAL: Windows doesn't release file locks immediately!
-            // We MUST wait or the copy will fail with EBUSY error
-            console.log('⏳ Waiting for file locks to release...');
-            setTimeout(() => {
-                // Belt-and-suspenders: Try to kill again in case it respawned
-                const safeExeName = executableName.replace(/["']/g, '');
-                exec(`taskkill /F /IM "${safeExeName}" 2>nul`, () => {
-                    // Don't care about result - just making sure
-                    setTimeout(resolve, 2000); // Total wait: 3+ seconds for Windows to release everything
-                });
-            }, 1000);
+            // Only wait for file locks if we actually stopped a process
+            if (processWasStopped) {
+                console.log('⏳ Waiting for file locks to release...');
+                setTimeout(() => {
+                    // Belt-and-suspenders: Try to kill again in case it respawned
+                    const safeExeName = executableName.replace(/["']/g, '');
+                    exec(`taskkill /F /IM "${safeExeName}" 2>nul`, () => {
+                        // Don't care about result - just making sure
+                        setTimeout(() => resolve(true), 2000); // Return true - process was stopped
+                    });
+                }, 1000);
+            } else {
+                resolve(false); // Return false - no process was stopped
+            }
         });
     });
 }

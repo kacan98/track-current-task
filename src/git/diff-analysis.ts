@@ -1,4 +1,5 @@
 import { execGit, branchExists } from './git-utils';
+import { logger } from '../utils/logger';
 
 // Helper function to count lines in a file
 export async function getLineCount(filePath: string): Promise<number> {
@@ -6,7 +7,7 @@ export async function getLineCount(filePath: string): Promise<number> {
     const { readFile } = await import('fs/promises');
     const content = await readFile(filePath, 'utf-8');
     return content.split('\n').length;
-  } catch (error) {
+  } catch {
     // If we can't read the file (binary, permission issues, etc.), return 0
     return 0;
   }
@@ -37,7 +38,7 @@ export async function getFileDiffStats(repoPath: string, base: string, branch: s
     
     return diffStats;
   } catch (error) {
-    console.error(`Error getting file diff stats between ${base} and ${branch} in ${repoPath}:`, error);
+    logger.error(`Error getting file diff stats between ${base} and ${branch} in ${repoPath}: ${String(error)}`);
     return null;
   }
 }
@@ -62,7 +63,7 @@ export async function getWorkingDirDiffStats(repoPath: string): Promise<Record<s
         
         // Handle renames: filePath might be "old_name => new_name"
         if (filePath.includes(' => ')) {
-          const [oldPath, newPath] = filePath.split(' => ');
+          const [_oldPath, newPath] = filePath.split(' => ');
           // For renames, we track both the old (as deleted lines) and new (as added lines)
           // But since it's the same content, we just track it as the new file with the changes
           diffStats[newPath] = {
@@ -94,7 +95,7 @@ export async function getWorkingDirDiffStats(repoPath: string): Promise<Record<s
         // Handle renames: filePath might be "old_name => new_name"
         let targetFilePath = filePath;
         if (filePath.includes(' => ')) {
-          const [oldPath, newPath] = filePath.split(' => ');
+          const [_oldPath, newPath] = filePath.split(' => ');
           // For renames, we track both the old (as deleted lines) and new (as added lines)
           // But since it's the same content, we just track it as the new file with the changes
           targetFilePath = newPath;
@@ -158,9 +159,9 @@ export async function getWorkingDirDiffStats(repoPath: string): Promise<Record<s
                 added: lineCount,
                 deleted: 0 // Renames typically don't have deletions unless content changed
               };
-            } catch (error) {
+            } catch {
               // If we can't read the file, just note it as a rename without line stats
-              console.log(`Note: Detected staged rename ${oldPath} -> ${newPath} but couldn't read line count`);
+              logger.info(`Note: Detected staged rename ${oldPath} -> ${newPath} but couldn't read line count`);
             }
           }
         }
@@ -169,7 +170,7 @@ export async function getWorkingDirDiffStats(repoPath: string): Promise<Record<s
     
     return diffStats;
   } catch (error) {
-    console.error(`Error getting working directory diff stats in ${repoPath}:`, error);
+    logger.error(`Error getting working directory diff stats in ${repoPath}: ${String(error)}`);
     return null;
   }
 }

@@ -11,7 +11,7 @@ interface CommitsModalProps {
 export function CommitsModal({ date, onClose }: CommitsModalProps) {
   const [copied, setCopied] = useState(false);
   const [copiedDetailed, setCopiedDetailed] = useState(false);
-  const { getSetting } = useSettings();
+  const { getSetting, updateSetting } = useSettings();
   const [username, setUsername] = useState('');  
   
   useEffect(() => {
@@ -19,90 +19,62 @@ export function CommitsModal({ date, onClose }: CommitsModalProps) {
   }, [getSetting]);
   
   // Generate the simple GitHub CLI command for all commits on the specified date  
-  const simpleCommand = `gh search commits --author=${username || 'YOUR_USERNAME'} --author-date=${date} --limit=100`;
+  const simpleCommand = `gh search commits --author="${username || 'YOUR_USERNAME'}" --author-date="${date}" --limit=100`;
   
   // Generate enhanced command with branch information (PowerShell script)
-  const detailedCommand = `# Get commits with branch info - formatted as table
-Write-Host "🔍 Fetching commits for ${username || 'YOUR_USERNAME'} on ${date}..." -ForegroundColor Cyan
+  const detailedCommand = `# Get commits with detailed formatting
+Write-Host "Fetching commits for ${username || 'YOUR_USERNAME'} on ${date}..." -ForegroundColor Cyan
 
-# Fetch commits
-Write-Host "📥 Loading commit data..." -ForegroundColor Yellow
+Write-Host "Loading commit data..." -ForegroundColor Yellow
 $commits = gh api "search/commits?q=author:${username || 'YOUR_USERNAME'}+author-date:${date}&per_page=100" | ConvertFrom-Json
 $results = @()
 $total = $commits.items.Count
 
-# Process each commit with progress
-Write-Host "🔍 Analyzing $total commits for branch info..." -ForegroundColor Yellow
-$current = 0
+Write-Host "Processing $total commits..." -ForegroundColor Yellow
+
 foreach ($commit in $commits.items) {
-    $current++
-    Write-Progress -Activity "Processing commits" -Status "Commit $current of $total" -PercentComplete (($current / $total) * 100)
-    
     $repo = $commit.repository.full_name
     $sha = $commit.sha.Substring(0,7)
-    $message = $commit.commit.message.Split("\\n")[0]
+    $message = $commit.commit.message
     $time = ([DateTime]$commit.commit.author.date).ToString("HH:mm")
-    $branch = "unknown"
+    $branch = "main"
     
-    # Try to get branch info
-    try {
-        $branches = gh api "repos/$repo/commits/$($commit.sha)/branches-where-head" | ConvertFrom-Json
-        if ($branches.Count -gt 0) { 
-            $branchName = $branches[0].name
-            $branch = "🌿 " + $branchName
-        }
-    } catch { }
-    
-    # Try to get from PR history
-    if ($branch -eq "unknown") {
-        try {
-            $prs = gh api "repos/$repo/commits/$($commit.sha)/pulls" | ConvertFrom-Json
-            if ($prs.Count -gt 0) {
-                $prBranch = $prs[0].head.ref
-                $prNumber = $prs[0].number
-                $branch = "🔄 " + $prBranch + " (#" + $prNumber + ")"
-            }
-        } catch { }
+    # Try to parse branch from merge message (fast, no API calls)
+    if ($message -match "Merge pull request #(\\\\d+) from (.+)") {
+        $branchName = $Matches[2]
+        $branch = "PR " + $branchName + " (#" + $Matches[1] + ")"
+    } elseif ($message -match "Merge branch '(.+)' into") {
+        $branchName = $Matches[1]
+        $branch = "MERGE " + $branchName
     }
     
-    # Try to parse from merge message
-    if ($branch -eq "unknown") {
-        if ($message -match "Merge pull request #(\\\\d+) from (.+)") {
-            $branchName = $Matches[2]
-            $branch = "🔀 " + $branchName + " (#" + $Matches[1] + ")"
-        } elseif ($message -match "Merge branch '(.+)' into") {
-            $branchName = $Matches[1]
-            $branch = "🔀 " + $branchName
-        } else {
-            $branch = "📍 main"
-        }
-    }
-    
-    # Truncate long messages
-    $shortMessage = if ($message.Length -gt 50) { 
-        $message.Substring(0, 47) + "..." 
-    } else { 
-        $message 
-    }
-    
-    # Add to results array
+    # Don't truncate messages - show them in full
     $results += [PSCustomObject]@{
         Time = $time
         Branch = $branch
         Repository = $repo
         SHA = $sha
-        Message = $shortMessage
+        Message = $message
     }
 }
 
-Write-Progress -Activity "Processing commits" -Completed
 Write-Host ""
-Write-Host "📊 Results:" -ForegroundColor Green
+Write-Host "Results:" -ForegroundColor Green
 
-# Display as formatted table with balanced column widths
-$results | Format-Table -Property @{Label="Time"; Expression={$_.Time}; Width=6}, @{Label="Branch"; Expression={$_.Branch}; Width=50}, @{Label="Repo"; Expression={$_.Repository}; Width=25}, @{Label="SHA"; Expression={$_.SHA}; Width=8}, @{Label="Message"; Expression={$_.Message}; Width=40} -Wrap
+# Display commits in a readable format (sorted by time, oldest first)
+Write-Host ""
+Write-Host "Time    SHA     Repository                     Message" -ForegroundColor Yellow
+Write-Host "----    ---     ----------                     -------" -ForegroundColor Yellow
 
-Write-Host "✨ Found $($results.Count) commits with branch information" -ForegroundColor Green`;
+$results | Sort-Object @{Expression={[DateTime]::ParseExact($_.Time, "HH:mm", $null)}; Descending=$false} | ForEach-Object {
+    $timeStr = $_.Time.PadRight(7)
+    $shaStr = $_.SHA.PadRight(7)
+    $repoStr = if ($_.Repository.Length -gt 30) { $_.Repository.Substring(0,27) + "..." } else { $_.Repository.PadRight(30) }
+    
+    Write-Host "$timeStr $shaStr $repoStr $($_.Message)" -ForegroundColor White
+}
+
+Write-Host "Found $($results.Count) commits with branch information" -ForegroundColor Green`;
 
   const copySimpleCommand = async () => {
     try {
@@ -145,13 +117,26 @@ Write-Host "✨ Found $($results.Count) commits with branch information" -Foregr
           id="github-username"
           type="text"
           value={username}
+          title="Enter your GitHub username (not email address)"
           onChange={(e) => {
             const newUsername = e.target.value;
             setUsername(newUsername);
-            localStorage.setItem('githubUsername', newUsername);
+            updateSetting('githubUsername', newUsername);
           }}
-          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          placeholder="Enter your GitHub username"
+          onInvalid={(e) => {
+            const target = e.target as HTMLInputElement;
+            if (target.value.includes('@')) {
+              target.setCustomValidity('Use your GitHub username, not your email address');
+            } else {
+              target.setCustomValidity('Please enter a valid GitHub username');
+            }
+          }}
+          onInput={(e) => {
+            const target = e.target as HTMLInputElement;
+            target.setCustomValidity('');
+          }}
+          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent invalid:border-red-400 invalid:bg-red-50 invalid:text-red-900"
+          placeholder="Enter your GitHub username (e.g., kacan98)"
         />
       </div>
 

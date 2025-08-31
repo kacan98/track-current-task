@@ -1,5 +1,40 @@
-import chalk from 'chalk';
-import { existsSync, mkdirSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync } from 'fs';
+import * as readline from 'readline';
+import { logger } from './utils/logger';
+
+// Function to wait for user input before exit
+function waitForUserExit(exitCode = 1) {
+  console.log('\nPress Enter to exit...');
+  process.stdin.resume();
+  process.stdin.setEncoding('utf8');
+  process.stdin.once('data', () => process.exit(exitCode));
+}
+
+// Set up early error handlers to prevent crashes during imports
+process.on('uncaughtException', (error) => {
+  try {
+    logger.error('Uncaught Exception:', error.message || String(error));
+    if (error.stack) {
+      console.error(error.stack);
+    }
+    waitForUserExit(1);
+  } catch {
+    console.error('CRITICAL: Uncaught exception handler failed');
+    waitForUserExit(1);
+  }
+});
+
+process.on('unhandledRejection', (error) => {
+  try {
+    logger.error('Unhandled Promise Rejection:', String(error));
+    waitForUserExit(1);
+  } catch {
+    console.error('CRITICAL: Unhandled rejection handler failed');
+    waitForUserExit(1);
+  }
+});
+
+// Import other modules after error handlers are set up
 import { loadConfig } from './config/config-manager';
 import { processAllRepositories } from './core/process-repositories';
 import { logMonthlySummary } from './summary/log-monthly-summary';
@@ -15,8 +50,15 @@ export const REPO_STATE_FILE_PATH = resolvePathFromAppData('repo_activity_state.
 
 const STORAGE_FOLDER_PATH = getAppDataDirectory();
 
-if (!existsSync(STORAGE_FOLDER_PATH)) {
-  mkdirSync(STORAGE_FOLDER_PATH);
+// Safely create storage directory
+try {
+  if (!existsSync(STORAGE_FOLDER_PATH)) {
+    mkdirSync(STORAGE_FOLDER_PATH);
+  }
+} catch (error) {
+  logger.error('Failed to create storage directory:', String(error));
+  logger.error(`Attempted to create: ${STORAGE_FOLDER_PATH}`);
+  waitForUserExit(1);
 }
 
 // Main entry point
@@ -26,25 +68,26 @@ async function main() {
     const lockFile = resolvePathFromAppData('.lock');
     if (existsSync(lockFile)) {
       try {
-        const lockData = JSON.parse(require('fs').readFileSync(lockFile, 'utf8'));
+        const lockData = JSON.parse(readFileSync(lockFile, 'utf8'));
         const lockAge = Date.now() - lockData.timestamp;
         
         // If lock is less than 2 minutes old, another instance is probably running
         if (lockAge < 2 * 60 * 1000) {
-          console.log(chalk.yellow('⚠️  Another instance is already running (or recently started).'));
-          console.log(chalk.gray(`Lock file: ${lockFile}`));
-          console.log(chalk.gray('Exiting to prevent conflicts...'));
-          process.exit(0);
+          logger.warn('Another instance is already running (or recently started).');
+          logger.info(`Lock file: ${lockFile}`);
+          logger.info('Cannot start to prevent conflicts.');
+          waitForUserExit(0);
+          return;
         } else {
-          console.log(chalk.gray('Stale lock file found - proceeding (lock was old)'));
+          logger.info('Stale lock file found - proceeding (lock was old)');
         }
-      } catch (error) {
-        console.log(chalk.gray('Invalid lock file - proceeding'));
+      } catch {
+        logger.info('Invalid lock file - proceeding');
       }
     }
     
     // Create lock file
-    require('fs').writeFileSync(lockFile, JSON.stringify({ 
+    writeFileSync(lockFile, JSON.stringify({ 
       pid: process.pid, 
       timestamp: Date.now() 
     }));
@@ -53,9 +96,9 @@ async function main() {
     const removeLock = () => {
       try {
         if (existsSync(lockFile)) {
-          require('fs').unlinkSync(lockFile);
+          unlinkSync(lockFile);
         }
-      } catch (e) {
+      } catch {
         // Ignore errors
       }
     };
@@ -64,15 +107,15 @@ async function main() {
     process.on('SIGINT', removeLock);
     process.on('SIGTERM', removeLock);
     
-    console.log(chalk.cyan.bold('Git Activity Logger starting...'));
-    console.log(chalk.gray(`Data stored in: ${STORAGE_FOLDER_PATH}`));
-    console.log(chalk.gray(`Config file: ${CONFIG_FILE_PATH}`));
-    console.log(chalk.gray(`Activity log: ${ACTIVITY_LOG_FILE_PATH}\n`));
+    logger.info('Git Activity Logger starting...');
+    logger.info(`Data stored in: ${STORAGE_FOLDER_PATH}`);
+    logger.info(`Config file: ${CONFIG_FILE_PATH}`);
+    logger.info(`Activity log: ${ACTIVITY_LOG_FILE_PATH}`);
     
     const config = await loadConfig();
 
     if (config.repositories && config.repositories.length > 1) {
-      console.log(chalk.green(`Loaded config` + `with ${chalk.white.bold(config.repositories.length)} repositories`));
+      logger.success(`Loaded config with ${config.repositories.length} repositories`);
     }
 
     // Set up intervals
@@ -107,14 +150,14 @@ async function main() {
         // Start countdown spinner again after check is complete
         waitingSpinner.startCountdown();
       } catch (error) {
-        console.error(chalk.red('Error during repository check:'), error);
+        logger.error('Error during repository check:', String(error));
         // Restart spinner even after error
         waitingSpinner.startCountdown();
       }
     };
 
     // Check immediately on startup
-    console.log(chalk.blue(`\n[${formatLocalDateTime()}] Starting initial repository check...`));
+    logger.info(`[${formatLocalDateTime()}] Starting initial repository check...`);
     await runCheck(true);
 
     // Always display summary on startup
@@ -122,15 +165,15 @@ async function main() {
     
     // Set up the tracking interval
     const trackingInterval = setInterval(async () => {
-      console.log(chalk.blue(`\n[${formatLocalDateTime()}] Checking repositories for changes...`));
+      logger.info(`[${formatLocalDateTime()}] Checking repositories for changes...`);
       await runCheck();
       await logTodaySummary();
     }, trackingIntervalMinutes * 60 * 1000);
 
-    console.log(chalk.blue.bold(`\n🚀 Git Activity Logger is now running.`));
-    console.log(chalk.blue(`While running, it will check for changes every ${chalk.whiteBright(trackingIntervalMinutes)} minutes. Press Ctrl+C to stop.`));    // Keep the process running with multiple exit handlers
+    logger.success('🚀 Git Activity Logger is now running.');
+    logger.info(`While running, it will check for changes every ${trackingIntervalMinutes} minutes. Press Ctrl+C to stop.`);
     const cleanup = () => {
-      console.log(chalk.yellow('\n🛑 Stopping Git Activity Logger...'));
+      logger.info('🛑 Stopping Git Activity Logger...');
       waitingSpinner.stopCountdown();
       clearInterval(trackingInterval);
       process.exit(0);
@@ -143,7 +186,6 @@ async function main() {
     
     // Windows-specific process termination
     if (process.platform === 'win32') {
-      const readline = require('readline');
       const rl = readline.createInterface({
         input: process.stdin,
         output: process.stdout
@@ -152,42 +194,36 @@ async function main() {
       rl.on('SIGINT', cleanup);
     }
 
-  } catch (error: any) {
-    console.error(chalk.red('\n❌ Fatal error:'), error.message || error);
-    if (error.stack) {
-      console.error(chalk.gray('\nStack trace:'));
-      console.error(chalk.gray(error.stack));
+  } catch (error: unknown) {
+    const nodeError = error as Error;
+    logger.error('Fatal error:', nodeError.message || String(nodeError));
+    if (nodeError.stack) {
+      console.error('\nStack trace:');
+      console.error(nodeError.stack);
     }
     
     // Keep console open so user can see the error
-    console.log(chalk.yellow('\nPress Enter to exit...'));
-    process.stdin.resume();
-    process.stdin.setEncoding('utf8');
-    process.stdin.once('data', () => {
-      process.exit(1);
-    });
+    waitForUserExit(1);
   }
 }
 
 // Function to handle uncaught errors
-function handleFatalError(error: any, origin: string) {
-  console.error(chalk.red(`\n❌ ${origin}:`), error.message || error);
-  if (error.stack) {
-    console.error(chalk.gray('\nStack trace:'));
-    console.error(chalk.gray(error.stack));
+function handleFatalError(error: unknown, origin: string) {
+  try {
+    const nodeError = error as Error;
+    logger.error(`${origin}:`, nodeError.message || String(nodeError));
+    if (nodeError.stack) {
+      console.error('\nStack trace:');
+      console.error(nodeError.stack);
+    }
+    
+    waitForUserExit(1);
+  } catch (handlerError) {
+    // Even the error handler failed - this is really bad
+    console.error('CRITICAL: Error handler itself failed:', handlerError);
+    waitForUserExit(1);
   }
-  
-  console.log(chalk.yellow('\nPress Enter to exit...'));
-  process.stdin.resume();
-  process.stdin.setEncoding('utf8');
-  process.stdin.once('data', () => {
-    process.exit(1);
-  });
 }
-
-// Handle uncaught exceptions and rejections
-process.on('uncaughtException', (error) => handleFatalError(error, 'Uncaught Exception'));
-process.on('unhandledRejection', (error) => handleFatalError(error, 'Unhandled Promise Rejection'));
 
 // Start the application
 main().catch((error) => {

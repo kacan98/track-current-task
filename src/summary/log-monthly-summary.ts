@@ -1,13 +1,13 @@
-import chalk from 'chalk';
 import { loadConfig } from '../config/config-manager';
 import { EnhancedLogEntry, getLogEntries as coreGetLogEntries, enhanceLogEntries } from '../core/file-operations';
 import { getMonthDateRange } from '../utils/date-utils';
 import { logMonthSummary } from './summary-report-formatters';
+import { logger } from '../utils/logger';
 
 // Utility types for grouping data
-type TaskSummary = Record<string, number>;
-type WeeklyEntries = Record<number, EnhancedLogEntry[]>;
-type DailyEntries = Record<string, EnhancedLogEntry[]>;
+// type TaskSummary = Record<string, number>;
+// type WeeklyEntries = Record<number, EnhancedLogEntry[]>;
+// type DailyEntries = Record<string, EnhancedLogEntry[]>;
 
 // Parse log file entries and enhance with date info
 // Local helper function to get enhanced log entries
@@ -25,8 +25,9 @@ export async function logMonthlySummary() {
     return;
   }
 
-  console.log(chalk.cyan.bold('\n\n===================================='));
-  console.log(chalk.cyan.bold('       MONTHLY TIME SUMMARY')); console.log(chalk.cyan.bold('===================================='));
+  logger.info('\n\n====================================');
+  logger.info('       MONTHLY TIME SUMMARY');
+  logger.info('====================================');
 
   // Get current date details
   const now = new Date();
@@ -54,7 +55,7 @@ export async function logMonthlySummary() {
   const currentMonthName = new Date(currentMonthStart).toLocaleString('default', { month: 'long' });  // Print current month summary
   logMonthSummary(currentMonthEntries, currentYear, currentMonthName, config);
   
-  let allDisplayedEntries = [...currentMonthEntries];
+  let _allDisplayedEntries = [...currentMonthEntries];
   
   // Show previous month if we're in the first week of the current month
   if (showPreviousMonth) {
@@ -62,9 +63,10 @@ export async function logMonthlySummary() {
       (entry: EnhancedLogEntry) => entry.date >= prevMonthStart && entry.date <= prevMonthEnd
     );
 
-    const prevMonthName = new Date(prevMonthStart).toLocaleString('default', { month: 'long' });    logMonthSummary(prevMonthEntries, prevYear, prevMonthName, config, true);
-    allDisplayedEntries = [...allDisplayedEntries, ...prevMonthEntries];
+    const prevMonthName = new Date(prevMonthStart).toLocaleString('default', { month: 'long' });
+    logMonthSummary(prevMonthEntries, prevYear, prevMonthName, config, true);
+    _allDisplayedEntries = [..._allDisplayedEntries, ...prevMonthEntries];
   }
 
-  console.log(chalk.cyan.bold('\n===================================='));
+  logger.info('\n====================================');
 }

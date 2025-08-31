@@ -1,10 +1,9 @@
-import chalk from 'chalk';
 import { Config } from '../config/config-types';
 import { EnhancedLogEntry } from '../core/file-operations';
-import { getFormattedHours, generateTaskUrl } from '../utils/date-utils';
+import { getFormattedHours } from '../utils/date-utils';
+import { logger } from '../utils/logger';
 
 // Utility types for grouping data
-type TaskSummary = Record<string, number>;
 type DailyEntries = Record<string, EnhancedLogEntry[]>;
 
 /**
@@ -12,27 +11,25 @@ type DailyEntries = Record<string, EnhancedLogEntry[]>;
  * Returns the total hours
  */
 export function printTaskSummary(entries: EnhancedLogEntry[], config: Config, indent = ''): number {
-  const taskSummary: TaskSummary = {};
+  const taskSummary: Record<string, { hours: number; repository: string }> = {};
   let totalHours = 0;
   
-  // Group hours by task
+  // Group hours by task, keeping track of repository
   entries.forEach(entry => {
-    taskSummary[entry.taskId] = (taskSummary[entry.taskId] || 0) + entry.hours;
+    const key = `${entry.taskId}|${entry.repository}`;
+    if (!taskSummary[key]) {
+      taskSummary[key] = { hours: 0, repository: entry.repository };
+    }
+    taskSummary[key].hours += entry.hours;
     totalHours += entry.hours;
   });
     // Print task breakdown sorted by hours (most to least)
   Object.entries(taskSummary)
-    .sort(([, hoursA], [, hoursB]) => hoursB - hoursA).forEach(([taskId, hours]) => {
-      const percentage = totalHours > 0 ? (hours / totalHours * 100).toFixed(1) : '0.0';
-      const taskUrl = generateTaskUrl(taskId, config.taskTrackingUrl);
+    .sort(([, dataA], [, dataB]) => dataB.hours - dataA.hours).forEach(([key, data]) => {
+      const [taskId] = key.split('|');
+      const percentage = totalHours > 0 ? (data.hours / totalHours * 100).toFixed(1) : '0.0';
       
-      let taskDisplay = chalk.cyan(taskId);
-      if (taskUrl) {
-        // Display URL in a PowerShell-friendly way
-        taskDisplay = chalk.cyan(taskId) + chalk.gray(` → ${taskUrl}`);
-      }
-      
-      console.log(`${indent}${taskDisplay}: ${chalk.yellow(getFormattedHours(hours))} (${percentage}%)`);
+      logger.info(`${indent}${taskId} (${data.repository}): ${getFormattedHours(data.hours)} (${percentage}%)`);
     });
   
   return totalHours;
@@ -62,7 +59,7 @@ export function renderDailyDetails(entriesForWeek: EnhancedLogEntry[], config: C
       });
       
       const dailyHours = entriesForDay.reduce((sum, entry) => sum + entry.hours, 0);
-      console.log(`    ${chalk.cyan(formattedDate)}: ${chalk.yellow(getFormattedHours(dailyHours))}`);
+      logger.info(`    ${formattedDate}: ${getFormattedHours(dailyHours)}`);
       
       // Print tasks for each day
     printTaskSummary(entriesForDay, config, '      ');

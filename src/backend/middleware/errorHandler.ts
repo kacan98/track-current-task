@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { AxiosError } from 'axios';
 import { createLogger } from '../../utils/logger';
 
 const errorLogger = createLogger('ERROR');
@@ -7,14 +8,14 @@ const errorLogger = createLogger('ERROR');
 export class ApiError extends Error {
   statusCode: number;
   code: string;
-  details?: any;
+  details?: unknown;
   isOperational: boolean;
 
   constructor(
     statusCode: number,
     message: string,
     code: string,
-    details?: any,
+    details?: unknown,
     isOperational = true
   ) {
     super(message);
@@ -29,7 +30,7 @@ export class ApiError extends Error {
 }
 
 // Async error wrapper for route handlers
-export const asyncHandler = (fn: Function) => {
+export const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => Promise<void>) => {
   return (req: Request, res: Response, next: NextFunction) => {
     Promise.resolve(fn(req, res, next)).catch(next);
   };
@@ -40,7 +41,7 @@ export const errorHandler = (
   err: Error | ApiError,
   req: Request,
   res: Response,
-  next: NextFunction
+  _next: NextFunction
 ) => {
   // Default to 500 server error
   let statusCode = 500;
@@ -56,12 +57,13 @@ export const errorHandler = (
     details = err.details;
   } 
   // Handle Axios errors (from Jira API calls)
-  else if ((err as any).isAxiosError) {
-    const axiosError = err as any;
+  else if ((err as AxiosError).isAxiosError) {
+    const axiosError = err as AxiosError;
     statusCode = axiosError.response?.status || 500;
     code = `JIRA_${statusCode}`;
-    message = axiosError.response?.data?.errorMessages?.join(', ') || 
-              axiosError.response?.data?.message || 
+    const responseData = axiosError.response?.data as { errorMessages?: string[]; message?: string };
+    message = responseData?.errorMessages?.join(', ') || 
+              responseData?.message || 
               axiosError.message;
     details = {
       jiraResponse: axiosError.response?.data,

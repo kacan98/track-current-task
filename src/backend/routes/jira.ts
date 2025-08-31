@@ -16,7 +16,7 @@ const jiraLogger = createLogger('JIRA');
 
 // Helper to validate and extract Jira token from cookies
 function getJiraTokenFromCookies(req: Request): string {
-  const token = (req as any).signedCookies.jiraToken;
+  const token = req.signedCookies?.jiraToken;
   if (!token) {
     throw new ApiError(401, 'Not authenticated. Please log in first.', 'AUTH_REQUIRED');
   }

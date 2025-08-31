@@ -213,8 +213,9 @@ export function LogTable({
 
 
   React.useEffect(() => {
+    const timeoutRef = toastTimeoutRef;
     return () => {
-      const timeoutId = toastTimeoutRef.current;
+      const timeoutId = timeoutRef.current;
       if (timeoutId) {
         clearTimeout(timeoutId);
       }

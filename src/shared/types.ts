@@ -27,14 +27,18 @@ export type CSVRecord = Record<CSVColumn, string>;
 export const CSV_HEADER = CSV_COLUMNS.join(',');
 
 // Type guard to validate base log entry has all required fields
-export function isValidBaseLogEntry(obj: any): obj is BaseLogEntry {
+export function isValidBaseLogEntry(obj: unknown): obj is BaseLogEntry {
+  if (obj === null || typeof obj !== 'object') {
+    return false;
+  }
+  
+  const record = obj as Record<string, unknown>;
   return (
-    obj &&
-    typeof obj.date === 'string' &&
-    typeof obj.taskId === 'string' &&
-    typeof obj.repository === 'string' &&
-    typeof obj.hours === 'number' &&
-    !isNaN(obj.hours)
+    typeof record.date === 'string' &&
+    typeof record.taskId === 'string' &&
+    typeof record.repository === 'string' &&
+    typeof record.hours === 'number' &&
+    !isNaN(record.hours)
   );
 }
 
