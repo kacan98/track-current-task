@@ -9,12 +9,13 @@ import { DayGroupHeader } from './LogTable/DayGroupHeader';
 import { EmptyState } from './LogTable/EmptyState';
 import { LogTableRow } from './LogTable/LogTableRow';
 import { TableHeaders } from './LogTable/TableHeaders';
+import { TABLE_COLUMNS } from './LogTable/tableConfig';
 import { WeekHeader } from './LogTable/WeekHeader';
 import React from 'react';
 import { Toast } from '@/components/ui/Toast';
 import { useLogEntries } from '@/contexts/LogEntriesContext';
 import { createEntry } from '@/utils/entryUtils';
-import { getBooleanSetting } from '@/components/modals/SettingsPage';
+import { useSettings } from '@/contexts/SettingsContext';
 import { CommitsModal } from '@/components/modals/CommitsModal';
 
 export interface EditedHours {
@@ -137,6 +138,8 @@ export function LogTable({
     return day === 0 || day === 6;
   };
 
+  const { getBooleanSetting } = useSettings();
+  
   // Generate all dates in the week range, even if empty
   const allDatesInRange = useMemo(() => {
     const hideWeekends = getBooleanSetting('hideWeekends');
@@ -169,7 +172,7 @@ export function LogTable({
       const dateB = new Date(b);
       return dateB.getTime() - dateA.getTime();
     });
-  }, [dayGroups, weekStart, weekEnd]);
+  }, [dayGroups, weekStart, weekEnd, getBooleanSetting]);
 
   // Sort dates for consistent display
   const sortedDates = allDatesInRange;
@@ -241,7 +244,7 @@ export function LogTable({
           </thead>
           <tbody onDragLeave={handleDragLeave}>
             {sortedDates.length === 0 ? (
-              <EmptyState colSpan={6} />
+              <EmptyState colSpan={TABLE_COLUMNS.length} />
             ) : (
               sortedDates.map(date => {
                 const group = sortedDayGroups[date];
@@ -259,29 +262,29 @@ export function LogTable({
                       onDrop={handleDrop(date)}
                     />
                     {group.entries.map((entry, idx) => {
-                      return (
-                        <LogTableRow
-                          key={entry.id}
-                          entry={entry}
-                          taskColorMap={taskColorMap}
-                          loadingHeadings={loadingHeadings}
-                          headingsError={headingsError}
-                          issueHeadings={issueHeadings}
-                          loadingWorklogs={loadingWorklogs}
-                          worklogError={worklogError}
-                          worklogTotals={worklogTotals}
-                          handleDeleteEntry={deleteEntry}
-                          {...(onSendToJira ? { handleSendToJira: onSendToJira } : {})}
-                          handleCloneEntry={cloneEntry}
-                          isFirstInGroup={idx === 0}
-                          isLastInGroup={idx === group.entries.length - 1}
-                          isDragOver={isDragOver}
-                          onDragOver={handleDragOver(date)}
-                          onDrop={handleDrop(date)}
-                          onDragEnd={handleDragEnd}
-                        />
-                      );
-                    })}
+                        return (
+                          <LogTableRow
+                            key={entry.id}
+                            entry={entry}
+                            taskColorMap={taskColorMap}
+                            loadingHeadings={loadingHeadings}
+                            headingsError={headingsError}
+                            issueHeadings={issueHeadings}
+                            loadingWorklogs={loadingWorklogs}
+                            worklogError={worklogError}
+                            worklogTotals={worklogTotals}
+                            handleDeleteEntry={deleteEntry}
+                            {...(onSendToJira ? { handleSendToJira: onSendToJira } : {})}
+                            handleCloneEntry={cloneEntry}
+                            isFirstInGroup={idx === 0}
+                            isLastInGroup={idx === group.entries.length - 1}
+                            isDragOver={isDragOver}
+                            onDragOver={handleDragOver(date)}
+                            onDrop={handleDrop(date)}
+                            onDragEnd={handleDragEnd}
+                          />
+                        );
+                      })}
                   </React.Fragment>
                 );
               })

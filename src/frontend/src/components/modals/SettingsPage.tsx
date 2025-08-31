@@ -4,6 +4,7 @@ import { RecurringEventsEditor } from '../RecurringEventsEditor';
 import type { RecurringEvent } from '../RecurringEventsEditor';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
+import { useSettings } from '../../contexts/SettingsContext';
 
 export const SETTINGS_FIELDS = [
     { key: 'scrumTaskId', label: 'Scrum Jira Task ID', type: 'text', placeholder: 'Enter Scrum Jira Task ID' } as const,
@@ -25,17 +26,8 @@ export type SettingsObject = {
     [K in SettingKey]: string;
 };
 
-export function getSetting(key: SettingKey): string {
-    const field = SETTINGS_FIELDS.find(f => f.key === key);
-    return localStorage.getItem(key) || (field && 'defaultValue' in field ? field.defaultValue : '') || '';
-}
-
-export function getBooleanSetting(key: SettingKey): boolean {
-    return getSetting(key) === 'true';
-}
-
 function SettingsPage({ onClose, onDeleteAllRows }: { onClose: () => void, onDeleteAllRows: () => void }) {
-    const [settings, setSettings] = React.useState<Record<string, string>>(initialSettings);
+    const { settings, updateSetting } = useSettings();
     const [recurringEvents, setRecurringEvents] = React.useState<RecurringEvent[]>(() => {
         const stored = localStorage.getItem('recurringEvents');
         return stored ? JSON.parse(stored) : [
@@ -44,13 +36,6 @@ function SettingsPage({ onClose, onDeleteAllRows }: { onClose: () => void, onDel
         ];
     });
 
-    useEffect(() => {
-        const loaded: Record<string, string> = {};
-        SETTINGS_FIELDS.forEach(f => {
-            loaded[f.key] = localStorage.getItem(f.key) || ('defaultValue' in f ? f.defaultValue : '');
-        });
-        setSettings(loaded);
-    }, []);
 
     useEffect(() => {
         localStorage.setItem('recurringEvents', JSON.stringify(recurringEvents));
@@ -68,8 +53,7 @@ function SettingsPage({ onClose, onDeleteAllRows }: { onClose: () => void, onDel
                 newValue = String(minutes);
             }
         }
-        localStorage.setItem(key, newValue);
-        setSettings(prev => ({ ...prev, [key]: newValue }));
+        updateSetting(key, newValue);
     };
 
 

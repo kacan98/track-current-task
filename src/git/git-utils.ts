@@ -1,5 +1,6 @@
 import { execFile } from 'child_process';
 import { promisify } from 'util';
+import { RepositoryConfig } from '../config/config-types';
 
 const execFileAsync = promisify(execFile);
 
@@ -40,6 +41,34 @@ export async function branchExists(repoPath: string, branch: string): Promise<bo
     return true;
   } catch {
     return false;
+  }
+}
+
+export async function getRepositoryName(repoPath: string): Promise<string> {
+  try {
+    // First try to get the repository name from the remote origin URL
+    const { stdout: remoteUrl } = await execGit(['remote', 'get-url', 'origin'], { cwd: repoPath });
+    if (remoteUrl.trim()) {
+      // Extract repo name from URLs like:
+      // https://github.com/user/repo.git -> repo
+      // git@github.com:user/repo.git -> repo
+      const match = remoteUrl.trim().match(/\/([^\/]+?)(?:\.git)?$/);
+      if (match && match[1]) {
+        return match[1];
+      }
+    }
+  } catch {
+    // Fall back to getting the directory name from git's toplevel
+  }
+
+  try {
+    // Fallback: use the name of the git repository root directory
+    const { stdout: toplevel } = await execGit(['rev-parse', '--show-toplevel'], { cwd: repoPath });
+    const repoRoot = toplevel.trim();
+    return repoRoot.split(/[/\\]/).pop() || repoPath.split(/[/\\]/).pop() || 'unknown';
+  } catch {
+    // Final fallback: use the directory name from the provided path
+    return repoPath.split(/[/\\]/).pop() || 'unknown';
   }
 }
 
@@ -104,4 +133,128 @@ export async function getCommitsNotInBase(repoPath: string, base: string, branch
     console.error(`Error getting commits not in ${base} for ${branch} in ${repoPath}:`, error);
     return null;
   }
+}
+
+// Optimized function to get multiple repository info at once
+export async function getRepositoryInfo(repoPath: string, mainBranch?: string): Promise<{
+  currentBranch: string | null;
+  baseBranch: string;
+  gitStatus: string | null;
+  currentBranchHash: string | null;
+  baseBranchHash: string | null;
+  diffFiles: string[] | null;
+  commitsNotInBase: string[] | null;
+}> {
+  try {
+    // Get current branch and git status in parallel
+    const [branchResult, statusResult] = await Promise.all([
+      execGit(['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: repoPath }).catch(() => ({ stdout: '', stderr: '' })),
+      execGit(['status', '--porcelain'], { cwd: repoPath }).catch(() => ({ stdout: '', stderr: '' }))
+    ]);
+
+    const currentBranch = branchResult.stdout.trim() || null;
+    const gitStatus = statusResult.stdout.trim() || null;
+
+    if (!currentBranch) {
+      return {
+        currentBranch: null,
+        baseBranch: 'main',
+        gitStatus,
+        currentBranchHash: null,
+        baseBranchHash: null,
+        diffFiles: null,
+        commitsNotInBase: null
+      };
+    }
+
+    // Determine base branch
+    let baseBranch = 'main';
+    if (mainBranch) {
+      baseBranch = mainBranch;
+    } else {
+      // Quick check for common branches
+      const branchCheckResult = await execGit(['branch', '-a'], { cwd: repoPath }).catch(() => ({ stdout: '' }));
+      const branches = branchCheckResult.stdout.toLowerCase();
+      if (branches.includes('master')) baseBranch = 'master';
+      else if (branches.includes('develop')) baseBranch = 'develop';
+    }
+
+    // Get hashes, diff files, and commits in parallel
+    const [currentHashResult, baseHashResult, diffFilesResult, commitsResult] = await Promise.all([
+      execGit(['rev-parse', currentBranch], { cwd: repoPath }).catch(() => ({ stdout: '' })),
+      execGit(['rev-parse', baseBranch], { cwd: repoPath }).catch(() => ({ stdout: '' })),
+      execGit(['diff', '--name-only', `${baseBranch}...${currentBranch}`], { cwd: repoPath }).catch(() => ({ stdout: '' })),
+      execGit(['log', '--pretty=%H', `${baseBranch}..${currentBranch}`], { cwd: repoPath }).catch(() => ({ stdout: '' }))
+    ]);
+
+    return {
+      currentBranch,
+      baseBranch,
+      gitStatus,
+      currentBranchHash: currentHashResult.stdout.trim() || null,
+      baseBranchHash: baseHashResult.stdout.trim() || null,
+      diffFiles: diffFilesResult.stdout.trim() ? diffFilesResult.stdout.trim().split('\n') : [],
+      commitsNotInBase: commitsResult.stdout.trim() ? commitsResult.stdout.trim().split('\n') : []
+    };
+  } catch (error) {
+    console.error(`Error getting repository info for ${repoPath}:`, error);
+    return {
+      currentBranch: null,
+      baseBranch: 'main',
+      gitStatus: null,
+      currentBranchHash: null,
+      baseBranchHash: null,
+      diffFiles: null,
+      commitsNotInBase: null
+    };
+  }
+}
+
+export async function discoverRepositories(parentPath: string): Promise<RepositoryConfig[]> {
+  const { readdirSync, statSync, existsSync } = await import('fs');
+  const { join } = await import('path');
+  
+  if (!existsSync(parentPath)) {
+    throw new Error(`Directory does not exist: ${parentPath}`);
+  }
+
+  const repositories: RepositoryConfig[] = [];
+  
+  try {
+    const entries = readdirSync(parentPath);
+    
+    for (const entry of entries) {
+      const fullPath = join(parentPath, entry);
+      
+      try {
+        if (statSync(fullPath).isDirectory()) {
+          const gitPath = join(fullPath, '.git');
+          if (existsSync(gitPath)) {
+            // This is a git repository, detect the default branch
+            const availableBranches = await getAvailableBranches(fullPath);
+            const commonMainBranches = availableBranches.filter(branch =>
+              ['main', 'master', 'develop', 'development', 'dev'].includes(branch.toLowerCase())
+            );
+            
+            // Pick the first common main branch, or fall back to first available branch
+            const defaultBranch = commonMainBranches[0] || availableBranches[0];
+            
+            if (defaultBranch) {
+              repositories.push({
+                path: fullPath,
+                mainBranch: defaultBranch
+              });
+            }
+          }
+        }
+      } catch (entryError) {
+        // Skip entries that can't be processed (permissions, etc.)
+        console.warn(`Skipping ${fullPath}: ${entryError}`);
+      }
+    }
+  } catch (error) {
+    throw new Error(`Error reading directory ${parentPath}: ${error}`);
+  }
+  
+  return repositories;
 }

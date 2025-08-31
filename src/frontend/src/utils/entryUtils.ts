@@ -19,6 +19,7 @@ export function createEntry(
     taskId,
     date,
     hours,
+    repository: '',
     sentToJira: options.sentToJira ?? false,
   };
 

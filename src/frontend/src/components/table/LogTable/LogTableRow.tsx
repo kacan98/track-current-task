@@ -189,6 +189,9 @@ export function LogTableRow({
           )}
         </div>
       </td>
+      <td className="hidden sm:table-cell px-3 py-2 text-center text-sm text-gray-600">
+        {entry.repository || '-'}
+      </td>
       <td className="hidden sm:table-cell px-3 py-2 text-center">
         <JiraHeadingCell
           entry={entry}

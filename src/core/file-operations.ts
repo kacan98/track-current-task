@@ -5,6 +5,7 @@ import { RepoState } from './repo-state-types';
 export interface LogEntry {
   date: string; // YYYY-MM-DD
   taskId: string;
+  repository: string; // Full path to repository
   hours: number;
 }
 
@@ -26,10 +27,23 @@ export async function getLogEntries(): Promise<LogEntry[]> {
     if (lines.length <= 1) {
       return []; // Empty or only header
     }
+    // Check header format
+    const header = lines[0].split(',').map(h => h.trim());
+    const expectedHeader = ['date', 'taskId', 'repository', 'hours'];
+    const missingColumns = expectedHeader.filter(col => !header.includes(col));
+    
+    if (missingColumns.length > 0) {
+      throw new Error(`Invalid CSV header. Missing columns: ${missingColumns.join(', ')}. Found: ${header.join(', ')}`);
+    }
+    
     // Skip header row, parse the rest
-    return lines.slice(1).map(line => {
-      const [date, taskId, hoursStr] = line.split(',');
-      return { date, taskId, hours: parseFloat(hoursStr) };
+    return lines.slice(1).map((line, index) => {
+      const parts = line.split(',');
+      if (parts.length !== 4) {
+        throw new Error(`Invalid CSV format on line ${index + 2}: "${line}". Expected 4 columns (date,taskId,repository,hours) but found ${parts.length}`);
+      }
+      const [date, taskId, repository, hoursStr] = parts;
+      return { date, taskId, repository, hours: parseFloat(hoursStr) };
     });
   } catch (error: any) {
     if (error.code === 'ENOENT') {
@@ -71,8 +85,8 @@ export function enhanceLogEntries(entries: LogEntry[]): EnhancedLogEntry[] {
  */
 export async function writeLogFile(filePath: string, entries: LogEntry[]): Promise<boolean> {
   try {
-    const header = 'date,taskId,hours';
-    const csvLines = entries.map(entry => `${entry.date},${entry.taskId},${entry.hours}`);
+    const header = 'date,taskId,repository,hours';
+    const csvLines = entries.map(entry => `${entry.date},${entry.taskId},${entry.repository},${entry.hours}`);
     const csvContent = [header, ...csvLines].join('\n');
     await writeFile(filePath, csvContent, 'utf-8');
     return true;

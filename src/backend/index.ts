@@ -3,6 +3,9 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import { getAllowedOrigins } from './config/cors';
+import { errorHandler, notFoundHandler } from './middleware/errorHandler';
+import { requestLogger, bodyLogger } from './middleware/requestLogger';
+import { createLogger } from '../utils/logger';
 import jiraRoutes from './routes/jira';
 import fileRoutes from './routes/files';
 
@@ -11,10 +14,11 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 9999;
+const serverLogger = createLogger('SERVER');
 
 // Get origins and validate
 const allowedOrigins = getAllowedOrigins();
-console.log(`[CORS] Allowed origins:`, allowedOrigins);
+serverLogger.info('CORS allowed origins:', allowedOrigins);
 
 // Middleware setup
 app.use(cors({
@@ -24,19 +28,25 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser(process.env.COOKIE_SECRET)); // Enable encrypted cookies
 
+// Logging middleware
+app.use(requestLogger);
+app.use(bodyLogger);
+
 // Routes
 app.use('/api/jira', jiraRoutes);
 app.use('/api', fileRoutes);
 
-// Catch-all 404 handler for unknown routes
-app.use((req, res) => {
-    res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });
-});
+// Error handling middleware (must be last)
+app.use(notFoundHandler);
+app.use(errorHandler);
 
 app.listen(PORT, () => {
-    console.log(`Jira proxy server running on port ${PORT}`);
-    console.log(`Development mode: ${process.env.DEV === 'true' ? 'ENABLED' : 'DISABLED'}`);
+    console.log('\n');
+    serverLogger.success(`Server running on port ${PORT}`);
+    serverLogger.info(`Environment: ${process.env.DEV === 'true' ? 'Development' : 'Production'}`);
     if (process.env.DEV === 'true') {
-        console.log('→ Filesystem endpoints available at /api/activity-log');
+        serverLogger.info('Filesystem endpoints: Enabled');
+        serverLogger.info('Request logging: Enabled');
     }
+    console.log('\n');
 });

@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '../ui/Button';
-import { getSetting } from './SettingsPage';
+import { useSettings } from '@/contexts/SettingsContext';
 import { Modal } from '../ui/Modal';
 
 interface CommitsModalProps {
@@ -11,7 +11,12 @@ interface CommitsModalProps {
 export function CommitsModal({ date, onClose }: CommitsModalProps) {
   const [copied, setCopied] = useState(false);
   const [copiedDetailed, setCopiedDetailed] = useState(false);
-  const [username, setUsername] = useState(getSetting('githubUsername') || '');
+  const { getSetting } = useSettings();
+  const [username, setUsername] = useState('');  
+  
+  useEffect(() => {
+    setUsername(getSetting('githubUsername') || '');
+  }, [getSetting]);
   
   // Generate the simple GitHub CLI command for all commits on the specified date  
   const simpleCommand = `gh search commits --author=${username || 'YOUR_USERNAME'} --author-date=${date} --limit=100`;

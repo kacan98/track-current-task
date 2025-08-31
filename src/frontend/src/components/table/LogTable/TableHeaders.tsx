@@ -1,4 +1,6 @@
 
+import { TABLE_COLUMNS } from './tableConfig';
+
 export function TableHeaders({
   sortColumn,
   sortDirection,
@@ -8,13 +10,7 @@ export function TableHeaders({
   sortDirection: 'asc' | 'desc';
   onHeaderClick: (key: string) => void;
 }) {
-  const headers = [
-    { key: 'drag', label: '', sortable: false, width: 'w-8' },
-    { key: 'task', label: 'Task' },
-    { key: 'heading', label: 'Heading', hideOnMobile: true },
-    { key: 'hours', label: 'Hours' },
-    { key: 'action', label: 'Action', sortable: false },
-  ];
+  const headers = TABLE_COLUMNS;
 
   return (
     <tr className="border-b border-gray-200">

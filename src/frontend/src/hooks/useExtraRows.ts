@@ -1,4 +1,4 @@
-import { getSetting } from '@/components/modals/SettingsPage';
+import { useSettings } from '@/contexts/SettingsContext';
 import type { RecurringEvent } from '@/components/RecurringEventsEditor';
 import { useLogEntries } from '@/contexts/LogEntriesContext';
 import type { LogEntry } from '@/types';
@@ -33,6 +33,7 @@ function getWeekDates(start: string, end: string) {
 
 export function useExtraRows(weekStart?: string, weekEnd?: string) {
   const { addEntries } = useLogEntries();
+  const { getSetting } = useSettings();
   const [eventStates, setEventStates] = useState<Record<string, boolean>>({});
 
   const handleAddDailyScrum = () => {

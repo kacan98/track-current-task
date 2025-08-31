@@ -7,13 +7,25 @@ export async function processAllRepositories(config: Config): Promise<void> {
   let existingEntries = await getLogEntries();
   const currentRepoState = await getRepoState();
 
-  let anyActivityLogged = false;
-
   const repositories = config.repositories || [];
   
-  for (const repo of repositories) {
-    anyActivityLogged = await updateLogForRepository(repo.path, config, existingEntries, currentRepoState, repo.mainBranch);
-  }
+  console.log(`Checking ${repositories.length} repositories...`);
+  
+  // Process all repositories in parallel with progress tracking
+  let completed = 0;
+  const results = await Promise.all(
+    repositories.map(async (repo, index) => {
+      const result = await updateLogForRepository(repo, config, existingEntries, currentRepoState);
+      completed++;
+      if (completed % 5 === 0 || completed === repositories.length) {
+        console.log(`Progress: ${completed}/${repositories.length} repositories checked`);
+      }
+      return result;
+    })
+  );
+  
+  // Check if any repository logged time
+  const anyActivityLogged = results.some(result => result === true);
 
   // Always write back the repoState, as it might have changed (new branches, status updates, error states)
   await writeRepoState(currentRepoState);

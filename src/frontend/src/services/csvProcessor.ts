@@ -14,20 +14,31 @@ export function parseCSVText(text: string): CSVProcessResult {
     const idx = {
       date: header.indexOf('date'),
       taskId: header.indexOf('taskId'),
+      repository: header.indexOf('repository'),
       hours: header.indexOf('hours'),
     };
 
-    if (idx.date === -1 || idx.taskId === -1 || idx.hours === -1) {
-      return { error: 'Invalid CSV format. Required columns: date, taskId, hours' };
+    const missingColumns = [];
+    if (idx.date === -1) missingColumns.push('date');
+    if (idx.taskId === -1) missingColumns.push('taskId');
+    if (idx.repository === -1) missingColumns.push('repository');
+    if (idx.hours === -1) missingColumns.push('hours');
+    
+    if (missingColumns.length > 0) {
+      return { 
+        error: `Invalid CSV format. Missing required columns: ${missingColumns.join(', ')}. Found columns: ${header.join(', ')}` 
+      };
     }
 
     const data = lines.slice(1).map(line => {
       const cols = line.replace(/\r/g, '').split(',').map(c => c.trim());
-      return createEntry(
+      const entry = createEntry(
         cols[idx.taskId],
         cols[idx.date],
         parseFloat(cols[idx.hours])
       );
+      entry.repository = cols[idx.repository];
+      return entry;
     });
 
     return { data };

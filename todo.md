@@ -1,4 +1,3 @@
-- Make it so that I don't need to specify the repositories manually, but instead  specify a folder that contains folders with all my repositories. And then somehow find the default branches automatically. So instead of asking "Enter the full path to your Git repository" say "Where do you have your git repositories?". Maybe even before that we should ask if they want to track all their repos or just one.
 
 ## Code Organization
 - [ ] Refactor App.tsx - split into smaller components to reduce bloat and repetitiveness
