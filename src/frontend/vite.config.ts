@@ -14,8 +14,11 @@ export default defineConfig({
     },
   },
   server: {
+    port: 3000,
     proxy: {
       '/api': 'http://localhost:9999',
     },
   },
+  // Tell Vite to look for .env files in the project root
+  envDir: path.resolve(__dirname, '../../'),
 });

@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { JiraCredentialsForm } from '../forms/JiraCredentialsForm';
+import { GitHubConnectionForm } from '../forms/GitHubConnectionForm';
 import { RecurringEventsEditor } from '../RecurringEventsEditor';
 import type { RecurringEvent } from '../RecurringEventsEditor';
 import { Button } from '../ui/Button';
@@ -12,7 +13,6 @@ export const SETTINGS_FIELDS = [
     { key: 'hideWeekends', label: 'Hide Weekends', type: 'checkbox', defaultValue: 'true' } as const,
     { key: 'weekStartDay', label: 'Week Start Day', type: 'select', options: [{ value: '0', label: 'Sunday' }, { value: '1', label: 'Monday' }], defaultValue: '1' } as const,
     { key: 'githubUsername', label: 'GitHub Username', type: 'text', placeholder: 'Enter your GitHub username' } as const,
-    { key: 'githubToken', label: 'GitHub Personal Access Token', type: 'password', placeholder: 'Enter your GitHub PAT' } as const,
 ] as const;
 
 const initialSettings: Record<string, string> = {};
@@ -58,11 +58,12 @@ function SettingsPage({ onClose, onDeleteAllRows }: { onClose: () => void, onDel
     };
 
 
+
     return (
         <Modal title="Settings" onClose={onClose} maxWidth="4xl">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <JiraCredentialsForm />
-            </div>
+            <JiraCredentialsForm />
+
+            <GitHubConnectionForm />
 
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">General Settings</h3>
@@ -120,26 +121,6 @@ function SettingsPage({ onClose, onDeleteAllRows }: { onClose: () => void, onDel
                 </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">GitHub Integration</h3>
-                <div className="space-y-4">
-                    {SETTINGS_FIELDS.filter(f => f.key.startsWith('github')).map(field => (
-                        <div key={field.key}>
-                            <label htmlFor={field.key} className="block text-sm font-medium text-gray-700 mb-2">
-                                {field.label}
-                            </label>
-                            <input
-                                id={field.key}
-                                type={field.type}
-                                value={settings[field.key]}
-                                onChange={e => handleChange(field.key, e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                placeholder={'placeholder' in field ? field.placeholder : undefined}
-                            />
-                        </div>
-                    ))}
-                </div>
-            </div>
 
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Recurring Events</h3>

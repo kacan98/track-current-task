@@ -11,7 +11,8 @@
       "Bash(npm run check:*)",
       "Bash(npx tsc:*)",
       "Bash(gh api:*)",
-      "Bash(npx eslint:*)"
+      "Bash(npx eslint:*)",
+      "WebFetch(domain:docs.github.com)"
     ],
     "deny": []
   }

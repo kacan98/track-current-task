@@ -1,0 +1,55 @@
+// GitHub API types for better type safety
+
+export interface GitHubAuthRequest {
+  code: string;
+  state?: string;
+}
+
+export interface GitHubTokenResponse {
+  access_token: string;
+  token_type: string;
+  scope: string;
+}
+
+export interface GitHubUser {
+  id: number;
+  login: string;
+  name: string;
+  email: string;
+  avatar_url: string;
+}
+
+export interface GitHubCommit {
+  sha: string;
+  commit: {
+    author: {
+      name: string;
+      email: string;
+      date: string;
+    };
+    message: string;
+  };
+  repository: {
+    name: string;
+    full_name: string;
+  };
+}
+
+export interface GitHubRepository {
+  id: number;
+  name: string;
+  full_name: string;
+  private: boolean;
+  owner: {
+    login: string;
+  };
+}
+
+export interface GitHubCommitsRequest {
+  date: string; // YYYY-MM-DD format
+}
+
+export interface GitHubErrorResponse {
+  message: string;
+  documentation_url?: string;
+}

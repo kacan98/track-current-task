@@ -8,6 +8,7 @@ import { requestLogger, bodyLogger } from './middleware/requestLogger';
 import { createLogger } from '../utils/logger';
 import jiraRoutes from './routes/jira';
 import fileRoutes from './routes/files';
+import githubRoutes from './routes/github';
 
 // Load environment variables
 dotenv.config();
@@ -33,8 +34,13 @@ app.use(requestLogger);
 app.use(bodyLogger);
 
 // Routes
+console.log('Registering routes...');
 app.use('/api/jira', jiraRoutes);
+console.log('Jira routes registered');
+app.use('/api/github', githubRoutes);
+console.log('GitHub routes registered');
 app.use('/api', fileRoutes);
+console.log('File routes registered');
 
 // Error handling middleware (must be last)
 app.use(notFoundHandler);
