@@ -5,14 +5,14 @@
       "Bash(npm run build:*)",
       "Bash(git fetch:*)",
       "WebSearch",
-      "Bash(gh auth:*)",
       "Bash(gh search commits:*)",
       "Bash(npx vite build:*)",
       "Bash(npm run check:*)",
       "Bash(npx tsc:*)",
-      "Bash(gh api:*)",
       "Bash(npx eslint:*)",
-      "WebFetch(domain:docs.github.com)"
+      "WebFetch(domain:docs.github.com)",
+      "Bash(git mv:*)",
+      "Bash(find:*)"
     ],
     "deny": []
   }

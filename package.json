@@ -2,24 +2,23 @@
   "name": "git-activity-logger",
   "version": "1.1.32",
   "description": "A tool to log time spent on Git branches based on activity with interactive configuration setup.",
-  "main": "dist/index.js",
-  "bin": {
-    "git-activity-logger": "./dist/index.js"
-  },
+  "private": true,
   "scripts": {
-    "build": "tsc",
-    "build:executables": "node scripts/pre-build-executables.js && npm run build && pkg . --out-path ./dist-executables --targets node18-win-x64,node18-macos-x64 && node scripts/post-build-executables.js",
-    "build:executables:start": "node scripts/pre-build-executables.js && npm run build && pkg . --out-path ./dist-executables --targets node18-win-x64,node18-macos-x64 && node scripts/post-build-executables.js -- --start",
-    "check": "tsc -b && eslint .",
-    "start": "concurrently \"npm run frontend:dev\" \"npm run backend:dev\"",
-    "dev": "nodemon --exec ts-node src/index.ts",
-    "frontend:dev": "npm run dev --prefix src/frontend",
-    "backend": "ts-node src/backend/index.ts",
-    "backend:dev": "nodemon --watch src/backend --ext ts --exec ts-node src/backend/index.ts",
+    "build": "npm run build --workspaces",
+    "build:cli": "npm run build -w packages/cli",
+    "build:backend": "npm run build -w packages/backend",
+    "build:frontend": "npm run build -w packages/frontend",
+    "build:executables": "npm run build:cli && pkg packages/cli/package.json --out-path dist/cli-executables --targets node18-win-x64,node18-macos-x64",
+    "check": "tsc -b && eslint packages/*/src/**/*.{ts,tsx}",
+    "start": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "dev": "npm run dev:cli",
+    "dev:cli": "nodemon --exec ts-node packages/cli/src/index.ts",
+    "dev:backend": "nodemon --watch packages/backend/src --ext ts --exec ts-node packages/backend/src/index.ts",
+    "dev:frontend": "npm run dev -w packages/frontend",
     "prepare": "husky"
   },
   "lint-staged": {
-    "src/**/*.{ts,tsx}": [
+    "packages/*/src/**/*.{ts,tsx}": [
       "eslint --fix"
     ]
   },
@@ -41,8 +40,11 @@
   },
   "homepage": "https://github.com/kacan98/track-current-task#readme",
   "workspaces": [
-    "src/frontend"
+    "packages/*"
   ],
+  "ts-node": {
+    "require": ["tsconfig-paths/register"]
+  },
   "dependencies": {
     "@types/cookie-parser": "^1.4.9",
     "@types/inquirer": "^9.0.8",
@@ -72,6 +74,7 @@
     "nodemon": "^3.1.10",
     "pkg": "^5.8.1",
     "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
     "typescript-eslint": "^8.41.0"
   }
 }

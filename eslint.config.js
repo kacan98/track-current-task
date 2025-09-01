@@ -8,15 +8,13 @@ export default tseslint.config([
   {
     ignores: [
       'dist/**', 
-      'dist-executables/**', 
       'node_modules/**', 
-      'src/frontend/dist/**',
-      'scripts/**' // Skip build scripts that use CommonJS patterns
+      'packages/*/scripts/**' // Skip build scripts that use CommonJS patterns
     ]
   },
   // Backend TypeScript files
   {
-    files: ['src/**/*.ts', '!src/frontend/**'],
+    files: ['packages/backend/src/**/*.ts', 'packages/cli/src/**/*.ts', 'shared/**/*.ts'],
     extends: [
       js.configs.recommended,
       ...tseslint.configs.recommended,
@@ -32,7 +30,7 @@ export default tseslint.config([
   },
   // Frontend TypeScript/React files
   {
-    files: ['src/frontend/**/*.{ts,tsx}'],
+    files: ['packages/frontend/src/**/*.{ts,tsx}'],
     extends: [
       js.configs.recommended,
       ...tseslint.configs.recommended,
@@ -53,7 +51,7 @@ export default tseslint.config([
   },
   // Special rules for contexts and settings
   {
-    files: ['src/frontend/**/contexts/*.{ts,tsx}', 'src/frontend/**/modals/SettingsPage.tsx'],
+    files: ['packages/frontend/src/**/contexts/*.{ts,tsx}', 'packages/frontend/src/**/modals/SettingsPage.tsx'],
     rules: {
       'react-refresh/only-export-components': 'off',
     },
