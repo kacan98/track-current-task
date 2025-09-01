@@ -54,6 +54,6 @@ jobs:
           gh release create ${{ env.NEW_VERSION }} \
             --title "Release ${{ env.NEW_VERSION }}" \
             --notes "Automated release for ${{ env.NEW_VERSION }}" \
-            ./dist/cli-executables/* # Upload all files in dist/cli-executables as assets
+            ./dist/background-tracker-executables/* # Upload all files in dist/background-tracker-executables as assets
           # Using GitHub CLI 'gh' for creating release and uploading assets.
           # Assumes gh is available on ubuntu-latest runners.

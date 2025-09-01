@@ -7,7 +7,7 @@
   - Consider separating the main app layout from upload/login screens
 
 - [ ] Reorganize project structure into apps/
-  - Move CLI tracker to apps/tracker/
+  - Move background tracker to apps/tracker/
   - Move frontend to apps/web/
   - Move backend to apps/api/
   - Create shared utilities in shared/

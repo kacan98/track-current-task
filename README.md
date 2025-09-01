@@ -1,160 +1,146 @@
-# Track Current Task
+# Track Current Task (GitClock)
+
+Automatic time tracking based on Git activity. Built to solve the tedious task of logging development hours to JIRA - this automatically tracks what you're working on and makes time reporting less of a hassle for developers.
+
+![Frontend Dashboard](screenshots/frontend.png)
+*Main dashboard showing weekly time tracking with task breakdown and editing capabilities*
+
+![Background Tracker Running](screenshots/month%20overview.png)  
+*Background tracker running with monthly summary showing 56+ hours tracked across multiple projects*
+
+## Why This Exists
+
+I needed to track which tasks I worked on each day and log them to JIRA. Manually tracking time is disruptive and inaccurate. This system automatically detects when you're working (via Git activity) and logs time accurately, making JIRA time reporting much less painful for me and other developers at my company.
+
+## Components
+
+The system has two independent parts that can work separately:
+
+### 1. Time Logger (Command-line program)
+- Runs continuously in the background monitoring configured Git repositories
+- Detects changes: file modifications, commits, branch switches
+- Logs time in configurable intervals (default: 15 minutes) when activity is detected
+- Extracts task IDs from branch names using regex (e.g., `JIRA-123` from `feature/JIRA-123-new-login`)
+- Stores data in CSV format in user's AppData folder
+- Generates daily and monthly summaries with time breakdown per task
+
+### 2. Web Interface  
+- Views time logs from CSV files (auto-loads in dev mode, manual upload in production)
+- Edit time entries - adjust hours, dates, task assignments
+- Copy entries and move them between days
+- GitHub integration - view commits for specific days from authorized repositories
+- JIRA integration - authenticate and sync time entries as worklogs
+- Weekly/daily time breakdown views
+- CSV export/import functionality
+
+![GitHub Commits Integration](screenshots/github%20commits.png)
+*GitHub integration showing commits for a specific day to help with time tracking accuracy*
+
+![JIRA and GitHub Settings](screenshots/jira%20and%20github%20integration.png)
+*Settings panel showing connected JIRA and GitHub integrations for seamless workflow*
 
 ## How It Works
 
 ```
-┌─────────────────┐                    ┌─────────────────┐
-│  CLI Tracker    │────────────────────▶│    Frontend     │
-│                 │     CSV Files       │                 │
-│ • Watches Git   │                     │ • View hours    │
-│ • Logs time     │                     │ • Edit entries  │
-│ • Extracts      │                     │ • Upload CSV    │
-│   task IDs      │                     │ • Send to Jira  │
-└─────────────────┘                     └─────────────────┘
-        │                                        │
-        │ CSV Files                              │ HTTP/Auth
-        │                                        │
-        ▼                                        ▼
-┌─────────────────┐                    ┌─────────────────┐
-│   User Folder   │────────────────────▶│    Backend      │
-│                 │    Serve CSV        │                 │
-│ • activity.csv  │    (dev mode)       │ • Proxy to Jira │
-│ • config.json   │                     │ • Auth cookies  │
-│                 │                     │ • Serve files   │
-└─────────────────┘                     └─────────────────┘
-                                                 │
-                                                 │ Jira API
-                                                 ▼
-                                        ┌─────────────────┐
-                                        │      Jira       │
-                                        │                 │
-                                        │ • Store logs    │
-                                        │ • Track tasks   │
-                                        └─────────────────┘
+┌─────────────────┐    CSV Files    ┌─────────────────┐
+│  Time Logger    │─────────────────▶│   User Folder   │
+│                 │                  │                 │
+│ • Watches Git   │                  │ • activity.csv  │
+│ • Logs time     │                  │ • config.json   │
+│ • Extracts IDs  │                  │                 │
+└─────────────────┘                  └─────────────────┘
+                                              │ CSV Files
+                                              │
+                                              ▼
+                                     ┌─────────────────┐
+                                     │    Frontend     │◀─┐
+                                     │                 │  │
+                                     │ • View hours    │  │ Commits
+                                     │ • Edit entries  │  │
+                                     │ • Upload CSV    │  │
+                                     │ • Send to JIRA  │  │
+                                     └─────────────────┘  │
+                                              │           │
+                                              │ HTTP/Auth │
+                                              ▼           │
+                                     ┌─────────────────┐  │
+                                     │    Backend      │  │
+                                     │                 │  │
+                                     │ • JIRA proxy    │  │
+                                     │ • GitHub OAuth  │──┘
+                                     │ • Auth cookies  │
+                                     └─────────────────┘
+                                              │
+                                              ▼ API calls
+                                     ┌─────────────────┐
+                                     │      JIRA       │
+                                     │                 │
+                                     │ • Worklogs      │
+                                     │ • Tasks         │
+                                     └─────────────────┘
 ```
 
-**Data Flow:**
-1. CLI Tracker → User Folder (logs time to CSV)
-2. Backend → User Folder (serves CSV in dev mode)
-3. Frontend ← Backend (loads CSV data)
-4. Frontend → Backend (sends worklogs with encrypted cookie auth)
-5. Backend → Jira (proxies API calls with stored token)
+## Installation
 
-**Authentication:**
-- Frontend sends login credentials to Backend
-- Backend authenticates with Jira and stores encrypted token in httpOnly cookie
-- Frontend never sees or stores the actual token
-- All subsequent API calls use secure cookies for authentication
-- Cookies are encrypted, httpOnly (XSS protection), and secure in production
+### Option 1: Use Deployed Version (Easiest)
 
-## Setup
+1. **Get the time logger**: Download latest release from [Releases](https://github.com/kacan98/track-current-task/releases)
+2. **Run the logger**: Execute the program - it will guide you through setup
+3. **Use web interface**: Visit the deployed site on Vercel (URL to be added)
+4. **Upload your CSV**: The logger generates CSV files you can upload to the web interface
 
-1. **Install Node.js** from [nodejs.org](https://nodejs.org)
-2. **Clone and install:**
-   ```bash
-   git clone <this-repo>
-   cd track-current-task
-   npm install
-   ```
-3. **Configure environment:**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your settings
-   ```
-4. **Start development:**
-   ```bash
-   npm start
-   ```
-   This runs:
-   - Frontend at http://localhost:5173
-   - Backend at http://localhost:9999
+### Option 2: Run Everything Locally
 
-## Configuration
-```json
-{
-  "repositories": [
-    {
-      "path": "/path/to/repository",
-      "mainBranch": "main"
-    }
-  ],  
-  "trackingIntervalMinutes": 15,
-  "taskIdRegEx": "D[FM]O-\\d+",
-  "taskTrackingUrl": "https://jira.eg.dk/browse/"
-}
+```bash
+# Clone and install
+git clone <repository-url>
+cd track-current-task
+npm install
+
+# Copy environment configuration
+cp .env.example .env
+# Edit .env with your settings
+
+# Start the application (runs both frontend and serverless backend)
+npm start
+# This starts Vercel dev server at: http://localhost:3000
 ```
 
-**Configuration Options:**
-* `trackingIntervalMinutes`: How often to check for changes (e.g., 15 minutes) and how much we register if changes are found.
-* `taskIdRegEx`: Regular expression to extract task IDs from branch names (e.g., `"D[FM]O-\\d+"` for both DFO and DMO tickets). Defaults to branch name if not found.
-* `taskTrackingUrl`: Optional base URL for your task tracking system (e.g., `"https://jira.eg.dk/browse/"`). When configured, task IDs will be displayed with clickable links in summaries.
+## Time Logger Configuration
 
-## When does it log
-The tool logs time when:
-1. The number of added or removed lines is different from previous check
-2. New commits are made compared to the main branch
-3. A branch is checked out for the first time
+Running the time logger for the first time will show an interactive setup guide. You can configure:
+- Which repositories to monitor
+- Time tracking interval (how often to check and how much time to log)
+- Task ID extraction pattern (regex for pulling IDs from branch names)
+- JIRA URL for linking tasks
 
-## Monthly Summary Report
-On every run it will generate a monthly report, showing
+Config is stored at: `%APPDATA%/.TrackCurrentTask/` (Windows) or `~/.TrackCurrentTask/` (Mac/Linux)
 
-* Shows total hours per task for the current month
-* Groups tasks by week, showing weekly totals
-* Provides daily breakdowns with task details within each week
-* Shows previous month summary if viewing in the first week of a month
-* Uses color-coded output for better readability
+For automatic startup, place the executable in your system's startup folder.
 
-Example output:
-```
-====================================
-       MONTHLY TIME SUMMARY
-====================================
+## Data Storage
 
-Current Month (June 2023):
-  DFO-5678 (https://jira.eg.dk/browse/DFO-5678): 12h 30m (65.2%)
-  DFO-1234 (https://jira.eg.dk/browse/DFO-1234): 6h 45m (34.8%)
-
-  Total Hours: 19h 15m
-
-  Weekly Breakdown:
-
-  Week 1 (Jun 1 - Jun 4): 7h 15m
-    DFO-1234 (https://jira.eg.dk/browse/DFO-1234): 4h 30m (62.1%)
-    DFO-5678 (https://jira.eg.dk/browse/DFO-5678): 2h 45m (37.9%)
-
-    Daily Details:
-    Thu, Jun 1: 3h 45m
-      DFO-1234 (https://jira.eg.dk/browse/DFO-1234): 2h 30m
-      DFO-5678 (https://jira.eg.dk/browse/DFO-5678): 1h 15m
-    Fri, Jun 2: 3h 30m
-      DFO-1234: 2h 0m
-      DFO-5678: 1h 30m
-
-  Week 2 (Jun 5 - Jun 11): 12h 0m
-    DFO-5678: 9h 45m (81.3%)
-    DFO-1234: 2h 15m (18.7%)
-
-    Daily Details:
-    Mon, Jun 5: 4h 0m
-      DFO-5678: 3h 30m
-      DFO-1234: 0h 30m
-    Tue, Jun 6: 4h 15m
-      DFO-5678: 3h 45m
-      DFO-1234: 0h 30m
-    Wed, Jun 7: 3h 45m
-      DFO-5678: 2h 30m
-      DFO-1234: 1h 15m
-```
-
-## CSV File
-Data is stored in a CSV file that looks like this:
-```
+### CSV Format
+```csv
 date,taskId,hours
-2023-10-27,DFO-12345,0.5
-2023-10-27,feature/improve-performance,1.0
+2023-10-27,JIRA-123,0.5
+2023-10-27,feature/new-feature,1.0
 ```
 
-## Troubleshooting
-* **No time logged?** Make sure you're actively making changes to files in your Git repository
-* **Git errors?** Verify Git is properly installed and the repository paths are correct
-* **Want to reset?** Delete files in the .TrackCurrentTask folder
+Location: `%APPDATA%/.TrackCurrentTask/activity_log.csv`
+
+### When Time is Logged
+- File changes detected (different line count from last check)
+- New commits compared to main branch  
+- Branch checkout (first time on branch)
+
+## Project Structure
+
+```
+├── packages/
+│   ├── background-tracker/   # Time logger (Git monitoring & tracking)
+│   ├── backend/       # Express API (serverless-ready)
+│   └── frontend/      # React web interface
+├── shared/            # Common utilities and types
+└── vercel.json       # Deployment configuration
+```

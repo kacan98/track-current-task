@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { loginToJira, getAuthStatus, logoutFromJira } from '../../services/JiraIntegration';
 import { Button } from '../ui/Button';
+import jiraIcon from '../../assets/icons/jira.svg';
 
 interface JiraCredentialsFormProps {
   onAuthSuccess?: () => void;
@@ -74,18 +75,7 @@ export function JiraCredentialsForm({ onAuthSuccess }: JiraCredentialsFormProps 
     return (
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <svg className="w-5 h-5" viewBox="2.59 0 214.09101008 224" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <linearGradient id="jira-a" gradientTransform="matrix(1 0 0 -1 0 264)" gradientUnits="userSpaceOnUse" x1="102.4" x2="56.15" y1="218.63" y2="172.39">
-                <stop offset=".18" stopColor="#0052cc"/>
-                <stop offset="1" stopColor="#2684ff"/>
-              </linearGradient>
-              <linearGradient id="jira-b" x1="114.65" x2="160.81" xlinkHref="#jira-a" y1="85.77" y2="131.92"/>
-            </defs>
-            <path d="m214.06 105.73-96.39-96.39-9.34-9.34-72.56 72.56-33.18 33.17a8.89 8.89 0 0 0 0 12.54l66.29 66.29 39.45 39.44 72.55-72.56 1.13-1.12 32.05-32a8.87 8.87 0 0 0 0-12.59zm-105.73 39.39-33.12-33.12 33.12-33.12 33.11 33.12z" fill="#2684ff"/>
-            <path d="m108.33 78.88a55.75 55.75 0 0 1 -.24-78.61l-72.47 72.44 39.44 39.44z" fill="url(#jira-a)"/>
-            <path d="m141.53 111.91-33.2 33.21a55.77 55.77 0 0 1 0 78.86l72.67-72.63z" fill="url(#jira-b)"/>
-          </svg>
+          <img src={jiraIcon} alt="Jira" className="w-5 h-5" />
           Jira Integration
         </h3>
         <div className="flex items-center gap-2 text-gray-600">
@@ -100,18 +90,7 @@ export function JiraCredentialsForm({ onAuthSuccess }: JiraCredentialsFormProps 
     return (
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <svg className="w-5 h-5" viewBox="2.59 0 214.09101008 224" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <linearGradient id="jira-a" gradientTransform="matrix(1 0 0 -1 0 264)" gradientUnits="userSpaceOnUse" x1="102.4" x2="56.15" y1="218.63" y2="172.39">
-                <stop offset=".18" stopColor="#0052cc"/>
-                <stop offset="1" stopColor="#2684ff"/>
-              </linearGradient>
-              <linearGradient id="jira-b" x1="114.65" x2="160.81" xlinkHref="#jira-a" y1="85.77" y2="131.92"/>
-            </defs>
-            <path d="m214.06 105.73-96.39-96.39-9.34-9.34-72.56 72.56-33.18 33.17a8.89 8.89 0 0 0 0 12.54l66.29 66.29 39.45 39.44 72.55-72.56 1.13-1.12 32.05-32a8.87 8.87 0 0 0 0-12.59zm-105.73 39.39-33.12-33.12 33.12-33.12 33.11 33.12z" fill="#2684ff"/>
-            <path d="m108.33 78.88a55.75 55.75 0 0 1 -.24-78.61l-72.47 72.44 39.44 39.44z" fill="url(#jira-a)"/>
-            <path d="m141.53 111.91-33.2 33.21a55.77 55.77 0 0 1 0 78.86l72.67-72.63z" fill="url(#jira-b)"/>
-          </svg>
+          <img src={jiraIcon} alt="Jira" className="w-5 h-5" />
           Jira Integration
         </h3>
 
@@ -167,10 +146,7 @@ export function JiraCredentialsForm({ onAuthSuccess }: JiraCredentialsFormProps 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
       <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-        <svg className="w-5 h-5 text-blue-600" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M11.53 2c0 .263.073.51.2.72L16.13 12l-4.4 9.28c-.127.21-.2.457-.2.72H9.47c0-.263-.073-.51-.2-.72L4.87 12l4.4-9.28c.127-.21.2-.457.2-.72h2.06z"/>
-          <path d="M12.47 2c0 .263.073.51.2.72L17.07 12l-4.4 9.28c-.127.21-.2.457-.2.72h-2.06c0-.263-.073-.51-.2-.72L5.83 12l4.4-9.28c.127-.21.2-.457.2-.72h2.06z"/>
-        </svg>
+        <img src={jiraIcon} alt="Jira" className="w-5 h-5" />
         Jira Integration
       </h3>
 
@@ -228,7 +204,8 @@ export function JiraCredentialsForm({ onAuthSuccess }: JiraCredentialsFormProps 
           <Button
             onClick={handleLogin}
             disabled={isConnecting}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2"
+            variant="primary"
+            className="w-full flex items-center justify-center gap-2"
           >
             {isConnecting ? (
               <>
@@ -237,10 +214,7 @@ export function JiraCredentialsForm({ onAuthSuccess }: JiraCredentialsFormProps 
               </>
             ) : (
               <>
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M11.53 2c0 .263.073.51.2.72L16.13 12l-4.4 9.28c-.127.21-.2.457-.2.72H9.47c0-.263-.073-.51-.2-.72L4.87 12l4.4-9.28c.127-.21.2-.457.2-.72h2.06z"/>
-                  <path d="M12.47 2c0 .263.073.51.2.72L17.07 12l-4.4 9.28c-.127.21-.2.457-.2.72h-2.06c0-.263-.073-.51-.2-.72L5.83 12l4.4-9.28c.127-.21.2-.457.2-.72h2.06z"/>
-                </svg>
+                <img src={jiraIcon} alt="Jira" className="w-4 h-4" />
                 Connect to Jira
               </>
             )}

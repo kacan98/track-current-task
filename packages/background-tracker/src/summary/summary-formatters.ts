@@ -1,7 +1,8 @@
 import { Config } from '../config/config-types';
 import { EnhancedLogEntry } from '../core/file-operations';
 import { getFormattedHours } from '../utils/date-utils';
-import { logger } from '@shared/logger';
+import { logger } from '../../../../shared/logger';
+import { colors } from '../../../../shared/colors';
 
 // Utility types for grouping data
 type DailyEntries = Record<string, EnhancedLogEntry[]>;
@@ -29,7 +30,12 @@ export function printTaskSummary(entries: EnhancedLogEntry[], config: Config, in
       const [taskId] = key.split('|');
       const percentage = totalHours > 0 ? (data.hours / totalHours * 100).toFixed(1) : '0.0';
       
-      logger.info(`${indent}${taskId} (${data.repository}): ${getFormattedHours(data.hours)} (${percentage}%)`);
+      const taskDisplay = colors.primary(taskId);
+      const repoDisplay = colors.muted(`(${data.repository})`);
+      const hoursDisplay = colors.success(getFormattedHours(data.hours));
+      const percentageDisplay = colors.muted(`(${percentage}%)`);
+      
+      logger.info(`${indent}${taskDisplay} ${repoDisplay}: ${hoursDisplay} ${percentageDisplay}`);
     });
   
   return totalHours;
@@ -59,7 +65,10 @@ export function renderDailyDetails(entriesForWeek: EnhancedLogEntry[], config: C
       });
       
       const dailyHours = entriesForDay.reduce((sum, entry) => sum + entry.hours, 0);
-      logger.info(`    ${formattedDate}: ${getFormattedHours(dailyHours)}`);
+      const dateDisplay = colors.primary(formattedDate);
+      const hoursDisplay = colors.success(getFormattedHours(dailyHours));
+      
+      logger.info(`    ${dateDisplay}: ${hoursDisplay}`);
       
       // Print tasks for each day
     printTaskSummary(entriesForDay, config, '      ');

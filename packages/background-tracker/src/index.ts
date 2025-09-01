@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync } from 'fs';
 import * as readline from 'readline';
-import { logger } from '@shared/logger';
+import { logger } from '../../../shared/logger';
 
 // Function to wait for user input before exit
 function waitForUserExit(exitCode = 1) {
@@ -42,7 +42,8 @@ import { logTodaySummary } from './summary/log-todays-summary';
 import { formatLocalDateTime } from './utils/date-utils';
 import { createCountdownSpinner } from './utils/spinner';
 import { spinners } from './utils/spinners';
-import { resolvePathFromAppData, getAppDataDirectory } from '@shared/path-utils';
+import { resolvePathFromAppData, getAppDataDirectory } from '../../../shared/path-utils';
+import { colors } from '../../../shared/colors';
 
 export const ACTIVITY_LOG_FILE_PATH = resolvePathFromAppData('activity_log.csv');
 export const CONFIG_FILE_PATH = resolvePathFromAppData('config.json');
@@ -107,10 +108,10 @@ async function main() {
     process.on('SIGINT', removeLock);
     process.on('SIGTERM', removeLock);
     
-    logger.info('Git Activity Logger starting...');
-    logger.info(`Data stored in: ${STORAGE_FOLDER_PATH}`);
-    logger.info(`Config file: ${CONFIG_FILE_PATH}`);
-    logger.info(`Activity log: ${ACTIVITY_LOG_FILE_PATH}`);
+    console.log(colors.primary.bold('Git Activity Logger') + colors.muted(' starting...'));
+    console.log(colors.muted('Data stored in: ') + STORAGE_FOLDER_PATH);
+    console.log(colors.muted('Config file: ') + CONFIG_FILE_PATH);
+    console.log(colors.muted('Activity log: ') + ACTIVITY_LOG_FILE_PATH);
     
     const config = await loadConfig();
 
@@ -157,7 +158,7 @@ async function main() {
     };
 
     // Check immediately on startup
-    logger.info(`[${formatLocalDateTime()}] Starting initial repository check...`);
+    console.log(colors.muted(`[${formatLocalDateTime()}] `) + colors.primary('Starting initial repository check...'));
     await runCheck(true);
 
     // Always display summary on startup
@@ -165,15 +166,15 @@ async function main() {
     
     // Set up the tracking interval
     const trackingInterval = setInterval(async () => {
-      logger.info(`[${formatLocalDateTime()}] Checking repositories for changes...`);
+      console.log(colors.muted(`[${formatLocalDateTime()}] `) + colors.primary('Checking repositories for changes...'));
       await runCheck();
       await logTodaySummary();
     }, trackingIntervalMinutes * 60 * 1000);
 
-    logger.success('🚀 Git Activity Logger is now running.');
-    logger.info(`While running, it will check for changes every ${trackingIntervalMinutes} minutes. Press Ctrl+C to stop.`);
+    console.log(colors.success('🚀 Git Activity Logger is now running.'));
+    console.log(colors.muted(`While running, it will check for changes every ${trackingIntervalMinutes} minutes. Press Ctrl+C to stop.`));
     const cleanup = () => {
-      logger.info('🛑 Stopping Git Activity Logger...');
+      console.log(colors.primary('🛑 Stopping Git Activity Logger...'));
       waitingSpinner.stopCountdown();
       clearInterval(trackingInterval);
       process.exit(0);

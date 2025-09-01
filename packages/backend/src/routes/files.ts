@@ -1,18 +1,25 @@
 import { Router, Request, Response } from 'express';
-import { readFile } from 'fs/promises';
-import { existsSync } from 'fs';
-import { resolvePathFromAppData } from '@shared/path-utils';
 import { ApiError, asyncHandler } from '../middleware/errorHandler';
 import { createLogger } from '@shared/logger';
 
 const router = Router();
 const fileLogger = createLogger('FILES');
 
-// Endpoint to serve activity log CSV from filesystem (DEV only)
+// Activity log endpoint - works locally, disabled in serverless production
 router.get('/activity-log', asyncHandler(async (req: Request, res: Response) => {
-    if (process.env.DEV !== 'true') {
-        throw new ApiError(404, 'Filesystem endpoints disabled in production', 'FILESYSTEM_DISABLED');
+    // Only available in development
+    if (process.env.NODE_ENV === 'production') {
+        throw new ApiError(
+            501, 
+            'Activity log endpoint not available in serverless production. Use database or cloud storage instead.', 
+            'ENDPOINT_NOT_IMPLEMENTED'
+        );
     }
+    
+    // Local development - dynamically import file system modules
+    const { readFile } = await import('fs/promises');
+    const { existsSync } = await import('fs');
+    const { resolvePathFromAppData } = await import('@shared/path-utils');
     
     const csvPath = resolvePathFromAppData('activity_log.csv');
     fileLogger.debug(`Looking for activity log at: ${csvPath}`);

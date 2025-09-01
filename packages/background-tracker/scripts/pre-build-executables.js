@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const executablesPath = path.join(__dirname, '..', '..', '..', 'dist', 'cli-executables');
+const executablesPath = path.join(__dirname, '..', '..', '..', 'dist', 'background-tracker-executables');
 
 if (fs.existsSync(executablesPath)) {
     fs.rmSync(executablesPath, { recursive: true, force: true });

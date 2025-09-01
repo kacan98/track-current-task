@@ -151,7 +151,8 @@ export function GitHubConnectionForm() {
           <Button
             onClick={handleConnect}
             disabled={isConnecting}
-            className="w-full bg-gray-900 hover:bg-gray-800 text-white flex items-center justify-center gap-2"
+            variant="primary"
+            className="w-full bg-gray-900 hover:bg-gray-800 flex items-center justify-center gap-2"
           >
             {isConnecting ? (
               <>

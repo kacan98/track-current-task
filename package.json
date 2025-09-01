@@ -5,15 +5,17 @@
   "private": true,
   "scripts": {
     "build": "npm run build --workspaces",
-    "build:cli": "npm run build -w packages/cli",
+    "build:background-tracker": "npm run build -w packages/background-tracker",
     "build:backend": "npm run build -w packages/backend",
     "build:frontend": "npm run build -w packages/frontend",
-    "build:executables": "npm run build:cli && pkg packages/cli/package.json --out-path dist/cli-executables --targets node18-win-x64,node18-macos-x64",
+    "build:executables": "npm run build:background-tracker && pkg packages/background-tracker/package.json --targets node18-win-x64,node18-macos-x64 --out-path dist/background-tracker-executables",
     "check": "tsc -b && eslint packages/*/src/**/*.{ts,tsx}",
-    "start": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
-    "dev": "npm run dev:cli",
-    "dev:cli": "nodemon --exec ts-node packages/cli/src/index.ts",
-    "dev:backend": "nodemon --watch packages/backend/src --ext ts --exec ts-node packages/backend/src/index.ts",
+    "start": "concurrently \"npm run dev:backend-express\" \"npm run dev:frontend\"",
+    "start:express": "concurrently \"npm run dev:frontend\" \"npm run dev:backend-express\"",
+    "dev": "vercel dev",
+    "dev:background-tracker": "nodemon --exec ts-node packages/background-tracker/src/index.ts",
+    "dev:backend": "vercel dev",
+    "dev:backend-express": "nodemon --watch packages/backend/src --ext ts --exec ts-node packages/backend/src/index.ts",
     "dev:frontend": "npm run dev -w packages/frontend",
     "prepare": "husky"
   },
@@ -43,7 +45,9 @@
     "packages/*"
   ],
   "ts-node": {
-    "require": ["tsconfig-paths/register"]
+    "require": [
+      "tsconfig-paths/register"
+    ]
   },
   "dependencies": {
     "@types/cookie-parser": "^1.4.9",
@@ -60,6 +64,7 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
     "@types/node": "^24.1.0",
+    "@vercel/node": "^5.3.17",
     "axios": "^1.11.0",
     "concurrently": "^9.2.0",
     "cors": "^2.8.5",
@@ -75,6 +80,7 @@
     "pkg": "^5.8.1",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
-    "typescript-eslint": "^8.41.0"
+    "typescript-eslint": "^8.41.0",
+    "vercel": "^46.1.1"
   }
 }

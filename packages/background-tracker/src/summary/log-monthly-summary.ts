@@ -2,7 +2,7 @@ import { loadConfig } from '../config/config-manager';
 import { EnhancedLogEntry, getLogEntries as coreGetLogEntries, enhanceLogEntries } from '../core/file-operations';
 import { getMonthDateRange } from '../utils/date-utils';
 import { logMonthSummary } from './summary-report-formatters';
-import { logger } from '@shared/logger';
+import { logger } from '../../../../shared/logger';
 
 // Utility types for grouping data
 // type TaskSummary = Record<string, number>;

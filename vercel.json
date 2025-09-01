@@ -1,0 +1,16 @@
+{
+  "functions": {
+    "packages/backend/src/index.ts": {
+      "runtime": "@vercel/node"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/packages/backend/src/index.ts"
+    }
+  ],
+  "buildCommand": "npm run build",
+  "outputDirectory": "packages/frontend/dist",
+  "installCommand": "npm ci"
+}

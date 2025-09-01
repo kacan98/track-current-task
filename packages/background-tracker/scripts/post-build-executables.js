@@ -32,8 +32,8 @@ async function postBuild() {
         return;
     }
     
-    const executableName = 'git-activity-logger-win.exe';
-    const sourcePath = path.join(__dirname, '..', '..', '..', 'dist', 'cli-executables', executableName);
+    const executableName = 'background-tracker-win.exe';
+    const sourcePath = path.join(__dirname, '..', '..', '..', 'dist', 'background-tracker-executables', executableName);
     
     // REQUIREMENT: Verify source exists (pkg must have succeeded)
     if (!fs.existsSync(sourcePath)) {

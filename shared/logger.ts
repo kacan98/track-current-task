@@ -81,7 +81,7 @@ class Logger {
   
   info(message: string, ...args: unknown[]) {
     if (this.config.level <= LogLevel.INFO) {
-      console.log(this.format('INFO', colors.blue, message), ...args);
+      console.log(this.format('', colors.blue, message), ...args);
     }
   }
   

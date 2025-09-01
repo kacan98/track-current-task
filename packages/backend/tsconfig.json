@@ -4,7 +4,13 @@
     "module": "commonjs",
     "outDir": "../../dist/backend",
     "rootDir": "../..",
-    "baseUrl": "../.."
+    "baseUrl": "../..",
+    "paths": {
+      "@shared/*": ["shared/*"]
+    }
   },
-  "include": ["src/**/*", "../../shared/**/*"]
+  "include": ["src/**/*", "../../shared/**/*"],
+  "ts-node": {
+    "require": ["tsconfig-paths/register"]
+  }
 }

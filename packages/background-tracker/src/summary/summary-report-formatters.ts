@@ -2,7 +2,8 @@ import { Config } from '../config/config-types';
 import { EnhancedLogEntry } from '../core/file-operations';
 import { getFormattedWeekRange, getFormattedHours } from '../utils/date-utils';
 import { printTaskSummary, renderDailyDetails } from './summary-formatters';
-import { logger } from '@shared/logger';
+import { logger } from '../../../../shared/logger';
+import { colors } from '../../../../shared/colors';
 
 // Utility types for grouping data
 type WeeklyEntries = Record<number, EnhancedLogEntry[]>;
@@ -40,11 +41,15 @@ export function generateWeeklyBreakdown(entries: EnhancedLogEntry[], config: Con
         const weeklyHours = entriesForWeek.reduce((sum, entry) => sum + entry.hours, 0);
 
         // Print week header with date range
-        logger.info(`\n  ${getFormattedWeekRange(weekStart, weekEnd)} (Week ${weekNum}): ${getFormattedHours(weeklyHours)}`);
+        const weekRange = colors.primary.bold(getFormattedWeekRange(weekStart, weekEnd));
+        const weekLabel = colors.muted(`(Week ${weekNum})`);
+        const weeklyHoursDisplay = colors.success.bold(getFormattedHours(weeklyHours));
+        
+        logger.info(`\n  ${weekRange} ${weekLabel}: ${weeklyHoursDisplay}`);
         // Print task breakdown for the week
         printTaskSummary(entriesForWeek, config, '    ');
         // Print daily details
-        logger.info(`\n    Daily Details:`);
+        logger.info(`\n    ${colors.muted('Daily Details:')}`);
         renderDailyDetails(entriesForWeek, config);
     });
 
@@ -68,8 +73,11 @@ export function logMonthSummary(entries: EnhancedLogEntry[], year: number, month
         return
     }
     
-    // const totalHours = printTaskSummary(entries, config, '  ');
-    // console.log(chalk.green.bold(`\n  Total Hours: ${getFormattedHours(totalHours)}`));
+    const totalHours = entries.reduce((sum, entry) => sum + entry.hours, 0);
+    if (totalHours > 0) {
+        const totalDisplay = colors.success.bold(getFormattedHours(totalHours));
+        logger.success(`Total Hours: ${totalDisplay}`);
+    }
 
     generateWeeklyBreakdown(entries, config);
 }

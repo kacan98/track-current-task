@@ -7,3 +7,4 @@ repo_activity_state.json
 
 # Environment variables (contains secrets)
 .env
+.vercel

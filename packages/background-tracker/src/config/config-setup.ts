@@ -5,7 +5,7 @@ import path from 'path';
 import { CONFIG_FILE_PATH } from '..';
 import { branchExists, getAvailableBranches, discoverRepositories } from '../git/git-utils';
 import { Config, RepositoryConfig } from './config-types';
-import { logger } from '@shared/logger';
+import { logger } from '../../../../shared/logger';
 
 // Interactive configuration setup
 export async function createConfigInteractively(): Promise<Config> {

@@ -2,7 +2,7 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "module": "commonjs",
-    "outDir": "../../dist/cli",
+    "outDir": "../../dist/background-tracker",
     "rootDir": "../..",
     "baseUrl": "../.."
   },

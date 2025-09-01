@@ -1,7 +1,7 @@
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { RepositoryConfig } from '../config/config-types';
-import { logger } from '@shared/logger';
+import { logger } from '../../../../shared/logger';
 
 const execFileAsync = promisify(execFile);
 

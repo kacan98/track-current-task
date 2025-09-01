@@ -14,7 +14,7 @@ export default tseslint.config([
   },
   // Backend TypeScript files
   {
-    files: ['packages/backend/src/**/*.ts', 'packages/cli/src/**/*.ts', 'shared/**/*.ts'],
+    files: ['packages/backend/src/**/*.ts', 'packages/background-tracker/src/**/*.ts', 'shared/**/*.ts'],
     extends: [
       js.configs.recommended,
       ...tseslint.configs.recommended,
