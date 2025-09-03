@@ -2,6 +2,7 @@
   "name": "@track-current-task/background-tracker",
   "version": "1.1.32",
   "description": "Background time tracker for Git activity",
+  "type": "commonjs",
   "main": "../../dist/background-tracker/packages/background-tracker/src/index.js",
   "bin": {
     "git-activity-logger": "./../../dist/background-tracker/packages/background-tracker/src/index.js"

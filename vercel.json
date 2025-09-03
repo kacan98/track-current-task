@@ -1,16 +1,25 @@
 {
-  "functions": {
-    "packages/backend/src/index.ts": {
-      "runtime": "@vercel/node"
-    }
-  },
-  "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "/packages/backend/src/index.ts"
-    }
-  ],
   "buildCommand": "npm run build",
   "outputDirectory": "packages/frontend/dist",
-  "installCommand": "npm ci"
+  "installCommand": "npm ci",
+  "builds": [
+    {
+      "src": "packages/backend/src/index.ts",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "packages/frontend/dist/**",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/packages/backend/src/index.ts"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/packages/frontend/dist/$1"
+    }
+  ]
 }

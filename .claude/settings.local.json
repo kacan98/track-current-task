@@ -12,7 +12,8 @@
       "Bash(npx eslint:*)",
       "WebFetch(domain:docs.github.com)",
       "Bash(git mv:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(npm run dev:*)"
     ],
     "deny": []
   }

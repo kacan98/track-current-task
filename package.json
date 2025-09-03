@@ -13,10 +13,10 @@
     "check": "tsc -b && eslint packages/*/src/**/*.{ts,tsx}",
     "start": "concurrently \"npm run dev:backend-express\" \"npm run dev:frontend\"",
     "start:express": "concurrently \"npm run dev:frontend\" \"npm run dev:backend-express\"",
-    "dev": "vercel dev",
+    "dev": "concurrently \"npm run dev:backend-express\" \"npm run dev:frontend\"",
     "dev:background-tracker": "nodemon --exec ts-node packages/background-tracker/src/index.ts",
     "dev:backend": "vercel dev",
-    "dev:backend-express": "nodemon --watch packages/backend/src --ext ts --exec ts-node packages/backend/src/index.ts",
+    "dev:backend-express": "nodemon --watch packages/backend/src --ext ts --exec tsx packages/backend/src/index.ts",
     "dev:frontend": "npm run dev -w packages/frontend",
     "prepare": "husky"
   },
@@ -46,6 +46,8 @@
     "packages/*"
   ],
   "ts-node": {
+    "esm": true,
+    "experimentalSpecifierResolution": "node",
     "require": [
       "tsconfig-paths/register"
     ]
@@ -81,6 +83,7 @@
     "pkg": "^5.8.1",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
+    "tsx": "^4.20.5",
     "typescript-eslint": "^8.41.0",
     "vercel": "^46.1.1"
   }

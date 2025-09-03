@@ -1,5 +1,5 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import express, { Express } from 'express';
+import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
@@ -102,5 +102,5 @@ if (isDirectRun) {
 // 2025 benefits: 50% cost reduction, 95% fewer cold starts, shared middleware
 const serverlessApp = createExpressApp(true); // Serverless mode: simplified cookies
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  return serverlessApp(req as Express.Request, res as Express.Response);
+  return serverlessApp(req as unknown as express.Request, res as unknown as express.Response);
 };

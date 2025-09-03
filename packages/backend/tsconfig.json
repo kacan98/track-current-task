@@ -1,7 +1,7 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "module": "commonjs",
+    "module": "ESNext",
     "outDir": "../../dist/backend",
     "rootDir": "../..",
     "baseUrl": "../..",
@@ -11,6 +11,8 @@
   },
   "include": ["src/**/*", "../../shared/**/*"],
   "ts-node": {
+    "esm": true,
+    "experimentalSpecifierResolution": "node",
     "require": ["tsconfig-paths/register"]
   }
 }
