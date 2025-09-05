@@ -18,9 +18,9 @@ export default defineConfig({
     outDir: 'dist',
   },
   server: {
-    port: 3000,
+    port: 3001,
     proxy: {
-      '/api': 'http://localhost:3000',
+      '/api': 'http://localhost:9999',
     },
   },
   // Tell Vite to look for .env files in the project root

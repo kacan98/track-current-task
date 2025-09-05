@@ -6,6 +6,7 @@ import type { RecurringEvent } from '../RecurringEventsEditor';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
 import { useSettings } from '../../contexts/SettingsContext';
+import { useIntroduction } from '../../contexts/IntroductionContext';
 
 export const SETTINGS_FIELDS = [
     { key: 'scrumTaskId', label: 'Scrum Jira Task ID', type: 'text', placeholder: 'Enter Scrum Jira Task ID' } as const,
@@ -28,12 +29,13 @@ export type SettingsObject = {
 };
 
 function SettingsPage({ onClose, onDeleteAllRows }: { onClose: () => void, onDeleteAllRows: () => void }) {
-    const { settings, updateSetting } = useSettings();
+    const settings = useSettings();
+    const { forceShowIntroduction } = useIntroduction();
     const [recurringEvents, setRecurringEvents] = React.useState<RecurringEvent[]>(() => {
         const stored = localStorage.getItem('recurringEvents');
         return stored ? JSON.parse(stored) : [
-            { id: 'endSprint', name: 'End Sprint Event', day: '', durationMinutes: '180' },
-            { id: 'backlogRefinement', name: 'Backlog Refinement', day: '', durationMinutes: '60' },
+            { id: 'endSprint', name: 'End Sprint Event', day: 'Friday', durationMinutes: '180' },
+            { id: 'backlogRefinement', name: 'Backlog Refinement', day: 'Friday', durationMinutes: '60' },
         ];
     });
 
@@ -54,7 +56,7 @@ function SettingsPage({ onClose, onDeleteAllRows }: { onClose: () => void, onDel
                 newValue = String(minutes);
             }
         }
-        updateSetting(key, newValue);
+        settings?.updateSetting(key, newValue);
     };
 
 
@@ -68,14 +70,14 @@ function SettingsPage({ onClose, onDeleteAllRows }: { onClose: () => void, onDel
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">General Settings</h3>
                 <div className="space-y-4">
-                    {SETTINGS_FIELDS.filter(f => !f.key.startsWith('github')).map(field => (
+                    {SETTINGS_FIELDS.filter(f => !f.key.startsWith('github') && !f.key.startsWith('scrum')).map(field => (
                         <div key={field.key}>
                             {field.type === 'checkbox' ? (
                                 <label htmlFor={field.key} className="flex items-center cursor-pointer">
                                     <input
                                         id={field.key}
                                         type="checkbox"
-                                        checked={settings[field.key] === 'true'}
+                                        checked={settings?.settings[field.key] === 'true'}
                                         onChange={e => handleChange(field.key, e.target.checked ? 'true' : 'false')}
                                         className="mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                                     />
@@ -90,7 +92,7 @@ function SettingsPage({ onClose, onDeleteAllRows }: { onClose: () => void, onDel
                                     </label>
                                     <select
                                         id={field.key}
-                                        value={settings[field.key]}
+                                        value={settings?.settings[field.key] || ''}
                                         onChange={e => handleChange(field.key, e.target.value)}
                                         className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                     >
@@ -109,7 +111,7 @@ function SettingsPage({ onClose, onDeleteAllRows }: { onClose: () => void, onDel
                                     <input
                                         id={field.key}
                                         type={field.type}
-                                        value={settings[field.key]}
+                                        value={settings?.settings[field.key] || ''}
                                         onChange={e => handleChange(field.key, e.target.value)}
                                         className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                         placeholder={'placeholder' in field ? field.placeholder : undefined}
@@ -124,6 +126,32 @@ function SettingsPage({ onClose, onDeleteAllRows }: { onClose: () => void, onDel
 
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Recurring Events</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                    Configure recurring meetings or events that happen weekly. These will generate clickable buttons in each week view that automatically add time entries for the selected day with the specified duration. Perfect for scrum events, standup meetings, or other regular activities.
+                </p>
+                
+                {/* Scrum Settings */}
+                <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <h4 className="font-semibold text-gray-800 mb-3">Scrum Settings</h4>
+                    <div className="space-y-3">
+                        {SETTINGS_FIELDS.filter(f => f.key.startsWith('scrum')).map(field => (
+                            <div key={field.key}>
+                                <label htmlFor={field.key} className="block text-sm font-medium text-gray-700 mb-2">
+                                    {field.label}
+                                </label>
+                                <input
+                                    id={field.key}
+                                    type={field.type}
+                                    value={settings?.settings[field.key] || ''}
+                                    onChange={e => handleChange(field.key, e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    placeholder={'placeholder' in field ? field.placeholder : undefined}
+                                />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+                
                 <div className="overflow-x-auto">
                     <table className="min-w-full">
                         <thead>
@@ -147,17 +175,31 @@ function SettingsPage({ onClose, onDeleteAllRows }: { onClose: () => void, onDel
                     <Button
                         variant="secondary"
                         onClick={() => {
-                            if (window.confirm('Are you sure you want to clear all data from the browser? Your CSV file will not be affected.')) {
+                            forceShowIntroduction();
+                            onClose();
+                        }}
+                        className="text-blue-700 border-blue-200 hover:bg-blue-50"
+                    >
+                        Show Introduction
+                    </Button>
+                    <p className="text-xs text-gray-500">
+                        Reopen the introduction screen to learn about the app features and download the background tracker.
+                    </p>
+                    
+                    <Button
+                        variant="secondary"
+                        onClick={() => {
+                            if (window.confirm('Are you sure you want to delete all time entries? Your settings and CSV file will not be affected.')) {
                                 onDeleteAllRows();
                                 onClose();
                             }
                         }}
                         className="text-red-700 border-red-200 hover:bg-red-50"
                     >
-                        Clear Browser Data
+                        Delete All Time Entries
                     </Button>
                     <p className="text-xs text-gray-500">
-                        This will clear all data from your browser's local storage. Your original CSV file remains unchanged. You can re-upload or load from filesystem again.
+                        This will delete all loaded time entries from the current session. Your settings, connections, and original CSV file remain unchanged. You can re-upload data anytime.
                     </p>
                 </div>
             </div>

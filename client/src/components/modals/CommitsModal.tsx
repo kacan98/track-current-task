@@ -12,7 +12,7 @@ interface CommitsModalProps {
 export function CommitsModal({ date, onClose }: CommitsModalProps) {
   const [copied, setCopied] = useState(false);
   const [copiedDetailed, setCopiedDetailed] = useState(false);
-  const { getSetting, updateSetting } = useSettings();
+  const settings = useSettings();
   const { isAuthenticated, user, login, logout, getCommitsForDate, isLoading, checkAuthStatus } = useGitHubAuth();
   const [username, setUsername] = useState('');
   const [githubCommits, setGithubCommits] = useState<Array<{
@@ -28,8 +28,8 @@ export function CommitsModal({ date, onClose }: CommitsModalProps) {
   const [githubError, setGithubError] = useState<string | null>(null);
   
   useEffect(() => {
-    setUsername(getSetting('githubUsername') || '');
-  }, [getSetting]);
+    setUsername(settings?.getSetting('githubUsername') || '');
+  }, [settings]);
 
   const loadGithubCommits = useCallback(async () => {
     try {
@@ -342,7 +342,7 @@ Write-Host "Found $($results.Count) commits with branch information" -Foreground
             onChange={(e) => {
               const newUsername = e.target.value;
               setUsername(newUsername);
-              updateSetting('githubUsername', newUsername);
+              settings?.updateSetting('githubUsername', newUsername);
             }}
             onInvalid={(e) => {
               const target = e.target as HTMLInputElement;

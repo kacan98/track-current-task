@@ -7,13 +7,23 @@
     "build": "cd client && npm run build",
     "build:background-tracker": "npm run build -w packages/background-tracker",
     "build:executables": "npm run build:background-tracker && pkg packages/background-tracker/package.json --targets node18-win-x64,node18-macos-x64 --out-path dist/background-tracker-executables",
-    "dev:local": "cd api && node index.ts",
+    "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "dev:frontend": "cd client && npm run dev",
+    "dev:backend": "cd api && npm run dev",
+    "dev:local": "cd api && npm run dev",
     "dev:background-tracker": "nodemon --exec ts-node packages/background-tracker/src/index.ts",
+    "typecheck": "npm run typecheck:client && npm run typecheck:api",
+    "typecheck:client": "cd client && npm run typecheck",
+    "typecheck:api": "cd api && npm run check",
+    "lint": "cd client && npm run lint",
     "prepare": "husky"
   },
   "lint-staged": {
-    "packages/*/src/**/*.{ts,tsx}": [
+    "client/src/**/*.{ts,tsx}": [
       "eslint --fix"
+    ],
+    "api/**/*.ts": [
+      "echo 'Skipping individual file typecheck for API'"
     ]
   },
   "repository": {

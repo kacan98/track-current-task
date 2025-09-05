@@ -1,16 +1,18 @@
 import React, { useRef, useState } from 'react';
 import { Button } from '@/components/ui/Button';
-import { JiraCredentialsForm } from '@/components/forms/JiraCredentialsForm';
 import { DragDropUpload } from '@/components/ui/DragDropUpload';
 import { DateRangePicker } from '@/components/forms/DateRangePicker';
 import { SettingsModal } from '@/components/modals/SettingsModal';
+import { JiraAuthModal } from '@/components/modals/JiraAuthModal';
 import { WeeklyLogDisplay } from '@/components/table/WeeklyLogDisplay';
+import { IntroductionScreen } from '@/components/IntroductionScreen';
 import { useAuthentication } from '@/hooks/useAuthentication';
 import { useLogEntries } from '@/contexts/LogEntriesContext';
 import { useToastContext } from '@/contexts/ToastContext';
 import { useDataLoader } from '@/hooks/useDataLoader';
 import { useDateRange } from '@/hooks/useDateRange';
 import { useJiraWorklog } from '@/hooks/useJiraWorklog';
+import { useIntroduction } from '@/contexts/IntroductionContext';
 import type { LogEntry } from '@/types';
 
 const ScreenLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => (
@@ -21,39 +23,7 @@ const ScreenLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
   </div>
 );
 
-const LoadingContent: React.FC = () => (
-  <div className="text-center">
-    <h3 className="font-semibold text-gray-900 mb-2">Loading...</h3>
-    <p className="text-gray-600 text-sm">Checking authentication status</p>
-  </div>
-);
 
-const AuthenticationContent: React.FC<{
-  onAuthSuccess: () => void;
-  onSkipAuth: () => void;
-}> = ({ onAuthSuccess, onSkipAuth }) => (
-  <>
-    <div className="text-center mb-6">
-      <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-        <span className="material-symbols-outlined text-blue-600 text-2xl">login</span>
-      </div>
-      <h3 className="font-semibold text-gray-900 mb-2">Connect to Jira</h3>
-      <p className="text-gray-600 text-sm">
-        Please authenticate with Jira to log work hours to your tasks.
-      </p>
-    </div>
-    <JiraCredentialsForm onAuthSuccess={onAuthSuccess} />
-    <div className="text-center mt-4">
-      <Button
-        variant="secondary"
-        onClick={onSkipAuth}
-        className="text-sm"
-      >
-        Skip for now
-      </Button>
-    </div>
-  </>
-);
 
 const UploadContent: React.FC<{
   error: string | null;
@@ -61,81 +31,169 @@ const UploadContent: React.FC<{
   onFileSelect: (file: File) => void;
   onLoadFromBackend: () => void;
   onError: (error: string) => void;
-}> = ({ error, loadingFromBackend, onFileSelect, onLoadFromBackend, onError }) => {
+  onSkipUpload?: () => void;
+}> = ({ error, loadingFromBackend, onFileSelect, onLoadFromBackend, onError, onSkipUpload }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const downloadCSVTemplate = () => {
+    const csvContent = `date,taskId,repository,hours
+2024-01-15,PROJ-123,my-awesome-project,2.5
+2024-01-15,PROJ-124,another-project,1.0
+2024-01-16,PROJ-123,my-awesome-project,3.0`;
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'time-tracking-template.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  };
+
   return (
-    <div className="text-center">
-      <div className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 p-3">
-        <span className="text-blue-600 text-xs font-semibold text-center">Upload Activity Log</span>
+    <div className="max-w-2xl mx-auto">
+      <div className="text-center mb-8">
+        <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+          </svg>
+        </div>
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">Upload Activity Log</h3>
+        <p className="text-gray-600 text-sm">
+          Choose how you'd like to get your time data into the system
+        </p>
       </div>
-      <p className="text-gray-600 text-sm mb-6">
-        Upload your activity log to get started
-      </p>
       
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-6">
           <p className="text-red-600 text-sm">{error}</p>
         </div>
       )}
       
-      <DragDropUpload
-        onFileSelect={onFileSelect}
-        onError={onError}
-        className="relative border-2 border-dashed rounded-lg p-8 transition-all"
-      >
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".csv"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) onFileSelect(file);
-          }}
-          className="sr-only"
-          aria-label="Upload CSV file"
-        />
+      <div className="space-y-4">
+        {/* Primary: Upload CSV File */}
+        <DragDropUpload
+          onFileSelect={onFileSelect}
+          onError={onError}
+          className="relative"
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) onFileSelect(file);
+            }}
+            className="sr-only"
+            aria-label="Upload CSV file"
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="w-full p-6 border-2 border-dashed border-blue-300 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-all text-left group cursor-pointer"
+          >
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0 w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <h4 className="font-semibold text-gray-900 mb-1">📁 Upload CSV File</h4>
+                <p className="text-sm text-gray-600 mb-2">
+                  Drag & drop or click to select your time tracking CSV file. Supports files from the background tracker or any CSV with date, taskId, repository, and hours columns.
+                </p>
+                <div className="text-xs text-gray-500 bg-gray-50 rounded px-2 py-1">
+                  <strong>💡 Tip:</strong> Background tracker files are typically saved in: 
+                  <code 
+                    className="ml-1 font-mono bg-white px-1 rounded border select-all cursor-text"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const range = document.createRange();
+                      range.selectNodeContents(e.currentTarget);
+                      const selection = window.getSelection();
+                      selection?.removeAllRanges();
+                      selection?.addRange(range);
+                    }}
+                    title="Click to select path for copying"
+                  >
+                    C:\Users\[username]\AppData\Roaming\TrackCurrentTask\
+                  </code>
+                </div>
+              </div>
+            </div>
+          </button>
+        </DragDropUpload>
         
-        <div className="space-y-4">
-          <div className="w-12 h-12 mx-auto">
-            <svg className="w-full h-full text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} 
-                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-            </svg>
+        {/* Secondary: Download CSV Template */}
+        <button
+          onClick={downloadCSVTemplate}
+          className="w-full p-4 border border-gray-200 rounded-lg hover:border-gray-300 hover:bg-gray-50 transition-all text-left cursor-pointer"
+        >
+          <div className="flex items-start gap-4">
+            <div className="flex-shrink-0 w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <div className="flex-1 min-w-0">
+              <h4 className="font-semibold text-gray-900 mb-1">📋 Download CSV Template</h4>
+              <p className="text-sm text-gray-600">
+                Get a sample file with example data to fill in with your time entries
+              </p>
+            </div>
           </div>
-          
-          <div className="flex gap-2 justify-center">
-            <Button
-              variant="primary"
-              onClick={() => fileInputRef.current?.click()}
-              className="text-sm"
-            >
-              Select CSV File
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={onLoadFromBackend}
-              disabled={loadingFromBackend}
-              className="text-sm"
-            >
-              {loadingFromBackend ? 'Loading...' : 'Load from Filesystem'}
-            </Button>
+        </button>
+        
+        {/* Secondary: Try with Sample Data */}
+        {onSkipUpload && (
+          <button
+            onClick={onSkipUpload}
+            className="w-full p-4 border border-gray-200 rounded-lg hover:border-gray-300 hover:bg-gray-50 transition-all text-left cursor-pointer"
+          >
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0 w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <h4 className="font-semibold text-gray-900 mb-1">🎯 Try with Sample Data</h4>
+                <p className="text-sm text-gray-600">
+                  Explore the app with demo data to see how it works before uploading your own files
+                </p>
+              </div>
+            </div>
+          </button>
+        )}
+        
+        {/* Last: Load from Filesystem */}
+        <button
+          onClick={onLoadFromBackend}
+          disabled={import.meta.env.PROD || loadingFromBackend}
+          className="w-full p-4 border border-gray-200 rounded-lg hover:border-gray-300 hover:bg-gray-50 transition-all text-left cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:border-gray-200"
+        >
+          <div className="flex items-start gap-4">
+            <div className="flex-shrink-0 w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <div className="flex-1 min-w-0">
+              <h4 className="font-semibold text-gray-900 mb-1">
+                💾 {loadingFromBackend ? 'Loading from Filesystem...' : 'Load from Filesystem'}
+              </h4>
+              <p className="text-sm text-gray-600">
+                {import.meta.env.PROD 
+                  ? 'Load CSV files directly from your computer (only works when running locally)'
+                  : 'Load CSV files directly from your local development environment'
+                }
+              </p>
+            </div>
           </div>
-          <p className="text-xs text-gray-500 mt-2">
-            drag and drop, select file, or load from filesystem
-          </p>
-          
-          <p className="text-xs text-gray-400">
-            CSV files only (max 10MB)
-          </p>
-        </div>
-      </DragDropUpload>
-      
-      <div className="mt-6 text-left bg-gray-50 rounded-lg p-4">
-        <p className="text-xs font-medium text-gray-700 mb-2">Expected CSV format:</p>
-        <code className="text-xs text-gray-600 font-mono">
-          date, taskId, repository, hours
-        </code>
+        </button>
       </div>
     </div>
   );
@@ -147,10 +205,12 @@ export const AppScreens: React.FC = () => {
   const { isLoading: loadingFromBackend, loadFromBackend, processFile } = useDataLoader();
   const { sendWorklog } = useJiraWorklog();
   const { from, to, filtered, weeks, handleDateRangeChange } = useDateRange(entries);
-  const { isAuthenticated, isCheckingAuth, handleAuthSuccess, skipAuth } = useAuthentication();
+  const { isAuthenticated, isCheckingAuth, handleAuthSuccess } = useAuthentication();
+  const { showIntroduction, handleIntroductionComplete, handleDontShowAgain } = useIntroduction();
   
   const [error, setError] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showJiraAuth, setShowJiraAuth] = useState(false);
 
   // Handlers
   const handleLoadFromBackend = async () => {
@@ -179,6 +239,17 @@ export const AppScreens: React.FC = () => {
   };
 
   const handleSendToJira = async (entry: LogEntry) => {
+    // Check if user is authenticated with Jira before sending
+    if (isCheckingAuth) {
+      showError('Checking Jira authentication status...');
+      return;
+    }
+
+    if (!isAuthenticated) {
+      setShowJiraAuth(true);
+      return;
+    }
+
     const result = await sendWorklog(entry);
 
     if (result.success) {
@@ -195,38 +266,40 @@ export const AppScreens: React.FC = () => {
     setShowSettings(false);
   };
   
-  // Show loading while checking auth
-  if (isCheckingAuth) {
-    return (
-      <ScreenLayout>
-        <LoadingContent />
-      </ScreenLayout>
-    );
+  // Show introduction screen if applicable
+  if (showIntroduction) {
+    return <IntroductionScreen 
+      onContinue={handleIntroductionComplete} 
+      onDontShowAgain={handleDontShowAgain}
+    />;
   }
 
-  // Show Jira login first if not authenticated
-  if (!isAuthenticated) {
-    return (
-      <ScreenLayout>
-        <AuthenticationContent 
-          onAuthSuccess={handleAuthSuccess}
-          onSkipAuth={skipAuth}
-        />
-      </ScreenLayout>
-    );
-  }
-
-  // Show upload screen if authenticated but no data loaded or error occurred
+  // Show upload screen first if no data loaded or error occurred
   if (error || entries.length === 0) {
     return (
       <ScreenLayout>
-        <UploadContent
-          error={error}
-          loadingFromBackend={loadingFromBackend}
-          onFileSelect={handleFileSelect}
-          onLoadFromBackend={handleLoadFromBackend}
-          onError={setError}
-        />
+        <div className="max-w-4xl mx-auto">
+          <UploadContent
+            error={error}
+            loadingFromBackend={loadingFromBackend}
+            onFileSelect={handleFileSelect}
+            onLoadFromBackend={handleLoadFromBackend}
+            onError={setError}
+            onSkipUpload={() => {
+              // Add a sample entry to dismiss the upload screen
+              const sampleEntry: LogEntry = {
+                id: 'sample-1',
+                date: new Date().toISOString().split('T')[0],
+                taskId: 'DEMO-123',
+                repository: 'sample-project',
+                hours: 2,
+                sentToJira: false
+              };
+              setEntries([sampleEntry]);
+              showSuccess('Sample data loaded for demonstration');
+            }}
+          />
+        </div>
       </ScreenLayout>
     );
   }
@@ -270,6 +343,12 @@ export const AppScreens: React.FC = () => {
         isOpen={showSettings}
         onClose={() => setShowSettings(false)}
         onDeleteAllRows={handleDeleteAllRows}
+      />
+      
+      <JiraAuthModal
+        isOpen={showJiraAuth}
+        onClose={() => setShowJiraAuth(false)}
+        onAuthSuccess={handleAuthSuccess}
       />
     </div>
   );

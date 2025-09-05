@@ -138,11 +138,11 @@ export function LogTable({
     return day === 0 || day === 6;
   };
 
-  const { getBooleanSetting } = useSettings();
+  const settings = useSettings();
   
   // Generate all dates in the week range, even if empty
   const allDatesInRange = useMemo(() => {
-    const hideWeekends = getBooleanSetting('hideWeekends');
+    const hideWeekends = settings?.getBooleanSetting('hideWeekends') || false;
     
     if (!weekStart || !weekEnd) {
       // If no week range specified, just use dates that have entries
@@ -173,7 +173,7 @@ export function LogTable({
       const dateB = new Date(b);
       return dateB.getTime() - dateA.getTime();
     });
-  }, [dayGroups, weekStart, weekEnd, getBooleanSetting]);
+  }, [dayGroups, weekStart, weekEnd, settings]);
 
   // Sort dates for consistent display
   const sortedDates = allDatesInRange;

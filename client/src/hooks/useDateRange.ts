@@ -5,8 +5,8 @@ import { getDateRangeForPreset, DEFAULT_PRESET } from '../utils/dateRangeUtils';
 import type { LogEntry } from '@/types';
 
 export const useDateRange = (entries: LogEntry[]) => {
-  const { getSetting } = useSettings();
-  const weekStartDay = parseInt(getSetting('weekStartDay') || '1'); // Default to Monday (1)
+  const settings = useSettings();
+  const weekStartDay = settings ? parseInt(settings.getSetting('weekStartDay') || '1') : 1;
 
   // Initialize with empty state, will be set by useEffect
   const [from, setFrom] = useState<string>('');

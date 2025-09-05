@@ -33,13 +33,13 @@ function getWeekDates(start: string, end: string) {
 
 export function useExtraRows(weekStart?: string, weekEnd?: string) {
   const { addEntries } = useLogEntries();
-  const { getSetting } = useSettings();
+  const settings = useSettings();
   const [eventStates, setEventStates] = useState<Record<string, boolean>>({});
 
   const handleAddDailyScrum = () => {
     if (!weekStart || !weekEnd) return;
-    const taskId = getSetting('scrumTaskId');
-    const minutes = parseFloat(getSetting('scrumDailyDurationMinutes'));
+    const taskId = settings?.getSetting('scrumTaskId') || '';
+    const minutes = parseFloat(settings?.getSetting('scrumDailyDurationMinutes') || '15');
     const hours = minutes / 60;
     const weekDates = getWeekDates(weekStart, weekEnd);
     const newRows: LogEntry[] = weekDates.map(date => 
@@ -54,7 +54,7 @@ export function useExtraRows(weekStart?: string, weekEnd?: string) {
 
   const handleAddEvent = (ev: RecurringEvent) => {
     if (!weekStart || !weekEnd) return;
-    const taskId = getSetting('scrumTaskId');
+    const taskId = settings?.getSetting('scrumTaskId') || '';
     const minutes = parseFloat(ev.durationMinutes);
     const hours = minutes / 60;
     const dates = getDatesForDayInWeek(weekStart, weekEnd, ev.day);

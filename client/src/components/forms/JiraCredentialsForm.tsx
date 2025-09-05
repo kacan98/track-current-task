@@ -33,12 +33,13 @@ export function JiraCredentialsForm({ onAuthSuccess }: JiraCredentialsFormProps 
   };
 
 
-  const handleLogin = async () => {
+  const handleLogin = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     const login = loginRef.current?.value;
     const password = passwordRef.current?.value;
     
     if (!login || !password) {
-      setError('Please enter both login and password');
+      setError('Please enter both email and password');
       return;
     }
     
@@ -150,7 +151,7 @@ export function JiraCredentialsForm({ onAuthSuccess }: JiraCredentialsFormProps 
         Jira Integration
       </h3>
 
-      <div className="space-y-4">
+      <form onSubmit={handleLogin} className="space-y-4">
         <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
           <p className="text-sm text-gray-600 mb-2">
             Connect to Jira to automatically log your work time and manage tasks.
@@ -165,21 +166,21 @@ export function JiraCredentialsForm({ onAuthSuccess }: JiraCredentialsFormProps 
         <div className="space-y-3">
           <div>
             <label htmlFor="jira-login" className="block text-sm font-medium text-gray-700 mb-2">
-              Jira Username/Email
+              Email
             </label>
             <input
               id="jira-login"
               ref={loginRef}
-              type="text"
+              type="email"
               autoComplete="username"
-              placeholder="Enter your Jira username or email"
+              placeholder="Enter your Jira email"
               className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
 
           <div>
             <label htmlFor="jira-password" className="block text-sm font-medium text-gray-700 mb-2">
-              Jira Password/API Token
+              Password
             </label>
             <div className="flex gap-2">
               <input
@@ -187,7 +188,7 @@ export function JiraCredentialsForm({ onAuthSuccess }: JiraCredentialsFormProps 
                 ref={passwordRef}
                 type={showPassword ? 'text' : 'password'}
                 autoComplete="current-password"
-                placeholder="Enter your Jira password or API token"
+                placeholder="Enter your Jira password"
                 className="flex-1 px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
               <Button
@@ -202,7 +203,7 @@ export function JiraCredentialsForm({ onAuthSuccess }: JiraCredentialsFormProps 
           </div>
 
           <Button
-            onClick={handleLogin}
+            type="submit"
             disabled={isConnecting}
             variant="primary"
             className="w-full flex items-center justify-center gap-2"
@@ -232,7 +233,7 @@ export function JiraCredentialsForm({ onAuthSuccess }: JiraCredentialsFormProps 
             <p className="text-green-800 text-sm">{success}</p>
           </div>
         )}
-      </div>
+      </form>
     </div>
   );
 }

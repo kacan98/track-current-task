@@ -1,0 +1,132 @@
+import React from 'react';
+import { Button } from './ui/Button';
+
+interface IntroductionScreenProps {
+  onContinue: () => void;
+  onDontShowAgain: () => void;
+}
+
+export const IntroductionScreen: React.FC<IntroductionScreenProps> = ({ onContinue, onDontShowAgain }) => {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center p-4">
+      <div className="max-w-3xl w-full">
+        <div className="bg-white rounded-xl shadow-xl p-8 md:p-12">
+          {/* Header */}
+          <div className="text-center mb-10">
+            <h1 className="text-4xl font-bold text-gray-900 mb-3">
+              Track Current Task
+            </h1>
+            <p className="text-lg text-gray-600">
+              Sync your tracked development time to Jira
+            </p>
+          </div>
+
+          {/* How it works section */}
+          <div className="mb-10">
+            <h2 className="text-xl font-semibold text-gray-800 mb-6 text-center">
+              How It Works
+            </h2>
+            
+            <div className="space-y-6">
+              {/* Step 0 - Background Tracker */}
+              <div className="flex gap-4">
+                <div className="flex-shrink-0 w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                  <span className="text-gray-600 font-semibold">0</span>
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-gray-800 mb-2">
+                    Track Your Time (Optional)
+                  </h3>
+                  <p className="text-sm text-gray-600 mb-2">
+                    The background tracker automatically monitors your Git repositories and logs time when you're actively working. It detects file changes, commits, and branch switches to track your development hours accurately.
+                  </p>
+                  <div className="text-xs text-gray-500 mb-3 p-2 bg-gray-50 rounded">
+                    <strong>How to use:</strong> Download and run the executable. It will guide you through setup to configure which repositories to monitor. On Windows, add it to your startup folder (Win+R → "shell:startup") to run automatically when you log in.
+                  </div>
+                  <a 
+                    href="https://github.com/kacan98/track-current-task/releases/latest"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 transition-colors text-sm"
+                  >
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 0C4.477 0 0 4.484 0 10.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0110 4.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.203 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.942.359.31.678.921.678 1.856 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0020 10.017C20 4.484 15.522 0 10 0z" clipRule="evenodd" />
+                    </svg>
+                    Download Background Tracker
+                  </a>
+                </div>
+              </div>
+
+              {/* Step 2 - Connect to Jira */}
+              <div className="flex gap-4">
+                <div className="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                  <span className="text-blue-600 font-semibold">1</span>
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-gray-800 mb-1">
+                    Connect to Jira
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    Log in with your Jira credentials to enable automatic worklog syncing
+                  </p>
+                </div>
+              </div>
+
+              {/* Step 3 - Upload Data */}
+              <div className="flex gap-4">
+                <div className="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                  <span className="text-blue-600 font-semibold">2</span>
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-gray-800 mb-1">
+                    Upload Your Time Data
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    Upload CSV files generated by the background tracker or create your own CSV file with time entries
+                  </p>
+                </div>
+              </div>
+
+              {/* Step 4 - Review & Sync */}
+              <div className="flex gap-4">
+                <div className="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                  <span className="text-blue-600 font-semibold">3</span>
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-gray-800 mb-1">
+                    Review & Sync to Jira
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    Review and edit your time entries. Connect to GitHub to see commits from specific days to help remember what you worked on, then sync to Jira as worklogs
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+
+          {/* Action Buttons */}
+          <div className="space-y-3">
+            <Button
+              onClick={onContinue}
+              variant="primary"
+              className="w-full px-8 py-3 text-base font-semibold"
+            >
+              Get Started
+            </Button>
+            <Button
+              onClick={onDontShowAgain}
+              variant="secondary"
+              className="w-full text-sm"
+            >
+              Don't show this again
+            </Button>
+            <p className="text-xs text-gray-500 text-center mt-3">
+              You'll need your Jira credentials and a CSV file with time data
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};

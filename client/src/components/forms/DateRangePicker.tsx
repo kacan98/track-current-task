@@ -10,8 +10,8 @@ interface DateRangePickerProps {
 }
 
 export function DateRangePicker({ from, to, onChange }: DateRangePickerProps) {
-  const { getSetting } = useSettings();
-  const weekStartDay = parseInt(getSetting('weekStartDay') || '1'); // Default to Monday (1)
+  const settings = useSettings();
+  const weekStartDay = parseInt(settings?.getSetting('weekStartDay') || '1');
   
   
   // Effect to recalculate when weekStartDay changes

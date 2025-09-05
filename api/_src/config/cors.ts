@@ -1,13 +1,8 @@
 // Get allowed origins (platform-agnostic)
 export const getAllowedOrigins = () => {
-    // Development mode - allow localhost
+    // Development mode - allow all origins for easier development
     if (process.env.NODE_ENV === 'development' || process.env.DEV === 'true') {
-        return [
-            'http://localhost:5173',
-            'http://localhost:3000',
-            'http://127.0.0.1:5173',
-            'http://127.0.0.1:3000'
-        ];
+        return true; // Allow all origins in development
     }
     
     // Production mode - use explicit environment variable
