@@ -13,7 +13,7 @@
   },
   "references": [
     { "path": "./packages/background-tracker" },
-    { "path": "./packages/backend" }
+    { "path": "./api" }
   ],
   "files": [],
   "exclude": ["node_modules", "dist"]

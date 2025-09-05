@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { ApiError, asyncHandler } from '../middleware/errorHandler';
 import { exchangeCodeForToken, getGitHubUser, getUserCommitsForDate } from '../services/githubService';
 import { isProduction } from '../config/cors';
-import { createLogger } from '@shared/logger';
+import { createLogger } from '../../../shared/logger';
 import type { GitHubAuthRequest } from '../types/github';
 
 const router = Router();

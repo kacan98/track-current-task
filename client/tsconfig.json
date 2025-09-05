@@ -1,11 +1,12 @@
 {
-  "extends": "../../tsconfig.json",
   "compilerOptions": {
     "target": "ES2022",
     "useDefineForClassFields": true,
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
-    "skipLibCheck": false,
+    "skipLibCheck": true,
+    "strict": true,
+    "strictNullChecks": true,
 
     /* Bundler mode */
     "moduleResolution": "bundler",
@@ -27,11 +28,11 @@
     "useUnknownInCatchVariables": true,
     "exactOptionalPropertyTypes": true,
 
-    "baseUrl": "../../",
+    "baseUrl": "../",
     "paths": {
-      "@/*": ["packages/frontend/src/*"],
+      "@/*": ["client/src/*"],
       "@shared/*": ["shared/*"]
     }
   },
-  "include": ["src", "../../shared", "vite.config.ts"]
+  "include": ["src", "../shared", "vite.config.ts"]
 }

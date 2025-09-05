@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { ApiError, asyncHandler } from '../middleware/errorHandler';
 import { getJiraToken } from '../services/jiraService';
 import { isProduction } from '../config/cors';
-import { createLogger } from '@shared/logger';
+import { createLogger } from '../../../shared/logger';
 import { jiraApiClient } from '../services/jiraApiClient';
 import type { 
   JiraAuthRequest, 

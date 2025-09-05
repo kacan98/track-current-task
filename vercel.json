@@ -1,25 +1,11 @@
 {
-  "buildCommand": "npm run build",
-  "outputDirectory": "packages/frontend/dist",
-  "installCommand": "npm ci",
-  "builds": [
+  "version": 2,
+  "buildCommand": "cd client && npm ci && npm run build",
+  "outputDirectory": "client/dist",
+  "rewrites": [
     {
-      "src": "packages/backend/src/index.ts",
-      "use": "@vercel/node"
-    },
-    {
-      "src": "packages/frontend/dist/**",
-      "use": "@vercel/static"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/packages/backend/src/index.ts"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/packages/frontend/dist/$1"
+      "source": "/api/(.*)",
+      "destination": "/api/index.ts"
     }
   ]
 }

@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { ApiError, asyncHandler } from '../middleware/errorHandler';
-import { createLogger } from '@shared/logger';
+import { createLogger } from '../../../shared/logger';
 
 const router = Router();
 const fileLogger = createLogger('FILES');
@@ -19,7 +19,7 @@ router.get('/activity-log', asyncHandler(async (req: Request, res: Response) => 
     // Local development - dynamically import file system modules
     const { readFile } = await import('fs/promises');
     const { existsSync } = await import('fs');
-    const { resolvePathFromAppData } = await import('@shared/path-utils');
+    const { resolvePathFromAppData } = await import('../../../shared/path-utils');
     
     const csvPath = resolvePathFromAppData('activity_log.csv');
     fileLogger.debug(`Looking for activity log at: ${csvPath}`);

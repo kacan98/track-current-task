@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { AxiosError } from 'axios';
-import { createLogger } from '@shared/logger';
+import { createLogger } from '../../../shared/logger';
 
 const errorLogger = createLogger('ERROR');
 

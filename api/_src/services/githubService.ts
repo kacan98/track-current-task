@@ -1,5 +1,5 @@
 import axios, { AxiosError } from 'axios';
-import { createLogger } from '@shared/logger';
+import { createLogger } from '../../../shared/logger';
 import type { GitHubTokenResponse, GitHubUser } from '../types/github';
 
 const githubLogger = createLogger('GITHUB');

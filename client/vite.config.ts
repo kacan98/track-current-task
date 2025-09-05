@@ -11,18 +11,18 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
-      '@shared': path.resolve(__dirname, '../../shared'),
+      '@shared': path.resolve(__dirname, '../shared'),
     },
   },
   build: {
-    outDir: path.resolve(__dirname, '../../dist/frontend'),
+    outDir: 'dist',
   },
   server: {
     port: 3000,
     proxy: {
-      '/api': 'http://localhost:9999',
+      '/api': 'http://localhost:3000',
     },
   },
   // Tell Vite to look for .env files in the project root
-  envDir: path.resolve(__dirname, '../../'),
+  envDir: path.resolve(__dirname, '../'),
 });

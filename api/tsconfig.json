@@ -1,0 +1,21 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "outDir": "../dist/api",
+    "rootDir": ".",
+    "baseUrl": ".",
+    "paths": {
+      "@shared/*": ["../shared/*"]
+    },
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true
+  },
+  "include": ["_src/**/*", "../shared/**/*", "index.ts"],
+  "ts-node": {
+    "esm": false,
+    "experimentalSpecifierResolution": "node",
+    "require": ["tsconfig-paths/register"]
+  }
+}
