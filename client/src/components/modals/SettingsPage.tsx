@@ -202,6 +202,30 @@ function SettingsPage({ onClose, onDeleteAllRows }: { onClose: () => void, onDel
                         This will delete all loaded time entries from the current session. Your settings, connections, and original CSV file remain unchanged. You can re-upload data anytime.
                     </p>
                 </div>
+                
+                {/* Attribution */}
+                <div className="mt-6 pt-4 border-t border-gray-200">
+                    <p className="text-xs text-gray-400 text-center">
+                        Stopwatch icon by{' '}
+                        <a 
+                            href="https://iconscout.com/contributors/serpenttina" 
+                            className="underline hover:text-gray-600" 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                        >
+                            Nagarjan S
+                        </a>
+                        {' '}from{' '}
+                        <a 
+                            href="https://iconscout.com/icons/stopwatch" 
+                            className="underline hover:text-gray-600" 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                        >
+                            Iconscout
+                        </a>
+                    </p>
+                </div>
             </div>
         </Modal>
     );
