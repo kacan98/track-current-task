@@ -54,7 +54,7 @@ export function useExtraRows(weekStart?: string, weekEnd?: string) {
 
   const handleAddEvent = (ev: RecurringEvent) => {
     if (!weekStart || !weekEnd) return;
-    const taskId = settings?.getSetting('scrumTaskId') || '';
+    const taskId = ev.taskId || '';
     const minutes = parseFloat(ev.durationMinutes);
     const hours = minutes / 60;
     const dates = getDatesForDayInWeek(weekStart, weekEnd, ev.day);

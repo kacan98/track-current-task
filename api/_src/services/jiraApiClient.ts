@@ -8,7 +8,6 @@ import type {
 } from '../types/jira';
 
 // Base Jira configuration
-const JIRA_BASE_URL = 'https://jira.eg.dk';
 const API_VERSION = '2';
 
 // Helper to create axios config with authentication
@@ -24,7 +23,7 @@ function createAxiosConfig(token: string) {
 
 export const jiraApiClient = {
   // Log work to a Jira issue
-  async logWork(token: string, request: JiraLogWorkRequest): Promise<AxiosResponse> {
+  async logWork(token: string, jiraUrl: string, request: JiraLogWorkRequest): Promise<AxiosResponse> {
     const { 
       issueKey, 
       timeSpentSeconds, 
@@ -56,7 +55,7 @@ export const jiraApiClient = {
     };
     if (visibility) payload.visibility = visibility;
 
-    const url = `${JIRA_BASE_URL}/rest/api/${API_VERSION}/issue/${issueKey}/worklog`;
+    const url = `${jiraUrl}/rest/api/${API_VERSION}/issue/${issueKey}/worklog`;
     const config = {
       ...createAxiosConfig(token),
       params: queryParams,
@@ -66,10 +65,10 @@ export const jiraApiClient = {
   },
 
   // Get details for multiple issues
-  async getIssuesDetails(token: string, request: JiraIssuesRequest): Promise<AxiosResponse> {
+  async getIssuesDetails(token: string, jiraUrl: string, request: JiraIssuesRequest): Promise<AxiosResponse> {
     const { issueKeys, jql, fields } = request;
     
-    const url = `${JIRA_BASE_URL}/rest/api/${API_VERSION}/search`;
+    const url = `${jiraUrl}/rest/api/${API_VERSION}/search`;
     const jqlQuery = jql || `issuekey in (${issueKeys.map(key => `'${key}'`).join(',')})`;
     
     const payload = {
@@ -81,10 +80,10 @@ export const jiraApiClient = {
   },
 
   // Get details for multiple worklogs
-  async getWorklogsDetails(token: string, request: JiraWorklogsRequest): Promise<AxiosResponse> {
+  async getWorklogsDetails(token: string, jiraUrl: string, request: JiraWorklogsRequest): Promise<AxiosResponse> {
     const { worklogIds } = request;
     
-    const url = `${JIRA_BASE_URL}/rest/api/${API_VERSION}/worklog/list`;
+    const url = `${jiraUrl}/rest/api/${API_VERSION}/worklog/list`;
     const payload = { ids: worklogIds };
 
     return axios.post(url, payload, createAxiosConfig(token));

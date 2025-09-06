@@ -12,12 +12,14 @@ export function WeekHeader({
   onAddDailyScrum, 
   onAddEvent, 
   eventStates,
+  hasScrumTaskId,
 }: {
   weekStart: string;
   weekEnd: string;
   onAddDailyScrum: () => void;
   onAddEvent: (event: RecurringEvent) => void;
   eventStates: Record<string, boolean>;
+  hasScrumTaskId: boolean;
 }) {
   const recurringEvents = getRecurringEvents();
   
@@ -44,7 +46,8 @@ export function WeekHeader({
             <Button
               className="flex items-center gap-2"
               onClick={onAddDailyScrum}
-              disabled={eventStates['dailyScrum']}
+              disabled={eventStates['dailyScrum'] || !hasScrumTaskId}
+              title={!hasScrumTaskId ? 'Configure Scrum Jira Task ID in settings first' : ''}
             >
               Add daily scrum events
             </Button>
@@ -54,7 +57,8 @@ export function WeekHeader({
                 variant="secondary"
                 className="flex items-center gap-2"
                 onClick={() => onAddEvent(ev)}
-                disabled={eventStates[ev.id]}
+                disabled={eventStates[ev.id] || !ev.taskId?.trim()}
+                title={!ev.taskId?.trim() ? `Configure Task ID for "${ev.name}" in settings first` : ''}
               >
                 Add {ev.name}
               </Button>

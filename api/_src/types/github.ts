@@ -21,6 +21,7 @@ export interface GitHubUser {
 
 export interface GitHubCommit {
   sha: string;
+  shortSha: string;
   commit: {
     author: {
       name: string;
@@ -33,6 +34,19 @@ export interface GitHubCommit {
     name: string;
     full_name: string;
   };
+  url: string;
+  author: {
+    name: string;
+    email: string;
+    date: string;
+  };
+  branch: string;
+  pullRequest: {
+    number: number;
+    title: string;
+    branchDeleted: boolean;
+    url: string;
+  } | null;
 }
 
 export interface GitHubRepository {

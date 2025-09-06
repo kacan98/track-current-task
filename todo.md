@@ -1,21 +1,5 @@
-
-## Code Organization
-- [ ] Refactor App.tsx - split into smaller components to reduce bloat and repetitiveness
-  - Extract file upload logic into separate component
-  - Extract drag/drop handlers 
-  - Move CSV processing logic to utility functions
-  - Consider separating the main app layout from upload/login screens
-
-- [ ] Reorganize project structure into apps/
-  - Move background tracker to apps/tracker/
-  - Move frontend to apps/web/
-  - Move backend to apps/api/
-  - Create shared utilities in shared/
-  - Update build scripts and package.json files
-  - there are so many folders now in src/... they are not needed!
-
 ## Build Improvements  
-- [ ] Include version in executable filenames
+- [ ] Include version in executable filenames when creating releases in GitHub
   - Change from `git-activity-logger-win.exe` to `git-activity-logger-v1.1.22-win.exe`
   - Update pkg build command to include version from package.json
 
@@ -28,3 +12,8 @@
    - ask them for some example of task ids (e.g. DFO-1234, DMO-78945, ..., default to three examples) so that we can constract a regex to extract the task id from branches. Then we should fetch like 20 most recent commits and show them which ids would be extracted
    - ask them to choose for a regex to filter repos so that we only include those that they want to track. Then show them repos and which of them will be included
    - store their preferences in the cookie
+
+# Make variable jiraBaseUrl configurable
+- [ ] Allow users to set their own Jira base URL when logging into Jira
+  - Add input field for Jira base URL in login form
+  - Store Jira base URL in cookie along with other credentials

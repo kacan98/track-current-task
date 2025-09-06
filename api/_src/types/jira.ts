@@ -49,6 +49,13 @@ export interface JiraWorklogsRequest {
 export interface JiraAuthRequest {
   login: string;
   password: string;
+  jiraUrl: string;
+  name?: string;
+}
+
+export interface JiraTokenAuthRequest {
+  token: string;
+  jiraUrl: string;
   name?: string;
 }
 

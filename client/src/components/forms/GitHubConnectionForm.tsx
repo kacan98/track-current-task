@@ -1,55 +1,78 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from '../ui/Button';
 import { useGitHubAuth } from '../../contexts/GitHubAuthContext';
 
 export function GitHubConnectionForm() {
-  const { isAuthenticated, user, logout, isLoading } = useGitHubAuth();
+  const { isAuthenticated, user, logout, isLoading, loginWithPAT } = useGitHubAuth();
   const [isConnecting, setIsConnecting] = useState(false);
+  const [authMethod, setAuthMethod] = useState<'pat' | 'oauth'>('pat');
+  const [error, setError] = useState<string | null>(null);
+  const patRef = useRef<HTMLInputElement>(null);
 
-  const handleConnect = async () => {
+  // Reset connecting state when authentication status changes
+  useEffect(() => {
+    setIsConnecting(false);
+  }, [isAuthenticated]);
+
+  const handleConnect = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     setIsConnecting(true);
-    // The GitHub auth URL will be handled by the existing flow in CommitsModal
-    // We'll redirect to the OAuth URL directly
-    const clientId = import.meta.env.VITE_GITHUB_CLIENT_ID;
-    if (!clientId) {
-      alert('GitHub client ID not configured');
-      setIsConnecting(false);
-      return;
+    setError(null);
+    
+    if (authMethod === 'pat') {
+      // Handle PAT authentication
+      const token = patRef.current?.value;
+      if (!token) {
+        setError('Please enter your Personal Access Token');
+        setIsConnecting(false);
+        return;
+      }
+      
+      try {
+        await loginWithPAT(token);
+        // Clear the token from the input after successful login
+        if (patRef.current) {
+          patRef.current.value = '';
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to authenticate with GitHub');
+        setIsConnecting(false);
+      }
+    } else {
+      // Handle OAuth authentication
+      const clientId = import.meta.env.VITE_GITHUB_CLIENT_ID;
+      if (!clientId) {
+        alert('GitHub client ID not configured');
+        setIsConnecting(false);
+        return;
+      }
+
+      const state = crypto.randomUUID();
+      sessionStorage.setItem('github_oauth_state', state);
+
+      const params = new URLSearchParams({
+        client_id: clientId,
+        redirect_uri: `${window.location.origin}/github/callback`,
+        scope: 'repo',
+        state: state
+      });
+
+      const authUrl = `https://github.com/login/oauth/authorize?${params.toString()}`;
+      window.location.href = authUrl; // Direct redirect instead of popup
     }
-
-    const state = crypto.randomUUID();
-    sessionStorage.setItem('github_oauth_state', state);
-
-    const params = new URLSearchParams({
-      client_id: clientId,
-      redirect_uri: `${window.location.origin}/github/callback`,
-      scope: 'repo',
-      state: state
-    });
-
-    const authUrl = `https://github.com/login/oauth/authorize?${params.toString()}`;
-    window.location.href = authUrl; // Direct redirect instead of popup
   };
 
   const handleDisconnect = async () => {
+    setIsConnecting(true);
     try {
       await logout();
     } catch (error) {
       console.error('Failed to disconnect from GitHub:', error);
+    } finally {
+      setIsConnecting(false);
     }
   };
 
-  const handleManagePermissions = () => {
-    const clientId = import.meta.env.VITE_GITHUB_CLIENT_ID;
-    if (!clientId) {
-      alert('GitHub client ID not configured');
-      return;
-    }
-
-    // Open GitHub's OAuth app management page in a new window
-    const manageUrl = `https://github.com/settings/connections/applications/${clientId}`;
-    window.open(manageUrl, 'github-manage-permissions', 'width=800,height=600,scrollbars=yes,resizable=yes');
-  };
 
   if (isLoading) {
     return (
@@ -105,38 +128,27 @@ export function GitHubConnectionForm() {
           </div>
 
           <div className="space-y-3">
-            <div className="text-sm text-gray-600">
-              <p className="font-medium mb-1">Permissions granted:</p>
-              <ul className="list-disc list-inside space-y-1 text-xs">
-                <li>Read access to your repositories</li>
-                <li>Access to commit history</li>
-                <li>Repository metadata</li>
-              </ul>
-              <p className="text-xs text-gray-500 mt-2">
-                You can revoke access or modify permissions on GitHub's settings page.
-              </p>
-            </div>
-
             <div className="flex gap-2">
               <Button
-                onClick={handleManagePermissions}
+                onClick={() => window.open('https://github.com/settings/tokens', '_blank')}
                 variant="secondary"
                 className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50"
               >
-                Manage Permissions
+                Manage Tokens
               </Button>
               <Button
                 onClick={handleDisconnect}
                 variant="secondary"
                 className="flex-1 border-red-200 text-red-700 hover:bg-red-50"
+                disabled={isConnecting}
               >
-                Disconnect
+                {isConnecting ? 'Disconnecting...' : 'Disconnect'}
               </Button>
             </div>
           </div>
         </div>
       ) : (
-        <div className="space-y-4">
+        <form onSubmit={handleConnect} className="space-y-4">
           <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
             <p className="text-sm text-gray-600 mb-2">
               Connect your GitHub account to automatically load your commits in the daily logs.
@@ -148,8 +160,96 @@ export function GitHubConnectionForm() {
             </ul>
           </div>
 
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-3">
+              Authentication Method
+            </label>
+            <div className="flex gap-4 mb-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="authMethod"
+                  value="pat"
+                  checked={authMethod === 'pat'}
+                  onChange={(e) => setAuthMethod(e.target.value as 'pat' | 'oauth')}
+                  className="text-blue-600"
+                />
+                <span className="text-sm text-gray-700">Personal Access Token (Recommended)</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="authMethod"
+                  value="oauth"
+                  checked={authMethod === 'oauth'}
+                  onChange={(e) => setAuthMethod(e.target.value as 'pat' | 'oauth')}
+                  className="text-blue-600"
+                />
+                <span className="text-sm text-gray-700">OAuth</span>
+              </label>
+            </div>
+          </div>
+
+          {authMethod === 'pat' ? (
+            <div>
+              <label htmlFor="github-pat" className="block text-sm font-medium text-gray-700 mb-2">
+                Personal Access Token
+              </label>
+              <input
+                id="github-pat"
+                ref={patRef}
+                type="password"
+                placeholder="ghp_... or github_pat_..."
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <div className="mt-2 text-xs text-gray-500 space-y-1">
+                <p>
+                  To create a Personal Access Token:
+                </p>
+                <ol className="list-decimal list-inside ml-2 space-y-1">
+                  <li>
+                    Go to{' '}
+                    <a
+                      href="https://github.com/settings/tokens"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 underline hover:text-blue-800"
+                    >
+                      GitHub Settings → Developer settings → Personal access tokens
+                    </a>
+                  </li>
+                  <li>Click "Generate new token" (classic or fine-grained)</li>
+                  <li>Give your token a descriptive name</li>
+                  <li>Select scopes: at minimum <code className="bg-gray-100 px-1">repo</code> for repository access</li>
+                  <li>Click "Generate token"</li>
+                  <li className="font-semibold text-amber-600">
+                    Copy the token immediately - it won't be shown again!
+                  </li>
+                </ol>
+                <p className="mt-2">
+                  <strong>Recommended scopes:</strong> <code className="bg-gray-100 px-1">repo</code>, <code className="bg-gray-100 px-1">user</code>
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="text-sm text-gray-600">
+              <p className="mb-2">
+                OAuth will redirect you to GitHub to authorize this application.
+              </p>
+              <p className="text-xs">
+                You'll be asked to grant repository access permissions.
+              </p>
+            </div>
+          )}
+
+          {error && (
+            <div className="p-2 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-red-800 text-sm">{error}</p>
+            </div>
+          )}
+
           <Button
-            onClick={handleConnect}
+            type="submit"
             disabled={isConnecting}
             variant="primary"
             className="w-full bg-gray-900 hover:bg-gray-800 flex items-center justify-center gap-2"
@@ -168,7 +268,7 @@ export function GitHubConnectionForm() {
               </>
             )}
           </Button>
-        </div>
+        </form>
       )}
     </div>
   );

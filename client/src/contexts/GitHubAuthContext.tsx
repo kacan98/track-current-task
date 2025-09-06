@@ -1,4 +1,6 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { api } from '../services/apiClient';
+import { handleApiResponse } from '../utils/errorUtils';
 
 interface GitHubUser {
   login: string;
@@ -21,6 +23,13 @@ interface GitHubCommit {
     email: string;
     date: string;
   };
+  branch: string;
+  pullRequest: {
+    number: number;
+    title: string;
+    branchDeleted: boolean;
+    url: string;
+  } | null;
 }
 
 interface GitHubAuthContextType {
@@ -28,6 +37,7 @@ interface GitHubAuthContextType {
   user: GitHubUser | null;
   isLoading: boolean;
   login: (code: string) => Promise<void>;
+  loginWithPAT: (token: string) => Promise<void>;
   logout: () => Promise<void>;
   checkAuthStatus: () => Promise<void>;
   getCommitsForDate: (date: string) => Promise<GitHubCommit[]>;
@@ -42,10 +52,8 @@ export function GitHubAuthProvider({ children }: { children: ReactNode }) {
 
   const checkAuthStatus = async () => {
     try {
-      const response = await fetch('/api/github/auth/status', {
-        credentials: 'include'
-      });
-      const data = await response.json();
+      const response = await api.github.getStatus();
+      const data = await handleApiResponse(response, 'Failed to check GitHub auth status');
       
       if (data.authenticated && data.user) {
         setIsAuthenticated(true);
@@ -66,20 +74,8 @@ export function GitHubAuthProvider({ children }: { children: ReactNode }) {
   const login = async (code: string) => {
     try {
       setIsLoading(true);
-      const response = await fetch('/api/github/auth', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include',
-        body: JSON.stringify({ code })
-      });
-
-      if (!response.ok) {
-        throw new Error('GitHub authentication failed');
-      }
-
-      const data = await response.json();
+      const response = await api.github.loginWithOAuth(code);
+      const data = await handleApiResponse(response, 'GitHub authentication failed');
       
       if (data.success && data.user) {
         setIsAuthenticated(true);
@@ -95,12 +91,29 @@ export function GitHubAuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const loginWithPAT = async (token: string) => {
+    try {
+      setIsLoading(true);
+      const response = await api.github.loginWithPAT(token);
+      const data = await handleApiResponse(response, 'GitHub PAT authentication failed');
+      
+      if (data.success && data.user) {
+        setIsAuthenticated(true);
+        setUser(data.user);
+      } else {
+        throw new Error('Authentication response invalid');
+      }
+    } catch (error) {
+      console.error('GitHub PAT login failed:', error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const logout = async () => {
     try {
-      await fetch('/api/github/auth/logout', {
-        method: 'POST',
-        credentials: 'include'
-      });
+      await api.github.logout();
       
       setIsAuthenticated(false);
       setUser(null);
@@ -114,23 +127,17 @@ export function GitHubAuthProvider({ children }: { children: ReactNode }) {
 
   const getCommitsForDate = async (date: string): Promise<GitHubCommit[]> => {
     try {
-      const response = await fetch(`/api/github/commits?date=${date}`, {
-        credentials: 'include'
-      });
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          // Token expired, update auth state
-          setIsAuthenticated(false);
-          setUser(null);
-          throw new Error('GitHub authentication expired. Please reconnect.');
-        }
-        throw new Error('Failed to fetch commits');
-      }
-
-      const data = await response.json();
+      const response = await api.github.getCommits(date);
+      const data = await handleApiResponse(response, 'Failed to fetch GitHub commits');
       return data.commits || [];
     } catch (error) {
+      // Check if it's an auth error
+      if (error instanceof Error && error.message.includes('401')) {
+        // Token expired, update auth state
+        setIsAuthenticated(false);
+        setUser(null);
+        throw new Error('GitHub authentication expired. Please reconnect.');
+      }
       console.error('Failed to fetch GitHub commits:', error);
       throw error;
     }
@@ -146,6 +153,7 @@ export function GitHubAuthProvider({ children }: { children: ReactNode }) {
     user,
     isLoading,
     login,
+    loginWithPAT,
     logout,
     checkAuthStatus,
     getCommitsForDate

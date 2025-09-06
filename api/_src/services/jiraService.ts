@@ -3,9 +3,9 @@ import { createLogger } from '../../../shared/logger';
 
 const authLogger = createLogger('AUTH');
 
-// Helper to get Jira token (reusable)
-export async function getJiraToken(login: string, password: string, name: string = 'Track Current Task') {
-    const url = 'https://jira.eg.dk/rest/pat/latest/tokens';
+// Helper to get Jira token (reusable) - updated to accept jiraUrl
+export async function getJiraToken(login: string, password: string, jiraUrl: string, name: string = 'LogBridge') {
+    const url = `${jiraUrl}/rest/pat/latest/tokens`;
     const payload = { name };
     
     try {
@@ -21,10 +21,7 @@ export async function getJiraToken(login: string, password: string, name: string
     } catch (error: unknown) {
         const axiosError = error as AxiosError;
         authLogger.error(`Jira authentication failed: ${axiosError?.response?.status || axiosError?.message}`);
-        // Log error details but NOT the password or token data
-        if (axiosError?.response?.data) {
-            authLogger.debug('Error details:', axiosError.response.data);
-        }
+        // Error response received
         throw error;
     }
 }

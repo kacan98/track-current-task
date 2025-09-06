@@ -309,7 +309,7 @@ export const AppScreens: React.FC = () => {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto p-6">
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Track Current Task</h1>
+          <h1 className="text-3xl font-bold text-gray-900">LogBridge</h1>
           <div className="flex items-center gap-3">
             <Button
               variant="secondary" 

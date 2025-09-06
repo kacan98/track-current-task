@@ -46,8 +46,11 @@ export const api = {
 
   // Jira specific methods
   jira: {
-    login: (login: string, password: string, name: string = 'Track current task') =>
-      api.post(API_ROUTES.JIRA.AUTH.LOGIN, { login, password, name }),
+    login: (login: string, password: string, jiraUrl: string, name: string = 'LogBridge') =>
+      api.post(API_ROUTES.JIRA.AUTH.LOGIN, { login, password, jiraUrl, name }),
+    
+    loginWithToken: (token: string, jiraUrl: string, name: string = 'LogBridge') =>
+      api.post(API_ROUTES.JIRA.AUTH.LOGIN_TOKEN, { token, jiraUrl, name }),
     
     logout: () => 
       api.post(API_ROUTES.JIRA.AUTH.LOGOUT),
@@ -63,6 +66,24 @@ export const api = {
     
     getWorklogsDetails: (worklogIds: number[]) =>
       api.post(API_ROUTES.JIRA.WORKLOGS_DETAILS, { worklogIds }),
+  },
+
+  // GitHub specific methods
+  github: {
+    loginWithPAT: (token: string) =>
+      api.post(API_ROUTES.GITHUB.AUTH.PAT, { token }),
+    
+    loginWithOAuth: (code: string) =>
+      api.post(API_ROUTES.GITHUB.AUTH.OAUTH, { code }),
+    
+    logout: () => 
+      api.post(API_ROUTES.GITHUB.AUTH.LOGOUT),
+    
+    getStatus: () =>
+      api.get(API_ROUTES.GITHUB.AUTH.STATUS),
+    
+    getCommits: (date: string) =>
+      api.get(`${API_ROUTES.GITHUB.COMMITS}?date=${date}`),
   },
 
   // Files specific methods

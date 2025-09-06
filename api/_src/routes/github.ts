@@ -17,7 +17,46 @@ function getGitHubTokenFromCookies(req: Request): string {
   return token;
 }
 
-// Authentication endpoints
+// PAT Authentication endpoint
+router.post('/auth/pat', asyncHandler(async (req: Request, res: Response) => {
+  const { token } = req.body;
+  
+  if (!token) {
+    throw new ApiError(400, 'Missing Personal Access Token', 'GITHUB_AUTH_MISSING_PAT');
+  }
+  
+  githubLogger.info('PAT authentication attempt');
+  
+  try {
+    // Validate the PAT by making a test API call
+    const user = await getGitHubUser(token);
+    
+    // Store token in encrypted cookie with environment-aware settings
+    res.cookie('githubToken', token, {
+      signed: true,        // Encrypt the cookie
+      httpOnly: true,      // Prevent XSS
+      secure: isProduction, // HTTPS only in production
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      sameSite: isProduction ? 'strict' : 'lax' // Stricter CSRF in prod
+    });
+    
+    githubLogger.success('PAT authentication successful');
+    res.json({ 
+      success: true, 
+      message: 'Successfully authenticated with GitHub using PAT',
+      user: {
+        login: user.login,
+        name: user.name,
+        avatar_url: user.avatar_url
+      }
+    });
+  } catch (error) {
+    githubLogger.error('GitHub PAT authentication failed');
+    throw new ApiError(401, 'Invalid Personal Access Token', 'GITHUB_PAT_INVALID');
+  }
+}));
+
+// OAuth Authentication endpoint
 router.post('/auth', asyncHandler(async (req: Request, res: Response) => {
   const { code }: GitHubAuthRequest = req.body;
   
@@ -25,7 +64,7 @@ router.post('/auth', asyncHandler(async (req: Request, res: Response) => {
     throw new ApiError(400, 'Missing authorization code', 'GITHUB_AUTH_MISSING_CODE');
   }
   
-  githubLogger.info('GitHub OAuth authentication attempt');
+  githubLogger.info('OAuth authentication attempt');
   
   try {
     // Exchange code for access token
@@ -43,7 +82,7 @@ router.post('/auth', asyncHandler(async (req: Request, res: Response) => {
       sameSite: isProduction ? 'strict' : 'lax' // Stricter CSRF in prod
     });
     
-    githubLogger.success(`GitHub user authenticated successfully: ${user.login}`);
+    githubLogger.success('OAuth authentication successful');
     res.json({ 
       success: true, 
       message: 'Successfully authenticated with GitHub',
@@ -54,7 +93,7 @@ router.post('/auth', asyncHandler(async (req: Request, res: Response) => {
       }
     });
   } catch {
-    githubLogger.error('GitHub authentication failed');
+    githubLogger.error('OAuth authentication failed');
     throw new ApiError(401, 'GitHub authentication failed', 'GITHUB_AUTH_FAILED');
   }
 }));
@@ -93,21 +132,13 @@ router.get('/auth/status', asyncHandler(async (req: Request, res: Response) => {
 
 // Get commits for a specific date
 router.get('/commits', asyncHandler(async (req: Request, res: Response) => {
-  githubLogger.info(`=== GitHub Commits API Called ===`);
-  githubLogger.info(`Request URL: ${req.url}`);
-  githubLogger.info(`Request query: ${JSON.stringify(req.query)}`);
-  
   const token = getGitHubTokenFromCookies(req);
-  githubLogger.info(`Token found: ${token ? 'YES' : 'NO'}`);
-  
   const { date } = req.query as { date?: string };
   
   if (!date) {
     githubLogger.error('Missing date parameter');
     throw new ApiError(400, 'Missing date parameter', 'GITHUB_COMMITS_MISSING_DATE');
   }
-  
-  githubLogger.info(`Requested date: ${date}`);
   
   // Validate date format (YYYY-MM-DD)
   const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
@@ -116,11 +147,7 @@ router.get('/commits', asyncHandler(async (req: Request, res: Response) => {
     throw new ApiError(400, 'Invalid date format. Expected YYYY-MM-DD', 'GITHUB_COMMITS_INVALID_DATE');
   }
   
-  githubLogger.info('Calling getUserCommitsForDate...');
   const commits = await getUserCommitsForDate(token, date);
-  
-  githubLogger.info(`Retrieved ${commits.length} commits for date: ${date}`);
-  githubLogger.info(`Commits data: ${JSON.stringify(commits, null, 2)}`);
   
   const response = {
     commits,
@@ -128,7 +155,6 @@ router.get('/commits', asyncHandler(async (req: Request, res: Response) => {
     total: commits.length
   };
   
-  githubLogger.info(`Sending response: ${JSON.stringify(response, null, 2)}`);
   res.json(response);
 }));
 

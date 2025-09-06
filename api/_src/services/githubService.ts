@@ -27,7 +27,7 @@ export async function exchangeCodeForToken(code: string): Promise<GitHubTokenRes
       }
     });
 
-    githubLogger.info('Successfully exchanged code for GitHub token');
+    githubLogger.info('GitHub OAuth token exchanged successfully');
     return response.data;
   } catch (error: unknown) {
     const axiosError = error as AxiosError;
@@ -46,7 +46,7 @@ export async function getGitHubUser(token: string): Promise<GitHubUser> {
       }
     });
 
-    githubLogger.info(`Retrieved GitHub user: ${response.data.login}`);
+    githubLogger.info('GitHub user retrieved successfully');
     return response.data;
   } catch (error: unknown) {
     const axiosError = error as AxiosError;
@@ -55,28 +55,10 @@ export async function getGitHubUser(token: string): Promise<GitHubUser> {
   }
 }
 
-// Get user's commits for a specific date across all accessible repositories
-export async function getUserCommitsForDate(token: string, date: string) {
-  githubLogger.info(`=== getUserCommitsForDate called ===`);
-  githubLogger.info(`Token: ${token ? token.substring(0, 10) + '...' : 'MISSING'}`);
-  githubLogger.info(`Date: ${date}`);
-  
+// Get pull requests associated with a specific commit
+export async function getPullRequestsForCommit(token: string, owner: string, repo: string, sha: string) {
   try {
-    // First, get the authenticated user info
-    githubLogger.info('Getting GitHub user info...');
-    const user = await getGitHubUser(token);
-    githubLogger.info(`User retrieved: ${user.login}`);
-    
-    // Search for commits by the user on the specified date
-    // GitHub API requires some search text, not just qualifiers for OAuth tokens
-    // Using space separation instead of + to avoid encoding issues
-    const searchQuery = `author:${user.login} author-date:${date}`;
-    githubLogger.info(`Search query: ${searchQuery}`);
-    
-    githubLogger.info('Making request to GitHub Search API...');
-    // Build URL with properly encoded query
-    const url = `${GITHUB_API_BASE}/search/commits?q=${encodeURIComponent(searchQuery)}&sort=author-date&order=asc&per_page=100`;
-    githubLogger.info(`Full URL: ${url}`);
+    const url = `${GITHUB_API_BASE}/repos/${owner}/${repo}/commits/${sha}/pulls`;
     
     const response = await axios.get(url, {
       headers: {
@@ -86,31 +68,89 @@ export async function getUserCommitsForDate(token: string, date: string) {
       }
     });
 
-    githubLogger.info(`GitHub API response status: ${response.status}`);
-    githubLogger.info(`GitHub API response: ${JSON.stringify(response.data, null, 2)}`);
+    return response.data.map((pr: { number: number; head: { ref: string; repo: { full_name?: string } | null }; title: string; state: string; html_url: string }) => ({
+      number: pr.number,
+      branchName: pr.head.ref,
+      title: pr.title,
+      state: pr.state,
+      branchDeleted: pr.head.repo === null,
+      url: pr.html_url
+    }));
+  } catch (error: unknown) {
+    const axiosError = error as AxiosError;
+    // Don't log this as an error since many commits won't have PRs
+    if (axiosError?.response?.status !== 404) {
+      githubLogger.warn(`Failed to fetch PRs for commit ${sha}: ${axiosError?.response?.status || axiosError?.message}`);
+    }
+    return [];
+  }
+}
+
+// Get user's commits for a specific date across all accessible repositories
+export async function getUserCommitsForDate(token: string, date: string) {
+  githubLogger.info(`Fetching commits for date: ${date}`);
+  
+  try {
+    // First, get the authenticated user info
+    const user = await getGitHubUser(token);
     
-    const commits = response.data.items.map((item: { sha: string; html_url: string; commit: { message: string; author: { date: string; name: string; email: string } }; repository: { name: string; full_name: string } }) => ({
-      sha: item.sha,
-      shortSha: item.sha.substring(0, 7),
-      message: item.commit.message,
-      date: item.commit.author.date,
-      url: item.html_url,
-      repository: {
-        name: item.repository.name,
-        fullName: item.repository.full_name
-      },
-      author: item.commit.author
+    // Search for commits by the user on the specified date
+    // GitHub API requires some search text, not just qualifiers for OAuth tokens
+    // Using space separation instead of + to avoid encoding issues
+    const searchQuery = `author:${user.login} author-date:${date}`;
+    
+    // Build URL with properly encoded query
+    const url = `${GITHUB_API_BASE}/search/commits?q=${encodeURIComponent(searchQuery)}&sort=author-date&order=asc&per_page=100`;
+    
+    const response = await axios.get(url, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/vnd.github+json',
+        'User-Agent': 'track-current-task-app'
+      }
+    });
+
+    // Response received successfully
+    
+    const commits = await Promise.all(response.data.items.map(async (item: { sha: string; html_url: string; commit: { message: string; author: { date: string; name: string; email: string } }; repository: { name: string; full_name: string } }) => {
+      // Extract owner and repo from full_name
+      const [owner, repoName] = item.repository.full_name.split('/');
+      
+      // Get PR information for this commit
+      const prs = await getPullRequestsForCommit(token, owner, repoName, item.sha);
+      
+      // Determine branch name
+      let branchName = 'main'; // Default assumption for direct commits
+      if (prs.length > 0) {
+        branchName = prs[0].branchName;
+      }
+      
+      return {
+        sha: item.sha,
+        shortSha: item.sha.substring(0, 7),
+        message: item.commit.message,
+        date: item.commit.author.date,
+        url: item.html_url,
+        repository: {
+          name: item.repository.name,
+          fullName: item.repository.full_name
+        },
+        author: item.commit.author,
+        branch: branchName,
+        pullRequest: prs.length > 0 ? {
+          number: prs[0].number,
+          title: prs[0].title,
+          branchDeleted: prs[0].branchDeleted,
+          url: prs[0].url
+        } : null
+      };
     }));
 
-    githubLogger.info(`Processed ${commits.length} commits`);
-    githubLogger.info(`Final commits array: ${JSON.stringify(commits, null, 2)}`);
+    githubLogger.info(`Found ${commits.length} commits for ${date}`);
     return commits;
   } catch (error: unknown) {
     const axiosError = error as AxiosError;
-    githubLogger.error(`ERROR in getUserCommitsForDate:`);
-    githubLogger.error(`Status: ${axiosError?.response?.status}`);
-    githubLogger.error(`Message: ${axiosError?.message}`);
-    githubLogger.error(`Response data: ${JSON.stringify(axiosError?.response?.data, null, 2)}`);
+    githubLogger.error(`Failed to fetch commits: ${axiosError?.response?.status || axiosError?.message}`);
     throw error;
   }
 }

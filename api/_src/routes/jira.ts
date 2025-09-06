@@ -5,7 +5,8 @@ import { isProduction } from '../config/cors';
 import { createLogger } from '../../../shared/logger';
 import { jiraApiClient } from '../services/jiraApiClient';
 import type { 
-  JiraAuthRequest, 
+  JiraAuthRequest,
+  JiraTokenAuthRequest,
   JiraLogWorkRequest, 
   JiraIssuesRequest, 
   JiraWorklogsRequest 
@@ -14,27 +15,28 @@ import type {
 const router = Router();
 const jiraLogger = createLogger('JIRA');
 
-// Helper to validate and extract Jira token from cookies
-function getJiraTokenFromCookies(req: Request): string {
+// Helper to validate and extract Jira credentials from cookies
+function getJiraCredentialsFromCookies(req: Request): { token: string, jiraUrl: string } {
   const token = req.signedCookies?.jiraToken;
-  if (!token) {
+  const jiraUrl = req.signedCookies?.jiraUrl;
+  if (!token || !jiraUrl) {
     throw new ApiError(401, 'Not authenticated. Please log in first.', 'AUTH_REQUIRED');
   }
-  return token;
+  return { token, jiraUrl };
 }
 
 // Authentication endpoints
 router.post('/auth/login', asyncHandler(async (req: Request, res: Response) => {
-  const { login, password, name }: JiraAuthRequest = req.body;
+  const { login, password, jiraUrl, name }: JiraAuthRequest = req.body;
   
-  if (!login || !password) {
-    throw new ApiError(400, 'Missing login or password', 'AUTH_MISSING_CREDENTIALS');
+  if (!login || !password || !jiraUrl) {
+    throw new ApiError(400, 'Missing login, password, or Jira URL', 'AUTH_MISSING_CREDENTIALS');
   }
   
   jiraLogger.info('Authentication attempt');
-  const tokenData = await getJiraToken(login, password, name);
+  const tokenData = await getJiraToken(login, password, jiraUrl, name);
   
-  // Store token in encrypted cookie with environment-aware settings
+  // Store token and URL in encrypted cookies with environment-aware settings
   const jiraToken = tokenData.rawToken;
   res.cookie('jiraToken', jiraToken, {
     signed: true,        // Encrypt the cookie
@@ -44,7 +46,15 @@ router.post('/auth/login', asyncHandler(async (req: Request, res: Response) => {
     sameSite: isProduction ? 'strict' : 'lax' // Stricter CSRF in prod
   });
   
-  jiraLogger.success('User authenticated successfully');
+  res.cookie('jiraUrl', jiraUrl, {
+    signed: true,        // Encrypt the cookie
+    httpOnly: true,      // Prevent XSS
+    secure: isProduction, // HTTPS only in production
+    maxAge: 90 * 24 * 60 * 60 * 1000, // 90 days
+    sameSite: isProduction ? 'strict' : 'lax' // Stricter CSRF in prod
+  });
+  
+  jiraLogger.success('Authentication successful');
   res.json({ 
     success: true, 
     message: 'Successfully authenticated with Jira',
@@ -52,8 +62,44 @@ router.post('/auth/login', asyncHandler(async (req: Request, res: Response) => {
   });
 }));
 
+// Authentication endpoint for API token
+router.post('/auth/login-token', asyncHandler(async (req: Request, res: Response) => {
+  const { token, jiraUrl, name }: JiraTokenAuthRequest = req.body;
+  
+  if (!token || !jiraUrl) {
+    throw new ApiError(400, 'Missing API token or Jira URL', 'AUTH_MISSING_TOKEN');
+  }
+  
+  jiraLogger.info('API Token authentication attempt');
+  
+  // Store token and URL directly in encrypted cookies (token is already valid)
+  res.cookie('jiraToken', token, {
+    signed: true,        // Encrypt the cookie
+    httpOnly: true,      // Prevent XSS
+    secure: isProduction, // HTTPS only in production
+    maxAge: 90 * 24 * 60 * 60 * 1000, // 90 days
+    sameSite: isProduction ? 'strict' : 'lax' // Stricter CSRF in prod
+  });
+  
+  res.cookie('jiraUrl', jiraUrl, {
+    signed: true,        // Encrypt the cookie
+    httpOnly: true,      // Prevent XSS
+    secure: isProduction, // HTTPS only in production
+    maxAge: 90 * 24 * 60 * 60 * 1000, // 90 days
+    sameSite: isProduction ? 'strict' : 'lax' // Stricter CSRF in prod
+  });
+  
+  jiraLogger.success('Token authentication successful');
+  res.json({ 
+    success: true, 
+    message: 'Successfully authenticated with Jira API token',
+    hasFilesystemAccess: process.env.DEV === 'true'
+  });
+}));
+
 router.post('/auth/logout', (req: Request, res: Response) => {
   res.clearCookie('jiraToken');
+  res.clearCookie('jiraUrl');
   jiraLogger.info('User logged out');
   res.json({ success: true, message: 'Logged out successfully' });
 });
@@ -68,7 +114,7 @@ router.get('/auth/status', (req: Request, res: Response) => {
 
 // Proxy endpoint for logging work
 router.post('/logwork', asyncHandler(async (req: Request, res: Response) => {
-  const token = getJiraTokenFromCookies(req);
+  const { token, jiraUrl } = getJiraCredentialsFromCookies(req);
   const requestData: JiraLogWorkRequest = req.body;
   
   // Validate required fields
@@ -88,8 +134,8 @@ router.post('/logwork', asyncHandler(async (req: Request, res: Response) => {
     );
   }
   
-  const response = await jiraApiClient.logWork(token, requestData);
-  jiraLogger.success(`Worklog created for ${requestData.issueKey}: ${requestData.timeSpentSeconds}s`);
+  const response = await jiraApiClient.logWork(token, jiraUrl, requestData);
+  jiraLogger.success(`Worklog created for ${requestData.issueKey}`);
   
   res.json({
     jiraResponse: response.data,
@@ -101,15 +147,15 @@ router.post('/logwork', asyncHandler(async (req: Request, res: Response) => {
 
 // Endpoint to get details for multiple Jira issues by key
 router.post('/issues/details', asyncHandler(async (req: Request, res: Response) => {
-  const token = getJiraTokenFromCookies(req);
+  const { token, jiraUrl } = getJiraCredentialsFromCookies(req);
   const requestData: JiraIssuesRequest = req.body;
   
   if (!Array.isArray(requestData.issueKeys) || requestData.issueKeys.length === 0) {
     throw new ApiError(400, 'Missing or empty issueKeys array', 'JIRA_ISSUES_MISSING_KEYS');
   }
   
-  const response = await jiraApiClient.getIssuesDetails(token, requestData);
-  jiraLogger.info(`Retrieved details for ${requestData.issueKeys.length} issues`);
+  const response = await jiraApiClient.getIssuesDetails(token, jiraUrl, requestData);
+  jiraLogger.info(`Retrieved ${requestData.issueKeys.length} issue details`);
   
   res.json({
     issues: response.data.issues,
@@ -120,15 +166,15 @@ router.post('/issues/details', asyncHandler(async (req: Request, res: Response) 
 
 // Endpoint to get details for multiple worklogs by ID
 router.post('/worklogs/details', asyncHandler(async (req: Request, res: Response) => {
-  const token = getJiraTokenFromCookies(req);
+  const { token, jiraUrl } = getJiraCredentialsFromCookies(req);
   const requestData: JiraWorklogsRequest = req.body;
   
   if (!Array.isArray(requestData.worklogIds) || requestData.worklogIds.length === 0) {
     throw new ApiError(400, 'Missing or empty worklogIds array', 'JIRA_WORKLOGS_MISSING_IDS');
   }
   
-  const response = await jiraApiClient.getWorklogsDetails(token, requestData);
-  jiraLogger.info(`Retrieved details for ${requestData.worklogIds.length} worklogs`);
+  const response = await jiraApiClient.getWorklogsDetails(token, jiraUrl, requestData);
+  jiraLogger.info(`Retrieved ${requestData.worklogIds.length} worklog details`);
   
   res.json({
     worklogs: response.data,

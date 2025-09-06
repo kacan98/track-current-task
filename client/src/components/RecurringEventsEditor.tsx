@@ -6,6 +6,7 @@ export type RecurringEvent = {
   name: string;
   day: string;
   durationMinutes: string;
+  taskId: string;
 };
 
 const DAYS = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -30,6 +31,7 @@ export const RecurringEventsEditor: React.FC<RecurringEventsEditorProps> = ({ ev
       name: '',
       day: '',
       durationMinutes: '30',
+      taskId: '',
     };
     onChange([...events, newEvent]);
   };
@@ -44,6 +46,15 @@ export const RecurringEventsEditor: React.FC<RecurringEventsEditorProps> = ({ ev
               value={ev.name}
               onChange={e => handleFieldChange(ev.id, 'name', e.target.value)}
               placeholder="Event name (e.g. Backlog Refinement)"
+              className="border border-background-dark rounded-lg px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-primary-light bg-white/90"
+            />
+          </td>
+          <td className="px-4 py-3">
+            <input
+              type="text"
+              value={ev.taskId}
+              onChange={e => handleFieldChange(ev.id, 'taskId', e.target.value)}
+              placeholder="Task ID (e.g. PROJ-123)"
               className="border border-background-dark rounded-lg px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-primary-light bg-white/90"
             />
           </td>
@@ -85,7 +96,7 @@ export const RecurringEventsEditor: React.FC<RecurringEventsEditorProps> = ({ ev
         </tr>
       ))}
       <tr>
-        <td colSpan={4} className="px-4 py-3 text-left">
+        <td colSpan={5} className="px-4 py-3 text-left">
           <Button
             type="button"
             variant="secondary"

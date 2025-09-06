@@ -1,7 +1,7 @@
 {
-  "name": "@track-current-task/backend",
+  "name": "@logbridge/backend",
   "version": "1.1.32",
-  "description": "Backend API server for Track Current Task",
+  "description": "Backend API server for LogBridge",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",

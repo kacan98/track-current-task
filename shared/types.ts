@@ -1,5 +1,17 @@
 // Shared type definitions used across frontend and backend
 
+// API Error Response structure - consistent across all backend endpoints
+export interface ApiErrorResponse {
+  error: {
+    code: string;
+    message: string;
+    details?: unknown;
+    timestamp: string;
+    path: string;
+    method: string;
+  };
+}
+
 // Base log entry as stored in CSV
 export interface BaseLogEntry {
   date: string;        // YYYY-MM-DD

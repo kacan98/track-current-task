@@ -1,4 +1,4 @@
-# Track Current Task (GitClock)
+# LogBridge
 
 Automatic time tracking based on Git activity. Built to solve the tedious task of logging development hours to JIRA - this automatically tracks what you're working on and makes time reporting less of a hassle for developers.
 

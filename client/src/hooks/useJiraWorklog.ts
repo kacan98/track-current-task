@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { logWorkToJira } from '../services/JiraIntegration';
+import { getErrorMessage } from '../utils/errorUtils';
 import type { LogEntry } from '@/types';
 
 export const useJiraWorklog = () => {
@@ -14,8 +15,7 @@ export const useJiraWorklog = () => {
       
       return { success: true };
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
-      return { success: false, error: `Failed to send worklog to Jira: ${message}` };
+      return { success: false, error: getErrorMessage(error) };
     }
   }, []);
 

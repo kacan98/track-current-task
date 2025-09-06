@@ -62,9 +62,26 @@ export const errorHandler = (
     statusCode = axiosError.response?.status || 500;
     code = `JIRA_${statusCode}`;
     const responseData = axiosError.response?.data as { errorMessages?: string[]; message?: string };
-    message = responseData?.errorMessages?.join(', ') || 
-              responseData?.message || 
-              axiosError.message;
+    
+    // Provide user-friendly messages based on status codes
+    if (statusCode === 401) {
+      message = 'Invalid email or password. Please check your Jira credentials and try again.';
+    } else if (statusCode === 403) {
+      message = 'Access denied. Please verify you have permission to access this Jira resource.';
+    } else if (statusCode === 404) {
+      message = 'Jira resource not found. Please check the task ID or URL.';
+    } else if (statusCode === 429) {
+      message = 'Too many requests. Please wait a moment and try again.';
+    } else if (statusCode >= 500) {
+      message = 'Jira server error. Please try again later or contact your Jira administrator.';
+    } else {
+      // Fall back to Jira's error message or a generic one
+      message = responseData?.errorMessages?.join(', ') || 
+                responseData?.message || 
+                axiosError.message ||
+                'Failed to connect to Jira';
+    }
+    
     details = {
       jiraResponse: axiosError.response?.data,
       url: axiosError.config?.url

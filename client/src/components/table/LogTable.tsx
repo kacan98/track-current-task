@@ -47,6 +47,12 @@ export function LogTable({
     addEntry(newEntry);
   };
 
+  const handleAddLogEntry = (entry: { date: string; taskId: string; duration: number; description: string }) => {
+    const newEntry = createEntry(entry.taskId, entry.date, entry.duration);
+    addEntry(newEntry);
+    setCommitsModalDate(null); // Close modal after adding
+  };
+
   const handleViewCommits = (date: string) => {
     setCommitsModalDate(date);
   };
@@ -236,6 +242,7 @@ export function LogTable({
                 onAddDailyScrum={handleAddDailyScrum}
                 onAddEvent={handleAddEvent}
                 eventStates={eventStates}
+                hasScrumTaskId={!!(settings?.getSetting('scrumTaskId') || '').trim()}
               />
             )}
             <TableHeaders
@@ -299,6 +306,7 @@ export function LogTable({
         <CommitsModal
           date={commitsModalDate}
           onClose={() => setCommitsModalDate(null)}
+          onAddLogEntry={handleAddLogEntry}
         />
       )}
     </div>

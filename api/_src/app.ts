@@ -3,8 +3,17 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 
-// Load environment variables from parent directory
+// Load environment variables from root directory
 dotenv.config({ path: '../.env' });
+
+// Validate required environment variables
+const REQUIRED_ENV_VARS = ['COOKIE_SECRET'];
+const missing = REQUIRED_ENV_VARS.filter(varName => !process.env[varName]);
+if (missing.length > 0) {
+  console.error(`❌ Missing required environment variables: ${missing.join(', ')}`);
+  console.error('💡 Please check your .env file. See .env.example for reference.');
+  process.exit(1);
+}
 
 // Import routes
 import jiraRoutes from './routes/jira';
