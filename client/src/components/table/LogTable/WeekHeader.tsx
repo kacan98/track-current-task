@@ -13,6 +13,8 @@ export function WeekHeader({
   onAddEvent, 
   eventStates,
   hasScrumTaskId,
+  onAutoFillWeek,
+  isAutoFilling,
 }: {
   weekStart: string;
   weekEnd: string;
@@ -20,6 +22,8 @@ export function WeekHeader({
   onAddEvent: (event: RecurringEvent) => void;
   eventStates: Record<string, boolean>;
   hasScrumTaskId: boolean;
+  onAutoFillWeek: () => void | Promise<void>;
+  isAutoFilling?: boolean;
 }) {
   const recurringEvents = getRecurringEvents();
   
@@ -41,8 +45,18 @@ export function WeekHeader({
             </span>
           </div>
           <div className="flex gap-3">
-          </div>
-          <div className="flex gap-3">
+            <Button
+              variant="primary"
+              className="flex items-center gap-2"
+              onClick={onAutoFillWeek}
+              disabled={isAutoFilling}
+              title="Automatically fill week with GitHub commits that have task IDs"
+            >
+              <span className="material-symbols-outlined text-sm">
+                {isAutoFilling ? 'sync' : 'auto_fix_high'}
+              </span>
+              {isAutoFilling ? 'Auto-filling...' : 'Auto-fill Week'}
+            </Button>
             <Button
               className="flex items-center gap-2"
               onClick={onAddDailyScrum}

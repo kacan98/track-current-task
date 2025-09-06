@@ -1,4 +1,6 @@
 import type { LogEntry } from '@/types';
+import { isValidTaskId } from '@/utils/jiraUtils';
+import { useSettings } from '@/contexts/SettingsContext';
 
 export type JiraHeadingCellProps = {
   entry: LogEntry;
@@ -8,7 +10,10 @@ export type JiraHeadingCellProps = {
 };
 
 export function JiraHeadingCell({ entry, loadingHeadings, headingsError, issueHeadings }: JiraHeadingCellProps) {
-  if (/^DFO-\d+$/.test(entry.taskId)) {
+  const settings = useSettings();
+  const taskIdRegex = settings?.getSetting('taskIdRegex');
+  
+  if (isValidTaskId(entry.taskId, taskIdRegex)) {
     if (loadingHeadings[entry.taskId]) {
       return <span className="italic text-blue-400">Loading...</span>;
     } else if (headingsError[entry.taskId]) {

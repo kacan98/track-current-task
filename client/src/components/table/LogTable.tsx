@@ -1,14 +1,12 @@
 // components/LogTable.tsx - Updated to use day grouping
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import type { LogEntry } from '@/types';
 import { useExtraRows } from '@/hooks/useExtraRows';
 import { useJiraHeadings } from '@/hooks/useJiraHeadings';
 import { useJiraWorklogs } from '@/hooks/useJiraWorklogs';
-import { useSorting } from '@/hooks/useSorting';
 import { DayGroupHeader } from './LogTable/DayGroupHeader';
 import { EmptyState } from './LogTable/EmptyState';
 import { LogTableRow } from './LogTable/LogTableRow';
-import { TableHeaders } from './LogTable/TableHeaders';
 import { TABLE_COLUMNS } from './LogTable/tableConfig';
 import { WeekHeader } from './LogTable/WeekHeader';
 import React from 'react';
@@ -17,6 +15,10 @@ import { useLogEntries } from '@/contexts/LogEntriesContext';
 import { createEntry } from '@/utils/entryUtils';
 import { useSettings } from '@/contexts/SettingsContext';
 import { CommitsModal } from '@/components/modals/CommitsModal';
+import { GitHubAuthModal } from '@/components/modals/GitHubAuthModal';
+import { commitService } from '@/services/commitService';
+import { useGitHubAuth } from '@/contexts/GitHubAuthContext';
+import { isValidTaskId } from '@/utils/jiraUtils';
 
 export interface EditedHours {
   [key: string]: number;
@@ -37,10 +39,23 @@ export function LogTable({
   onSendToJira,
 }: LogTableProps) {
   const { deleteEntry, cloneEntry, updateEntryDate, addEntry } = useLogEntries();
-  const { sortColumn, sortDirection, handleHeaderClick } = useSorting();
   const { eventStates, handleAddDailyScrum, handleAddEvent } = useExtraRows(weekStart, weekEnd);
   const [dragOverDate, setDragOverDate] = useState<string | null>(null);
   const [commitsModalDate, setCommitsModalDate] = useState<string | null>(null);
+  const [isAutoFilling, setIsAutoFilling] = useState(false);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [showGitHubAuth, setShowGitHubAuth] = useState(false);
+  const { isAuthenticated, getCommitsForDate } = useGitHubAuth();
+  const settings = useSettings();
+
+  // Initialize commit service
+  useEffect(() => {
+    if (isAuthenticated) {
+      commitService.initialize(getCommitsForDate);
+      // Close GitHub auth modal if it's open when user becomes authenticated
+      setShowGitHubAuth(false);
+    }
+  }, [isAuthenticated, getCommitsForDate]);
 
   const handleAddTask = (date: string) => {
     const newEntry = createEntry('', date, 0.5);
@@ -51,6 +66,41 @@ export function LogTable({
     const newEntry = createEntry(entry.taskId, entry.date, entry.duration);
     addEntry(newEntry);
     setCommitsModalDate(null); // Close modal after adding
+  };
+
+  const handleAutoFillWeek = async () => {
+    if (!weekStart || !settings) {
+      setToastMsg('Week start date or settings not available');
+      return;
+    }
+
+    // If not authenticated, show GitHub auth modal
+    if (!isAuthenticated) {
+      setShowGitHubAuth(true);
+      return;
+    }
+
+    setIsAutoFilling(true);
+    try {
+      const commitSettings = {
+        dayStartTime: settings.getSetting('dayStartTime') || '09:00',
+        dayEndTime: settings.getSetting('dayEndTime') || '17:00',
+        taskIdRegex: settings.getSetting('taskIdRegex') || ''
+      };
+
+      const result = await commitService.autoFillWeek(
+        weekStart,
+        handleAddLogEntry,
+        commitSettings
+      );
+
+      setToastMsg(`Auto-fill completed! Processed ${result.processed} days, added ${result.added} log entries.`);
+    } catch (error) {
+      console.error('Auto-fill failed:', error);
+      setToastMsg(`Auto-fill failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsAutoFilling(false);
+    }
   };
 
   const handleViewCommits = (date: string) => {
@@ -101,14 +151,19 @@ export function LogTable({
     return groups;
   }, [entries]);
 
-  // Detect all unique DFO-1234 task IDs in the entries
+  // Detect all unique task IDs in the entries based on configured pattern
   const taskIds = useMemo(() => {
     const ids = new Set<string>();
-    for (const entry of entries) {
-      if (/^DFO-\d+$/.test(entry.taskId)) ids.add(entry.taskId);
+    const taskIdRegex = settings?.getSetting('taskIdRegex');
+    if (taskIdRegex) {
+      for (const entry of entries) {
+        if (isValidTaskId(entry.taskId, taskIdRegex)) {
+          ids.add(entry.taskId);
+        }
+      }
     }
     return Array.from(ids);
-  }, [entries]);
+  }, [entries, settings]);
 
   const { issueHeadings, loadingHeadings, headingsError } = useJiraHeadings(taskIds);
   const { worklogTotals, loadingWorklogs, worklogError } = useJiraWorklogs(entries, taskIds);
@@ -144,8 +199,6 @@ export function LogTable({
     return day === 0 || day === 6;
   };
 
-  const settings = useSettings();
-  
   // Generate all dates in the week range, even if empty
   const allDatesInRange = useMemo(() => {
     const hideWeekends = settings?.getBooleanSetting('hideWeekends') || false;
@@ -181,26 +234,15 @@ export function LogTable({
     });
   }, [dayGroups, weekStart, weekEnd, settings]);
 
-  // Sort dates for consistent display
-  const sortedDates = allDatesInRange;
-
-  // Sort entries within each day (create empty groups for dates without entries)
+  // Create day groups with default sorting (no complex sorting logic)
   const sortedDayGroups = useMemo(() => {
     const sorted: typeof dayGroups = {};
-    sortedDates.forEach(date => {
+    allDatesInRange.forEach(date => {
       const group = dayGroups[date];
       if (group) {
         sorted[date] = {
           ...group,
-          entries: [...group.entries].sort((a, b) => {
-            let cmp = 0;
-            if (sortColumn === 'task') {
-              cmp = a.taskId.localeCompare(b.taskId);
-            } else if (sortColumn === 'hours') {
-              cmp = Number(a.hours) - Number(b.hours);
-            }
-            return sortDirection === 'asc' ? cmp : -cmp;
-          })
+          entries: [...group.entries] // Keep entries in their original order
         };
       } else {
         // Create empty group for dates without entries
@@ -211,10 +253,9 @@ export function LogTable({
       }
     });
     return sorted;
-  }, [dayGroups, sortedDates, sortColumn, sortDirection]);
+  }, [dayGroups, allDatesInRange]);
 
 
-  const [toastMsg, setToastMsg] = React.useState<string | null>(null);
   const toastTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
 
@@ -243,19 +284,26 @@ export function LogTable({
                 onAddEvent={handleAddEvent}
                 eventStates={eventStates}
                 hasScrumTaskId={!!(settings?.getSetting('scrumTaskId') || '').trim()}
+                onAutoFillWeek={handleAutoFillWeek}
+                isAutoFilling={isAutoFilling}
               />
             )}
-            <TableHeaders
-              sortColumn={sortColumn}
-              sortDirection={sortDirection}
-              onHeaderClick={handleHeaderClick}
-            />
+            <tr className="bg-gray-50 border-b border-gray-200">
+              {TABLE_COLUMNS.map((column) => (
+                <th
+                  key={column.key}
+                  className={`px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider ${column.width || ''} ${column.hideOnMobile ? 'hidden sm:table-cell' : ''}`}
+                >
+                  {column.label}
+                </th>
+              ))}
+            </tr>
           </thead>
           <tbody onDragLeave={handleDragLeave}>
-            {sortedDates.length === 0 ? (
+            {allDatesInRange.length === 0 ? (
               <EmptyState colSpan={TABLE_COLUMNS.length} />
             ) : (
-              sortedDates.map(date => {
+              allDatesInRange.map(date => {
                 const group = sortedDayGroups[date];
                 const isDragOver = dragOverDate === date;
                 return (
@@ -307,6 +355,13 @@ export function LogTable({
           date={commitsModalDate}
           onClose={() => setCommitsModalDate(null)}
           onAddLogEntry={handleAddLogEntry}
+        />
+      )}
+
+      {showGitHubAuth && (
+        <GitHubAuthModal
+          title="Connect GitHub for Auto-fill Week"
+          onClose={() => setShowGitHubAuth(false)}
         />
       )}
     </div>

@@ -296,6 +296,7 @@ export const AppScreens: React.FC = () => {
                 sentToJira: false
               };
               setEntries([sampleEntry]);
+              setError(null); // Clear any error state to dismiss upload screen
               showSuccess('Sample data loaded for demonstration');
             }}
           />

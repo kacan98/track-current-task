@@ -2,8 +2,11 @@ import { useState, useEffect } from 'react';
 import { getJiraIssuesDetails } from '../services/JiraIntegration';
 import type { LogEntry } from '@/types';
 import { jiraWorklogsCache } from '../utils/cache';
+import { isValidTaskId } from '../utils/jiraUtils';
+import { useSettings } from '../contexts/SettingsContext';
 
-export function useJiraWorklogs(entries: LogEntry[], dfoTaskIds: string[]) {
+export function useJiraWorklogs(entries: LogEntry[], taskIds: string[]) {
+  const settings = useSettings();
   const [worklogTotals, setWorklogTotals] = useState<Record<string, number>>({});
   const [loadingWorklogs, setLoadingWorklogs] = useState<Record<string, boolean>>({});
   const [worklogError, setWorklogError] = useState<Record<string, string>>({});
@@ -11,8 +14,9 @@ export function useJiraWorklogs(entries: LogEntry[], dfoTaskIds: string[]) {
 
   useEffect(() => {
     let cancelled = false;
+    const taskIdRegex = settings?.getSetting('taskIdRegex');
     const pairs = entries
-      .filter(e => /^DFO-\d+$/.test(e.taskId))
+      .filter(e => isValidTaskId(e.taskId, taskIdRegex))
       .map(e => ({ taskId: e.taskId, date: e.date }));
     const uniquePairs = Array.from(new Set(pairs.map(p => `${p.taskId}|${p.date}`)))
       .map(k => {
@@ -31,7 +35,7 @@ export function useJiraWorklogs(entries: LogEntry[], dfoTaskIds: string[]) {
     const uncachedTaskIds: string[] = [];
     const cachedResults: { taskId: string; worklogs: unknown[] }[] = [];
     
-    for (const taskId of dfoTaskIds) {
+    for (const taskId of taskIds) {
       const cached = jiraWorklogsCache.get(taskId);
       if (cached) {
         cachedResults.push({ taskId, worklogs: Array.isArray(cached) ? cached : [] });
@@ -80,7 +84,7 @@ export function useJiraWorklogs(entries: LogEntry[], dfoTaskIds: string[]) {
       setLoadingWorklogs(Object.fromEntries(uniquePairs.map(({taskId, date}) => [`${taskId}|${date}`, false])));
     });
     return () => { cancelled = true; };
-  }, [entries, dfoTaskIds]);
+  }, [entries, taskIds, settings]);
 
   return { worklogTotals, loadingWorklogs, worklogError };
 }

@@ -1,6 +1,5 @@
 import { Button } from '../../../ui/Button';
 import { Input } from '../../../ui/Input';
-import { useCommitValidation } from '../hooks/useCommitValidation';
 import { useSettings } from '../../../../contexts/SettingsContext';
 
 interface CommitAnalysisSettingsProps {
@@ -15,7 +14,6 @@ export function CommitAnalysisSettings({
   containerClassName = "mb-6" 
 }: CommitAnalysisSettingsProps) {
   const settings = useSettings();
-  const { validateRegex } = useCommitValidation();
 
   const content = (
     <div className="space-y-4">
@@ -24,7 +22,7 @@ export function CommitAnalysisSettings({
           Configure settings for analyzing your GitHub commits to generate work log entries based on branch patterns and working hours.
         </p>
       )}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Input
           id="dayStartTime"
           type="time"
@@ -49,19 +47,9 @@ export function CommitAnalysisSettings({
           </svg>}
           className="font-mono cursor-pointer"
         />
-        <Input
-          id="taskIdRegex"
-          type="text"
-          value={settings?.getSetting('taskIdRegex') || 'DMO-\\d+'}
-          onChange={(e) => settings?.updateSetting('taskIdRegex', e.target.value)}
-          placeholder="e.g., (DMO|DFO)-\\d+"
-          label="Task ID Regex Pattern"
-          helpText="Regular expression to extract task IDs from branch names (e.g., (DMO|DFO)-\d+ matches DMO-1234 or DFO-5678)"
-          {...(validateRegex(settings?.getSetting('taskIdRegex') || 'DMO-\\d+') ? { error: validateRegex(settings?.getSetting('taskIdRegex') || 'DMO-\\d+')! } : {})}
-        />
       </div>
       <p className="text-xs text-gray-600 mt-2">
-        These settings control how commits are grouped into work sessions and how task IDs are extracted from branch names.
+        These settings control how commits are grouped into work sessions. Task ID pattern is configured in General Settings.
       </p>
     </div>
   );

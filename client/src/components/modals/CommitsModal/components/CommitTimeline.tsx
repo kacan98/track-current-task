@@ -4,18 +4,7 @@ import { GitHubConnectionForm } from '../../../forms/GitHubConnectionForm';
 import { useGitHubAuth } from '../../../../contexts/GitHubAuthContext';
 import { useSettings } from '../../../../contexts/SettingsContext';
 import type { CommitSession } from '../hooks/useCommitSessions';
-
-interface GitHubCommit {
-  sha: string;
-  shortSha: string;
-  message: string;
-  date: string;
-  url: string;
-  repository: { name: string; fullName: string };
-  author: { name: string; email: string; date: string };
-  branch: string;
-  pullRequest: { number: number; title: string; branchDeleted: boolean; url: string } | null;
-}
+import type { GitHubCommit } from '../../../../services/commitService';
 
 interface AddLogEntryData {
   date: string;

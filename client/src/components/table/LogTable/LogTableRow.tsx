@@ -2,11 +2,12 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { HourAdjustButtons } from '@/components/forms/HourAdjustButtons';
-import { getJiraTaskUrl } from '@/utils/jiraUtils';
+import { getJiraTaskUrl, isValidTaskId } from '@/utils/jiraUtils';
 import type { LogEntry } from '@/types';
 import { JiraHeadingCell, type JiraHeadingCellProps } from './JiraHeadingCell';
 import type { JiraWorklogCellProps } from './JiraWorklogCell';
 import { useLogEntries } from '@/contexts/LogEntriesContext';
+import { useSettings } from '@/contexts/SettingsContext';
 import { jiraHeadingsCache } from '@/utils/cache';
 
 export type LogTableRowProps = {
@@ -31,7 +32,7 @@ export type LogTableRowProps = {
 
 export function LogTableRow({
   entry,
-  taskColorMap: dfoTaskColorMap,
+  taskColorMap,
   loadingHeadings,
   headingsError,
   issueHeadings,
@@ -46,6 +47,7 @@ export function LogTableRow({
   onDragEnd,
 }: LogTableRowProps) {
   const { updateEntryHours, updateEntryTaskId } = useLogEntries();
+  const settings = useSettings();
   const [isEditing, setIsEditing] = useState(false);
   const [editTaskId, setEditTaskId] = useState(entry.taskId);
   
@@ -57,11 +59,12 @@ export function LogTableRow({
   const handleSaveEdit = () => {
     const newTaskId = editTaskId.trim();
     if (newTaskId !== entry.taskId) {
+      const taskIdRegex = settings?.getSetting('taskIdRegex');
       // Clear cache for both old and new task IDs to force refetch
-      if (entry.taskId && /^DFO-\d+$/.test(entry.taskId)) {
+      if (entry.taskId && isValidTaskId(entry.taskId, taskIdRegex)) {
         jiraHeadingsCache.delete(entry.taskId);
       }
-      if (newTaskId && /^DFO-\d+$/.test(newTaskId)) {
+      if (newTaskId && isValidTaskId(newTaskId, taskIdRegex)) {
         jiraHeadingsCache.delete(newTaskId);
       }
       updateEntryTaskId(entry.id, newTaskId);
@@ -97,9 +100,11 @@ export function LogTableRow({
     // Call parent's drag end to clear any highlights
     if (onDragEnd) onDragEnd();
   };
-  const url = getJiraTaskUrl(entry.taskId);
-  const taskCellClass = /^DFO-\d+$/.test(entry.taskId)
-    ? dfoTaskColorMap[entry.taskId] + ' font-mono rounded px-2 py-1'
+  const taskIdRegex = settings?.getSetting('taskIdRegex');
+  const jiraBaseUrl = settings?.getSetting('jiraBaseUrl');
+  const url = getJiraTaskUrl(entry.taskId, taskIdRegex, jiraBaseUrl);
+  const taskCellClass = isValidTaskId(entry.taskId, taskIdRegex)
+    ? taskColorMap[entry.taskId] + ' font-mono rounded px-2 py-1'
     : 'text-gray-500';
 
   // Add subtle grouping styling

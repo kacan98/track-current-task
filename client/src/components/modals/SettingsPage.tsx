@@ -8,6 +8,7 @@ import { Modal } from '../ui/Modal';
 import { useSettings } from '../../contexts/SettingsContext';
 import { useIntroduction } from '../../contexts/IntroductionContext';
 import { CommitAnalysisSettings } from './CommitsModal/components/CommitAnalysisSettings';
+import { useCommitValidation } from './CommitsModal/hooks/useCommitValidation';
 
 export const SETTINGS_FIELDS = [
     { key: 'scrumTaskId', label: 'Scrum Jira Task ID', type: 'text', placeholder: 'Enter Scrum Jira Task ID' } as const,
@@ -17,7 +18,8 @@ export const SETTINGS_FIELDS = [
     { key: 'githubUsername', label: 'GitHub Username', type: 'text', placeholder: 'Enter your GitHub username' } as const,
     { key: 'dayStartTime', label: 'Day Start Time', type: 'time', defaultValue: '09:00' } as const,
     { key: 'dayEndTime', label: 'Day End Time', type: 'time', defaultValue: '17:00' } as const,
-    { key: 'taskIdRegex', label: 'Task ID Regex Pattern', type: 'text', placeholder: 'e.g., (DMO|DFO)-\\d+', defaultValue: '(DMO|DFO)-\\d+' } as const,
+    { key: 'taskIdRegex', label: 'Task ID Regex Pattern', type: 'text', placeholder: 'e.g., PROJ-\\d+' } as const,
+    { key: 'jiraBaseUrl', label: 'Jira Base URL', type: 'text', placeholder: 'e.g., https://your-company.atlassian.net' } as const,
     { key: 'commitAnalysisExpanded', label: 'Commit Analysis Expanded', type: 'checkbox', defaultValue: 'false' } as const,
 ] as const;
 
@@ -36,6 +38,7 @@ export type SettingsObject = {
 function SettingsPage({ onClose, onDeleteAllRows }: { onClose: () => void, onDeleteAllRows: () => void }) {
     const settings = useSettings();
     const { forceShowIntroduction } = useIntroduction();
+    const { validateRegex } = useCommitValidation();
 
     const [recurringEvents, setRecurringEvents] = React.useState<RecurringEvent[]>(() => {
         const stored = localStorage.getItem('recurringEvents');
@@ -81,7 +84,7 @@ function SettingsPage({ onClose, onDeleteAllRows }: { onClose: () => void, onDel
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">General Settings</h3>
                 <div className="space-y-4">
-                    {SETTINGS_FIELDS.filter(f => !f.key.startsWith('github') && !f.key.startsWith('scrum') && !['dayStartTime', 'dayEndTime', 'taskIdRegex', 'commitAnalysisExpanded'].includes(f.key)).map(field => {
+                    {SETTINGS_FIELDS.filter(f => !f.key.startsWith('github') && !f.key.startsWith('scrum') && !['dayStartTime', 'dayEndTime', 'commitAnalysisExpanded'].includes(f.key)).map(field => {
                         // Hide "Week Start Day" when "Hide Weekends" is enabled
                         if (field.key === 'weekStartDay' && settings?.settings['hideWeekends'] === 'true') {
                             return null;
@@ -130,9 +133,18 @@ function SettingsPage({ onClose, onDeleteAllRows }: { onClose: () => void, onDel
                                         type={field.type}
                                         value={settings?.settings[field.key] || ''}
                                         onChange={e => handleChange(field.key, e.target.value)}
-                                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent ${
+                                            field.key === 'taskIdRegex' && validateRegex(settings?.settings[field.key] || '') 
+                                                ? 'border-red-500 focus:ring-red-500' 
+                                                : 'border-gray-200 focus:ring-blue-500'
+                                        }`}
                                         placeholder={'placeholder' in field ? field.placeholder : undefined}
                                     />
+                                    {field.key === 'taskIdRegex' && validateRegex(settings?.settings[field.key] || '') && (
+                                        <p className="mt-1 text-sm text-red-600">
+                                            {validateRegex(settings?.settings[field.key] || '')}
+                                        </p>
+                                    )}
                                 </>
                             )}
                         </div>

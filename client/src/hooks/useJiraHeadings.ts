@@ -2,14 +2,14 @@ import { useEffect, useState } from 'react';
 import { getJiraIssuesDetails } from '../services/JiraIntegration';
 import { jiraHeadingsCache } from '../utils/cache';
 
-export function useJiraHeadings(dfoTaskIds: string[]) {
+export function useJiraHeadings(taskIds: string[]) {
   const [issueHeadings, setIssueHeadings] = useState<Record<string, string>>({});
   const [loadingHeadings, setLoadingHeadings] = useState<Record<string, boolean>>({});
   const [headingsError, setHeadingsError] = useState<Record<string, string>>({});
 
   useEffect(() => {
     let cancelled = false;
-    if (dfoTaskIds.length === 0) {
+    if (taskIds.length === 0) {
       setIssueHeadings({});
       setLoadingHeadings({});
       setHeadingsError({});
@@ -20,7 +20,7 @@ export function useJiraHeadings(dfoTaskIds: string[]) {
     const cachedHeadings: Record<string, string> = {};
     const uncachedIds: string[] = [];
     
-    for (const id of dfoTaskIds) {
+    for (const id of taskIds) {
       const cached = jiraHeadingsCache.get(id);
       if (cached) {
         cachedHeadings[id] = cached;
@@ -65,7 +65,7 @@ export function useJiraHeadings(dfoTaskIds: string[]) {
         setLoadingHeadings(Object.fromEntries(uncachedIds.map(id => [id, false])));
       });
     return () => { cancelled = true; };
-  }, [dfoTaskIds]);
+  }, [taskIds]);
 
   return { issueHeadings, loadingHeadings, headingsError };
 }

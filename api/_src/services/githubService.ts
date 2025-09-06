@@ -86,6 +86,68 @@ export async function getPullRequestsForCommit(token: string, owner: string, rep
   }
 }
 
+// Get user's commits for a date range across all accessible repositories  
+export async function getUserCommitsForDateRange(token: string, startDate: string, endDate: string) {
+  githubLogger.info(`Fetching commits for date range: ${startDate} to ${endDate}`);
+  
+  try {
+    // First, get the authenticated user info
+    const user = await getGitHubUser(token);
+    
+    // Build search query for date range
+    const searchQuery = `author:${user.login} author-date:${startDate}..${endDate}`;
+    
+    // Build URL with properly encoded query
+    const url = `${GITHUB_API_BASE}/search/commits?q=${encodeURIComponent(searchQuery)}&sort=author-date&order=asc&per_page=100`;
+    
+    const response = await axios.get(url, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/vnd.github+json',
+        'User-Agent': 'track-current-task-app'
+      }
+    });
+
+    // Process commits similar to single date function
+    const commits = await Promise.all(response.data.items.map(async (item: { sha: string; html_url: string; commit: { message: string; author: { date: string; name: string; email: string } }; repository: { name: string; full_name: string } }) => {
+      const [owner, repoName] = item.repository.full_name.split('/');
+      const prs = await getPullRequestsForCommit(token, owner, repoName, item.sha);
+      
+      let branchName = 'main';
+      if (prs.length > 0) {
+        branchName = prs[0].branchName;
+      }
+      
+      return {
+        sha: item.sha,
+        shortSha: item.sha.substring(0, 7),
+        message: item.commit.message,
+        date: item.commit.author.date,
+        url: item.html_url,
+        repository: {
+          name: item.repository.name,
+          fullName: item.repository.full_name
+        },
+        author: item.commit.author,
+        branch: branchName,
+        pullRequest: prs.length > 0 ? {
+          number: prs[0].number,
+          title: prs[0].title,
+          branchDeleted: prs[0].branchDeleted,
+          url: prs[0].url
+        } : null
+      };
+    }));
+
+    githubLogger.info(`Found ${commits.length} commits for range ${startDate} to ${endDate}`);
+    return commits;
+  } catch (error: unknown) {
+    const axiosError = error as AxiosError;
+    githubLogger.error(`Failed to fetch commits for range: ${axiosError?.response?.status || axiosError?.message}`);
+    throw error;
+  }
+}
+
 // Get user's commits for a specific date across all accessible repositories
 export async function getUserCommitsForDate(token: string, date: string) {
   githubLogger.info(`Fetching commits for date: ${date}`);

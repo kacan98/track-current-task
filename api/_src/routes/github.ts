@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { ApiError, asyncHandler } from '../middleware/errorHandler';
-import { exchangeCodeForToken, getGitHubUser, getUserCommitsForDate } from '../services/githubService';
+import { exchangeCodeForToken, getGitHubUser, getUserCommitsForDate, getUserCommitsForDateRange } from '../services/githubService';
 import { isProduction } from '../config/cors';
 import { createLogger } from '../../../shared/logger';
 import type { GitHubAuthRequest } from '../types/github';
@@ -152,6 +152,35 @@ router.get('/commits', asyncHandler(async (req: Request, res: Response) => {
   const response = {
     commits,
     date,
+    total: commits.length
+  };
+  
+  res.json(response);
+}));
+
+// Get commits for a date range
+router.get('/commits/range', asyncHandler(async (req: Request, res: Response) => {
+  const token = getGitHubTokenFromCookies(req);
+  const { startDate, endDate } = req.query as { startDate?: string; endDate?: string };
+  
+  if (!startDate || !endDate) {
+    githubLogger.error('Missing startDate or endDate parameter');
+    throw new ApiError(400, 'Missing startDate or endDate parameter', 'GITHUB_COMMITS_MISSING_DATE_RANGE');
+  }
+  
+  // Validate date format (YYYY-MM-DD)
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+  if (!dateRegex.test(startDate) || !dateRegex.test(endDate)) {
+    githubLogger.error(`Invalid date format: ${startDate} or ${endDate}`);
+    throw new ApiError(400, 'Invalid date format. Expected YYYY-MM-DD', 'GITHUB_COMMITS_INVALID_DATE');
+  }
+  
+  const commits = await getUserCommitsForDateRange(token, startDate, endDate);
+  
+  const response = {
+    commits,
+    startDate,
+    endDate,
     total: commits.length
   };
   

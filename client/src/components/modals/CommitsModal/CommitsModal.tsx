@@ -6,18 +6,7 @@ import { CommitAnalysisSettings } from './components/CommitAnalysisSettings';
 import { CommitTimeline } from './components/CommitTimeline';
 import { PowerShellCommands } from './components/PowerShellCommands';
 import { useCommitSessions } from './hooks/useCommitSessions';
-
-interface GitHubCommit {
-  sha: string;
-  shortSha: string;
-  message: string;
-  date: string;
-  url: string;
-  repository: { name: string; fullName: string };
-  author: { name: string; email: string; date: string };
-  branch: string;
-  pullRequest: { number: number; title: string; branchDeleted: boolean; url: string } | null;
-}
+import { commitService, type GitHubCommit } from '../../../services/commitService';
 
 interface CommitsModalProps {
   date: string;
@@ -38,18 +27,25 @@ export function CommitsModal({ date, onClose, onAddLogEntry }: CommitsModalProps
     date,
     settings?.getSetting('dayStartTime') || '09:00',
     settings?.getSetting('dayEndTime') || '17:00',
-    settings?.getSetting('taskIdRegex') || '(DMO|DFO)-\\d+'
+    settings?.getSetting('taskIdRegex') || ''
   );
   
   useEffect(() => {
     setUsername(settings?.getSetting('githubUsername') || '');
   }, [settings]);
 
+  // Initialize commit service
+  useEffect(() => {
+    if (isAuthenticated) {
+      commitService.initialize(getCommitsForDate);
+    }
+  }, [isAuthenticated, getCommitsForDate]);
+
   const loadGithubCommits = useCallback(async () => {
     try {
       setLoadingCommits(true);
       setGithubError(null);
-      const commits = await getCommitsForDate(date);
+      const commits = await commitService.getCommitsForDate(date);
       setGithubCommits(commits);
     } catch (error) {
       console.error('Failed to load GitHub commits:', error);
@@ -57,7 +53,7 @@ export function CommitsModal({ date, onClose, onAddLogEntry }: CommitsModalProps
     } finally {
       setLoadingCommits(false);
     }
-  }, [getCommitsForDate, date]);
+  }, [date]);
 
   // Load GitHub commits when authenticated and modal opens
   useEffect(() => {
