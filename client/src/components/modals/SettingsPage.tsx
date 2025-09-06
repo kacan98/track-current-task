@@ -7,6 +7,7 @@ import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
 import { useSettings } from '../../contexts/SettingsContext';
 import { useIntroduction } from '../../contexts/IntroductionContext';
+import { CommitAnalysisSettings } from './CommitsModal/components/CommitAnalysisSettings';
 
 export const SETTINGS_FIELDS = [
     { key: 'scrumTaskId', label: 'Scrum Jira Task ID', type: 'text', placeholder: 'Enter Scrum Jira Task ID' } as const,
@@ -35,6 +36,7 @@ export type SettingsObject = {
 function SettingsPage({ onClose, onDeleteAllRows }: { onClose: () => void, onDeleteAllRows: () => void }) {
     const settings = useSettings();
     const { forceShowIntroduction } = useIntroduction();
+
     const [recurringEvents, setRecurringEvents] = React.useState<RecurringEvent[]>(() => {
         const stored = localStorage.getItem('recurringEvents');
         return stored ? JSON.parse(stored) : [
@@ -71,40 +73,15 @@ function SettingsPage({ onClose, onDeleteAllRows }: { onClose: () => void, onDel
 
             <GitHubConnectionForm />
 
-            {/* Commit Analysis Settings */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Commit Analysis Settings</h3>
-                <p className="text-sm text-gray-600 mb-4">
-                    Configure settings for analyzing your GitHub commits to generate work log entries based on branch patterns and working hours.
-                </p>
-                <div className="space-y-4">
-                    {SETTINGS_FIELDS.filter(f => ['dayStartTime', 'dayEndTime', 'taskIdRegex'].includes(f.key)).map(field => (
-                        <div key={field.key}>
-                            <label htmlFor={field.key} className="block text-sm font-medium text-gray-700 mb-2">
-                                {field.label}
-                            </label>
-                            <input
-                                id={field.key}
-                                type={field.type}
-                                value={settings?.settings[field.key] || ''}
-                                onChange={e => handleChange(field.key, e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                placeholder={'placeholder' in field ? field.placeholder : undefined}
-                            />
-                            {field.key === 'taskIdRegex' && (
-                                <p className="text-xs text-gray-500 mt-1">
-                                    Regular expression to extract task IDs from branch names (e.g., (DMO|DFO)-\d+ matches DMO-1234 or DFO-5678)
-                                </p>
-                            )}
-                        </div>
-                    ))}
-                </div>
-            </div>
+            <CommitAnalysisSettings 
+                showCollapsible={false} 
+                containerClassName="bg-white rounded-lg shadow-sm border border-gray-200 p-6" 
+            />
 
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">General Settings</h3>
                 <div className="space-y-4">
-                    {SETTINGS_FIELDS.filter(f => !f.key.startsWith('github') && !f.key.startsWith('scrum') && !['dayStartTime', 'dayEndTime', 'taskIdRegex'].includes(f.key)).map(field => {
+                    {SETTINGS_FIELDS.filter(f => !f.key.startsWith('github') && !f.key.startsWith('scrum') && !['dayStartTime', 'dayEndTime', 'taskIdRegex', 'commitAnalysisExpanded'].includes(f.key)).map(field => {
                         // Hide "Week Start Day" when "Hide Weekends" is enabled
                         if (field.key === 'weekStartDay' && settings?.settings['hideWeekends'] === 'true') {
                             return null;

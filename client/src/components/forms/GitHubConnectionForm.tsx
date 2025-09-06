@@ -7,6 +7,7 @@ export function GitHubConnectionForm() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [authMethod, setAuthMethod] = useState<'pat' | 'oauth'>('pat');
   const [error, setError] = useState<string | null>(null);
+  const [patValue, setPatValue] = useState('');
   const patRef = useRef<HTMLInputElement>(null);
 
   // Reset connecting state when authentication status changes
@@ -21,7 +22,7 @@ export function GitHubConnectionForm() {
     
     if (authMethod === 'pat') {
       // Handle PAT authentication
-      const token = patRef.current?.value;
+      const token = patValue.trim();
       if (!token) {
         setError('Please enter your Personal Access Token');
         setIsConnecting(false);
@@ -31,9 +32,7 @@ export function GitHubConnectionForm() {
       try {
         await loginWithPAT(token);
         // Clear the token from the input after successful login
-        if (patRef.current) {
-          patRef.current.value = '';
-        }
+        setPatValue('');
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to authenticate with GitHub');
         setIsConnecting(false);
@@ -156,6 +155,7 @@ export function GitHubConnectionForm() {
             <ul className="text-xs text-gray-500 list-disc list-inside space-y-1">
               <li>View commits for any date</li>
               <li>Click commits to open them on GitHub</li>
+              <li>Create time entries from commits automatically</li>
               <li>Works with private repositories</li>
             </ul>
           </div>
@@ -199,6 +199,8 @@ export function GitHubConnectionForm() {
                 id="github-pat"
                 ref={patRef}
                 type="password"
+                value={patValue}
+                onChange={(e) => setPatValue(e.target.value)}
                 placeholder="ghp_... or github_pat_..."
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
@@ -226,9 +228,6 @@ export function GitHubConnectionForm() {
                     Copy the token immediately - it won't be shown again!
                   </li>
                 </ol>
-                <p className="mt-2">
-                  <strong>Recommended scopes:</strong> <code className="bg-gray-100 px-1">repo</code>, <code className="bg-gray-100 px-1">user</code>
-                </p>
               </div>
             </div>
           ) : (
@@ -250,7 +249,7 @@ export function GitHubConnectionForm() {
 
           <Button
             type="submit"
-            disabled={isConnecting}
+            disabled={isConnecting || (authMethod === 'pat' && !patValue.trim())}
             variant="primary"
             className="w-full bg-gray-900 hover:bg-gray-800 flex items-center justify-center gap-2"
           >
