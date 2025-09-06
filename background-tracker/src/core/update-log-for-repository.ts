@@ -7,7 +7,7 @@ import {
 } from '../git/git-utils';
 import { getFileDiffStats, getWorkingDirDiffStats } from '../git/diff-analysis';
 import { extractTaskId } from '../utils/date-utils';
-import { logger } from '../../../../shared/logger';
+import { logger } from '../shared/logger';
 
 // Takes mutable entries and repoState, modifies them directly.
 // Returns true if time was logged, false otherwise

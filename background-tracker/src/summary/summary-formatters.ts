@@ -1,8 +1,8 @@
 import { Config } from '../config/config-types';
 import { EnhancedLogEntry } from '../core/file-operations';
 import { getFormattedHours } from '../utils/date-utils';
-import { logger } from '../../../../shared/logger';
-import { colors } from '../../../../shared/colors';
+import { logger } from '../shared/logger';
+import { colors } from '../shared/colors';
 
 // Utility types for grouping data
 type DailyEntries = Record<string, EnhancedLogEntry[]>;

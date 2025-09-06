@@ -2,7 +2,7 @@ import { ACTIVITY_LOG_FILE_PATH } from '..';
 import { Config } from '../config/config-types';
 import { getLogEntries, getRepoState, writeLogFile, writeRepoState } from './file-operations';
 import { updateLogForRepository } from './update-log-for-repository';
-import { logger } from '../../../../shared/logger';
+import { logger } from '../shared/logger';
 
 export async function processAllRepositories(config: Config): Promise<void> {
   const existingEntries = await getLogEntries();

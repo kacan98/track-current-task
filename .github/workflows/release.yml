@@ -23,11 +23,8 @@ jobs:
         with:
           node-version: '20' # Updated to Node 20 for package compatibility
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build TypeScript
-        run: npm run build
+      - name: Install background-tracker dependencies
+        run: cd background-tracker && npm ci
 
       - name: Configure Git User
         run: |
@@ -36,16 +33,20 @@ jobs:
 
       - name: Bump version and create tag
         run: |
-          # npm version patch will create a new commit and a new tag.
-          # The commit message includes [skip ci] to prevent re-triggering the workflow.
+          # Update version in background-tracker package.json
+          cd background-tracker
           NEW_VERSION=$(npm version patch -m "chore: Release v%s [skip ci]")
           echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+          cd ..
+          git add background-tracker/package.json
+          git commit -m "chore: Release $NEW_VERSION [skip ci]"
+          git tag $NEW_VERSION
           git push --follow-tags
         # The GITHUB_TOKEN has write permissions to contents by default in most cases for same repo actions.
         # If not, a PAT stored in secrets.GH_PAT_TOKEN (or similar) would be needed for the git push.
 
       - name: Build executables
-        run: npm run build:executables
+        run: cd background-tracker && npm run build && npm run build:exe
 
       - name: Create GitHub Release
         env:

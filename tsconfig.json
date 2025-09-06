@@ -12,7 +12,7 @@
     }
   },
   "references": [
-    { "path": "./packages/background-tracker" },
+    { "path": "./background-tracker" },
     { "path": "./api" }
   ],
   "files": [],

@@ -8,6 +8,11 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  esbuild: {
+    exclude: [
+      '**/packages/background-tracker/**',
+    ],
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

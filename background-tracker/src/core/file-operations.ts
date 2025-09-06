@@ -1,7 +1,7 @@
 import { readFile, writeFile } from 'fs/promises';
 import { ACTIVITY_LOG_FILE_PATH, REPO_STATE_FILE_PATH } from '..';
 import { RepoState } from './repo-state-types';
-import { logger } from '../../../../shared/logger';
+import { logger } from '../shared/logger';
 
 export interface LogEntry {
   date: string; // YYYY-MM-DD

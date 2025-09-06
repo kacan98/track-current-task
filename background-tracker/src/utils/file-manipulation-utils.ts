@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { resolvePathFromAppData } from '../../../../shared/path-utils';
+import { resolvePathFromAppData } from '../shared/path-utils';
 
 export const saveFileInFolder = (data: string, folderName: string, customFileNameWithoutExtension: string, fileExtension = 'md', makeFileNameUnique = true): string => {
     // Make folder path relative to app data directory

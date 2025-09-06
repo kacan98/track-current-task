@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync } from 'fs';
 import * as readline from 'readline';
-import { logger } from '../../../shared/logger';
+import { logger } from './shared/logger';
 
 // Function to wait for user input before exit
 function waitForUserExit(exitCode = 1) {
@@ -42,8 +42,8 @@ import { logTodaySummary } from './summary/log-todays-summary';
 import { formatLocalDateTime } from './utils/date-utils';
 import { createCountdownSpinner } from './utils/spinner';
 import { spinners } from './utils/spinners';
-import { resolvePathFromAppData, getAppDataDirectory } from '../../../shared/path-utils';
-import { colors } from '../../../shared/colors';
+import { resolvePathFromAppData, getAppDataDirectory } from './shared/path-utils';
+import { colors } from './shared/colors';
 
 export const ACTIVITY_LOG_FILE_PATH = resolvePathFromAppData('activity_log.csv');
 export const CONFIG_FILE_PATH = resolvePathFromAppData('config.json');

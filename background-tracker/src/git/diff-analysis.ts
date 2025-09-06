@@ -1,5 +1,5 @@
 import { execGit, branchExists } from './git-utils';
-import { logger } from '../../../../shared/logger';
+import { logger } from '../shared/logger';
 
 // Helper function to count lines in a file
 export async function getLineCount(filePath: string): Promise<number> {

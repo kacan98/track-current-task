@@ -1,11 +1,6 @@
 {
-  "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "module": "commonjs",
-    "outDir": "../../dist/background-tracker",
-    "rootDir": "../..",
-    "baseUrl": "../.."
+    "noEmit": true
   },
-  "include": ["src/**/*", "../../shared/**/*"],
-  "exclude": ["node_modules", "dist", "scripts"]
+  "files": []
 }

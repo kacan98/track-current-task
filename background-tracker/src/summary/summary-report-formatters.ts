@@ -2,8 +2,8 @@ import { Config } from '../config/config-types';
 import { EnhancedLogEntry } from '../core/file-operations';
 import { getFormattedWeekRange, getFormattedHours } from '../utils/date-utils';
 import { printTaskSummary, renderDailyDetails } from './summary-formatters';
-import { logger } from '../../../../shared/logger';
-import { colors } from '../../../../shared/colors';
+import { logger } from '../shared/logger';
+import { colors } from '../shared/colors';
 
 // Utility types for grouping data
 type WeeklyEntries = Record<number, EnhancedLogEntry[]>;

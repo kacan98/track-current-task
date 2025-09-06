@@ -6,7 +6,7 @@ import { CONFIG_FILE_PATH } from '..';
 import { branchExists, discoverRepositories } from '../git/git-utils';
 import { Config, ConfigSchema } from './config-types';
 import { createConfigInteractively } from './config-setup';
-import { logger } from '../../../../shared/logger';
+import { logger } from '../shared/logger';
 
 async function handleAutoDiscovery(config: Config): Promise<void> {
   if (!config.repositoriesFolder) return;

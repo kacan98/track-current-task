@@ -5,13 +5,13 @@
   "private": true,
   "scripts": {
     "build": "cd client && npm run build",
-    "build:background-tracker": "npm run build -w packages/background-tracker",
-    "build:executables": "npm run build:background-tracker && pkg packages/background-tracker/package.json --targets node18-win-x64,node18-macos-x64 --out-path dist/background-tracker-executables",
+    "build:background-tracker": "cd background-tracker && npm run build",
+    "build:executables": "npm run build:background-tracker && pkg background-tracker/package.json --targets node18-win-x64,node18-macos-x64 --out-path dist/background-tracker-executables",
     "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
     "dev:frontend": "cd client && npm run dev",
     "dev:backend": "cd api && npm run dev",
     "dev:local": "cd api && npm run dev",
-    "dev:background-tracker": "nodemon --exec ts-node packages/background-tracker/src/index.ts",
+    "dev:background-tracker": "nodemon --exec ts-node background-tracker/src/index.ts",
     "typecheck": "npm run typecheck:client && npm run typecheck:api",
     "typecheck:client": "cd client && npm run typecheck",
     "typecheck:api": "cd api && npm run check",
@@ -43,9 +43,6 @@
     "url": "https://github.com/kacan98/track-current-task/issues"
   },
   "homepage": "https://github.com/kacan98/track-current-task#readme",
-  "workspaces": [
-    "packages/*"
-  ],
   "ts-node": {
     "esm": true,
     "experimentalSpecifierResolution": "node",
