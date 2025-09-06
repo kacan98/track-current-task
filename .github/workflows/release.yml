@@ -39,9 +39,14 @@ jobs:
           echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
           cd ..
           git add background-tracker/package.json
-          git commit -m "chore: Release $NEW_VERSION [skip ci]"
+          git commit -m "chore: Release $NEW_VERSION [skip ci]" || true
+          # Delete tag if it exists locally and remotely
+          git tag -d $NEW_VERSION 2>/dev/null || true
+          git push origin :refs/tags/$NEW_VERSION 2>/dev/null || true
+          # Create and push the new tag
           git tag $NEW_VERSION
-          git push --follow-tags
+          git push origin $NEW_VERSION
+          git push origin main
         # The GITHUB_TOKEN has write permissions to contents by default in most cases for same repo actions.
         # If not, a PAT stored in secrets.GH_PAT_TOKEN (or similar) would be needed for the git push.
 
