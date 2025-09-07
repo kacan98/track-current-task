@@ -1,6 +1,6 @@
 {
   "name": "@logbridge/background-tracker",
-  "version": "1.1.36",
+  "version": "1.1.37",
   "description": "Background time tracker for Git activity",
   "type": "commonjs",
   "main": "dist/index.js",
