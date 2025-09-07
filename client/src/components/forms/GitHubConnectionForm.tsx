@@ -227,6 +227,9 @@ export function GitHubConnectionForm() {
                   <li className="font-semibold text-amber-600">
                     Copy the token immediately - it won't be shown again!
                   </li>
+                  <li>
+                    <strong>For organization repositories:</strong> Click "Configure SSO" next to your token and authorize the organization(s) you want to access
+                  </li>
                 </ol>
               </div>
             </div>

@@ -1,37 +1,44 @@
-# Log Bridge
+# Git-to-JIRA Bridge
 
-Automatic time tracking based on Git activity. Built to solve the tedious task of logging development hours to JIRA - this automatically tracks what you're working on and makes time reporting less of a hassle for developers.
+Sync your tracked development time to Jira. Built to solve the tedious task of logging development hours - this bridges the gap between your actual work and time reporting requirements.
 
 ![Frontend Dashboard](screenshots/frontend.png)
 *Main dashboard showing weekly time tracking with task breakdown and editing capabilities*
 
 ![Background Tracker Running](screenshots/month%20overview.png)  
-*Background tracker running with monthly summary showing 56+ hours tracked across multiple projects*
+*Background tracker running with monthly summary tracked across multiple repositories*
 
 ## Why This Exists
 
-I needed to track which tasks I worked on each day and log them to JIRA. Manually tracking time is disruptive and inaccurate. This system automatically detects when you're working (via Git activity) and logs time accurately, making JIRA time reporting much less painful for me and other developers at my company.
+Manual time tracking used to be disruptive and time consuming. I needed a way to automatically capture what I worked on each day and easily log it to Jira. This system makes Jira time reporting much less painful for developers by automating data collection and streamlining the sync process.
 
-## Components
+## How It Works
 
-The system has two independent parts that can work separately:
+Git-to-JIRA Bridge follows a simple 3-step workflow:
 
-### 1. Time Logger (Command-line program)
-- Runs continuously in the background monitoring configured Git repositories
-- Detects changes: file modifications, commits, branch switches
-- Logs time in configurable intervals (default: 15 minutes) when activity is detected
-- Extracts task IDs from branch names using regex (e.g., `JIRA-123` from `feature/JIRA-123-new-login`)
-- Stores data in CSV format in user's AppData folder
-- Generates daily and monthly summaries with time breakdown per task
+### 📊 Get Data (Choose One Method)
 
-### 2. Web Interface  
-- Views time logs from CSV files (auto-loads in dev mode, manual upload in production)
-- Edit time entries - adjust hours, dates, task assignments
-- Copy entries and move them between days
-- GitHub integration - view commits for specific days from authorized repositories
-- JIRA integration - authenticate and sync time entries as worklogs
-- Weekly/daily time breakdown views
-- CSV export/import functionality
+Pick the approach that works best for you:
+
+**○ Generate from GitHub commits:** Connect GitHub and create time logs from your commit history (for a day or full week)
+
+**○ Background Tracker:** Download and run our desktop app to automatically monitor your Git repos and generate CSV files with time logs
+
+**○ Upload CSV:** Upload existing time tracking files or create your own 
+
+**○ Start from scratch:** Begin with an empty workspace and add entries manually in a user friendly web UI
+
+### ✏️ Edit Data
+
+Review and adjust your time entries. Edit hours, dates, task IDs, and descriptions. Jira task details are automatically loaded when you connect to Jira.
+
+### 🚀 Send to Jira
+
+Connect to Jira with your credentials and sync your time entries as worklogs with one click.
+
+## Privacy & Security
+
+**Your data stays with you.** Git-to-JIRA Bridge stores nothing on our servers - all time entries and settings remain in your browser's local storage or your local CSV files. Authentication tokens are stored securely in HTTP-only cookies. The backend only acts as a secure proxy for API calls to GitHub and Jira.
 
 ![GitHub Commits Integration](screenshots/github%20commits.png)
 *GitHub integration showing commits for a specific day to help with time tracking accuracy*
@@ -39,45 +46,40 @@ The system has two independent parts that can work separately:
 ![JIRA and GitHub Settings](screenshots/jira%20and%20github%20integration.png)
 *Settings panel showing connected JIRA and GitHub integrations for seamless workflow*
 
-## How It Works
+## System Architecture
 
 ```
-┌─────────────────┐    CSV Files    ┌─────────────────┐
-│  Time Logger    │─────────────────▶│   User Folder   │
-│                 │                  │                 │
-│ • Watches Git   │                  │ • activity.csv  │
-│ • Logs time     │                  │ • config.json   │
-│ • Extracts IDs  │                  │                 │
-└─────────────────┘                  └─────────────────┘
-                                              │ CSV Files
-                                              │
-                                              ▼
-                                     ┌─────────────────┐
-                                     │    Frontend     │◀─┐
-                                     │                 │  │
-                                     │ • View hours    │  │ Commits
-                                     │ • Edit entries  │  │
-                                     │ • Upload CSV    │  │
-                                     │ • Send to JIRA  │  │
-                                     └─────────────────┘  │
-                                              │           │
-                                              │ HTTP/Auth │
-                                              ▼           │
-                                     ┌─────────────────┐  │
-                                     │    Backend      │  │
-                                     │                 │  │
-                                     │ • JIRA proxy    │  │
-                                     │ • GitHub OAuth  │──┘
-                                     │ • Auth cookies  │
-                                     └─────────────────┘
-                                              │
-                                              ▼ API calls
-                                     ┌─────────────────┐
-                                     │      JIRA       │
-                                     │                 │
-                                     │ • Worklogs      │
-                                     │ • Tasks         │
-                                     └─────────────────┘
+Data Sources:
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│ Background      │    │ GitHub Commits  │    │ Manual/CSV      │
+│ Tracker         │    │                 │    │ Upload          │
+│                 │    │ • Commit history│    │                 │
+│ • Watches Git   │    │ • Branch names  │    │ • Custom data   │
+│ • Logs time     │    │ • Auto-fill     │    │ • Existing logs │
+│ • Generates CSV │    │ • Daily/Weekly  │    │ • Manual entry  │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+        │                        │                        │
+        └─────────────┬─────────────────┬─────────────────┘
+                      │                 │
+                      ▼                 ▼
+                ┌─────────────────────────────────────────┐
+                │            Web Interface               │
+                │                                        │
+                │ • Weekly/daily views                   │
+                │ • Edit entries (hours, dates, tasks)   │
+                │ • Automatic task ID extraction         │
+                │ • Fill recurring events with one click │
+                └─────────────────────────────────────────┘
+                                    │
+                                    │ One-click sync
+                                    ▼
+                            ┌─────────────────┐
+                            │      JIRA       │
+                            │                 │
+                            │ • Worklogs      │
+                            │ • Task details  │
+                            │ • Cloud/Server  │
+                            └─────────────────┘
 ```
 
 ## Installation

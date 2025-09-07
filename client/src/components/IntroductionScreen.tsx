@@ -14,7 +14,7 @@ export const IntroductionScreen: React.FC<IntroductionScreenProps> = ({ onContin
           {/* Header */}
           <div className="text-center mb-10">
             <h1 className="text-4xl font-bold text-gray-900 mb-3">
-              Log Bridge
+              Git-to-JIRA Bridge
             </h1>
             <p className="text-lg text-gray-600">
               Sync your tracked development time to Jira
