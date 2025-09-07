@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
 import { DragDropUpload } from '@/components/ui/DragDropUpload';
 import { DateRangePicker } from '@/components/forms/DateRangePicker';
@@ -147,22 +147,22 @@ const UploadContent: React.FC<{
           </div>
         </button>
         
-        {/* Secondary: Try with Sample Data */}
+        {/* Secondary: Start from scratch */}
         {onSkipUpload && (
           <button
             onClick={onSkipUpload}
             className="w-full p-4 border border-gray-200 rounded-lg hover:border-gray-300 hover:bg-gray-50 transition-all text-left cursor-pointer"
           >
             <div className="flex items-start gap-4">
-              <div className="flex-shrink-0 w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              <div className="flex-shrink-0 w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
               </div>
               <div className="flex-1 min-w-0">
-                <h4 className="font-semibold text-gray-900 mb-1">🎯 Try with Sample Data</h4>
+                <h4 className="font-semibold text-gray-900 mb-1">🚀 Start from scratch</h4>
                 <p className="text-sm text-gray-600">
-                  Explore the app with demo data to see how it works before uploading your own files
+                  Skip uploading and start with an empty workspace. Perfect if you plan to use GitHub's Auto-fill Week or add entries manually.
                 </p>
               </div>
             </div>
@@ -211,6 +211,13 @@ export const AppScreens: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showJiraAuth, setShowJiraAuth] = useState(false);
+
+  // Clear uploadSkipped flag on app start if there are no entries (fresh start/refresh)
+  useEffect(() => {
+    if (entries.length === 0) {
+      sessionStorage.removeItem('uploadSkipped');
+    }
+  }, [entries.length]);
 
   // Handlers
   const handleLoadFromBackend = async () => {
@@ -275,7 +282,11 @@ export const AppScreens: React.FC = () => {
   }
 
   // Show upload screen first if no data loaded or error occurred
-  if (error || entries.length === 0) {
+  // Only skip upload screen if user explicitly skipped it AND there's no error
+  const uploadSkipped = sessionStorage.getItem('uploadSkipped') === 'true';
+  const shouldShowUpload = error || (entries.length === 0 && !uploadSkipped);
+  
+  if (shouldShowUpload) {
     return (
       <ScreenLayout>
         <div className="max-w-4xl mx-auto">
@@ -286,18 +297,13 @@ export const AppScreens: React.FC = () => {
             onLoadFromBackend={handleLoadFromBackend}
             onError={setError}
             onSkipUpload={() => {
-              // Add a sample entry to dismiss the upload screen
-              const sampleEntry: LogEntry = {
-                id: 'sample-1',
-                date: new Date().toISOString().split('T')[0],
-                taskId: 'DEMO-123',
-                repository: 'sample-project',
-                hours: 2,
-                sentToJira: false
-              };
-              setEntries([sampleEntry]);
+              // Set a temporary flag to remember upload was skipped
+              sessionStorage.setItem('uploadSkipped', 'true');
+              
+              // Start with empty data
+              setEntries([]);
               setError(null); // Clear any error state to dismiss upload screen
-              showSuccess('Sample data loaded for demonstration');
+              showSuccess('Starting with empty workspace. Use Auto-fill Week or add entries manually!');
             }}
           />
         </div>

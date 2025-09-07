@@ -1,6 +1,5 @@
 import React from 'react';
 import { Button } from './ui/Button';
-import { Step } from './ui/Step';
 
 interface IntroductionScreenProps {
   onContinue: () => void;
@@ -28,54 +27,62 @@ export const IntroductionScreen: React.FC<IntroductionScreenProps> = ({ onContin
               How It Works
             </h2>
             
-            <div className="space-y-6">
-              {/* Step 0 - Background Tracker */}
-              <Step
-                stepNumber="0"
-                title="Track Your Time"
-                description="The background tracker automatically monitors your Git repositories and logs time when you're actively working. It detects file changes, commits, and branch switches to track your development hours accurately."
-                optional={true}
-              >
-                <div className="text-xs text-gray-500 mb-3 p-2 bg-gray-50 rounded">
-                  <strong>How to use:</strong> Download and run the executable. It will guide you through setup to configure which repositories to monitor. On Windows, add it to your startup folder (Win+R → "shell:startup") to run automatically when you log in.
+            <div className="space-y-8">
+              {/* Get Data Section */}
+              <div className="border-l-4 border-blue-500 pl-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">📊 Get Data</h3>
+                <div className="space-y-3 text-sm text-gray-600">
+                  <div className="flex items-start gap-3">
+                    <span className="font-medium text-blue-600">•</span>
+                    <div>
+                      <strong>Background Tracker:</strong> Download and run our desktop app to automatically monitor your Git repos
+                      <div className="mt-2">
+                        <a 
+                          href="https://github.com/kacan98/track-current-task/releases/latest"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-xs px-2 py-1 bg-gray-900 text-white rounded font-medium hover:bg-gray-800 transition-colors"
+                        >
+                          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 0C4.477 0 0 4.484 0 10.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0110 4.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.203 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.942.359.31.678.921.678 1.856 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0020 10.017C20 4.484 15.522 0 10 0z" clipRule="evenodd" />
+                          </svg>
+                          Download
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="font-medium text-blue-600">•</span>
+                    <div><strong>GitHub Auto-fill Week:</strong> Connect GitHub and generate time logs from your commit history</div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="font-medium text-blue-600">•</span>
+                    <div><strong>Upload CSV:</strong> Upload existing time tracking files or create your own</div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="font-medium text-blue-600">•</span>
+                    <div><strong>Start from scratch:</strong> Begin with an empty workspace and add entries manually</div>
+                  </div>
                 </div>
-                <a 
-                  href="https://github.com/kacan98/track-current-task/releases/latest"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 transition-colors text-sm"
-                >
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 0C4.477 0 0 4.484 0 10.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0110 4.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.203 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.942.359.31.678.921.678 1.856 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0020 10.017C20 4.484 15.522 0 10 0z" clipRule="evenodd" />
-                  </svg>
-                  Download Background Tracker
-                </a>
-              </Step>
+              </div>
 
-              <Step
-                stepNumber="1"
-                title="Get Your Time Data"
-                description="Upload CSV files, download a template to create your own, or try with sample data to explore the app"
-              />
+              {/* Edit Data Section */}
+              <div className="border-l-4 border-green-500 pl-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">✏️ Edit Data</h3>
+                <p className="text-sm text-gray-600">
+                  Review and adjust your time entries. Edit hours, dates, task IDs, and descriptions. 
+                  Jira task details are automatically loaded when you connect to Jira.
+                </p>
+              </div>
 
-              <Step
-                stepNumber="2"
-                title="Review & Edit Your Entries"
-                description="Review your time entries, adjust hours and dates. Task descriptions from Jira are automatically loaded when available"
-              />
-
-              <Step
-                stepNumber="3"
-                title="Connect to GitHub"
-                description="View your commits from specific days to help remember what you worked on"
-                optional={true}
-              />
-
-              <Step
-                stepNumber="4"
-                title="Connect to Jira & Send Logs"
-                description="Connect to Jira with your credentials and sync your time entries as worklogs"
-              />
+              {/* Send to Jira Section */}
+              <div className="border-l-4 border-purple-500 pl-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">🚀 Send to Jira</h3>
+                <p className="text-sm text-gray-600">
+                  Connect to Jira with your credentials and sync your time entries as worklogs with one click.
+                  Supports both cloud and server instances.
+                </p>
+              </div>
             </div>
           </div>
 
