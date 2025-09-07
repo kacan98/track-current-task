@@ -1,14 +1,26 @@
 import { useEffect, useState } from 'react';
 import { getJiraIssuesDetails } from '../services/JiraIntegration';
 import { jiraHeadingsCache } from '../utils/cache';
+import { useJiraAuth } from '../contexts/JiraAuthContext';
 
 export function useJiraHeadings(taskIds: string[]) {
   const [issueHeadings, setIssueHeadings] = useState<Record<string, string>>({});
   const [loadingHeadings, setLoadingHeadings] = useState<Record<string, boolean>>({});
   const [headingsError, setHeadingsError] = useState<Record<string, string>>({});
+  const { isAuthenticated } = useJiraAuth();
 
   useEffect(() => {
     let cancelled = false;
+    
+    // Skip if not authenticated - show appropriate message
+    if (!isAuthenticated) {
+      setIssueHeadings({});
+      setLoadingHeadings({});
+      // Set error for all task IDs to indicate authentication required
+      setHeadingsError(Object.fromEntries(taskIds.map(id => [id, 'Not authenticated to Jira'])));
+      return;
+    }
+    
     if (taskIds.length === 0) {
       setIssueHeadings({});
       setLoadingHeadings({});
@@ -65,7 +77,7 @@ export function useJiraHeadings(taskIds: string[]) {
         setLoadingHeadings(Object.fromEntries(uncachedIds.map(id => [id, false])));
       });
     return () => { cancelled = true; };
-  }, [taskIds]);
+  }, [taskIds, isAuthenticated]);
 
   return { issueHeadings, loadingHeadings, headingsError };
 }

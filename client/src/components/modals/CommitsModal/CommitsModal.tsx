@@ -78,7 +78,7 @@ export function CommitsModal({ date, onClose, onAddLogEntry }: CommitsModalProps
   };
 
   return (
-    <Modal title={`GitHub Commits for ${formatDateWithDay(date)}`} onClose={onClose} maxWidth="2xl">
+    <Modal title={`GitHub Commits for ${formatDateWithDay(date)}`} onClose={onClose}>
       <CommitAnalysisSettings />
 
       <CommitTimeline

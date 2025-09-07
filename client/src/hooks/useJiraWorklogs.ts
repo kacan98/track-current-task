@@ -4,16 +4,37 @@ import type { LogEntry } from '@/types';
 import { jiraWorklogsCache } from '../utils/cache';
 import { isValidTaskId } from '../utils/jiraUtils';
 import { useSettings } from '../contexts/SettingsContext';
+import { useJiraAuth } from '../contexts/JiraAuthContext';
 
 export function useJiraWorklogs(entries: LogEntry[], taskIds: string[]) {
   const settings = useSettings();
   const [worklogTotals, setWorklogTotals] = useState<Record<string, number>>({});
   const [loadingWorklogs, setLoadingWorklogs] = useState<Record<string, boolean>>({});
   const [worklogError, setWorklogError] = useState<Record<string, string>>({});
-
+  const { isAuthenticated } = useJiraAuth();
 
   useEffect(() => {
     let cancelled = false;
+    
+    // Skip if not authenticated - show appropriate message
+    if (!isAuthenticated) {
+      const taskIdRegex = settings?.getSetting('taskIdRegex');
+      const pairs = entries
+        .filter(e => isValidTaskId(e.taskId, taskIdRegex))
+        .map(e => ({ taskId: e.taskId, date: e.date }));
+      const uniquePairs = Array.from(new Set(pairs.map(p => `${p.taskId}|${p.date}`)))
+        .map(k => {
+          const [taskId, date] = k.split('|');
+          return { taskId, date };
+        });
+      
+      setWorklogTotals({});
+      setLoadingWorklogs({});
+      // Set error for all worklog pairs to indicate authentication required
+      setWorklogError(Object.fromEntries(uniquePairs.map(({taskId, date}) => [`${taskId}|${date}`, 'Not authenticated to Jira'])));
+      return;
+    }
+    
     const taskIdRegex = settings?.getSetting('taskIdRegex');
     const pairs = entries
       .filter(e => isValidTaskId(e.taskId, taskIdRegex))
@@ -84,7 +105,7 @@ export function useJiraWorklogs(entries: LogEntry[], taskIds: string[]) {
       setLoadingWorklogs(Object.fromEntries(uniquePairs.map(({taskId, date}) => [`${taskId}|${date}`, false])));
     });
     return () => { cancelled = true; };
-  }, [entries, taskIds, settings]);
+  }, [entries, taskIds, settings, isAuthenticated]);
 
   return { worklogTotals, loadingWorklogs, worklogError };
 }

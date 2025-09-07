@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { JiraCredentialsForm } from '../forms/JiraCredentialsForm';
 import { GitHubConnectionForm } from '../forms/GitHubConnectionForm';
 import { RecurringEventsEditor } from '../RecurringEventsEditor';
@@ -9,6 +9,7 @@ import { useSettings } from '../../contexts/SettingsContext';
 import { useIntroduction } from '../../contexts/IntroductionContext';
 import { CommitAnalysisSettings } from './CommitsModal/components/CommitAnalysisSettings';
 import { useCommitValidation } from './CommitsModal/hooks/useCommitValidation';
+import { RegexValidator } from '../ui/RegexValidator';
 
 export const SETTINGS_FIELDS = [
     { key: 'scrumTaskId', label: 'Scrum Jira Task ID', type: 'text', placeholder: 'Enter Scrum Jira Task ID' } as const,
@@ -39,6 +40,7 @@ function SettingsPage({ onClose, onDeleteAllRows }: { onClose: () => void, onDel
     const settings = useSettings();
     const { forceShowIntroduction } = useIntroduction();
     const { validateRegex } = useCommitValidation();
+    const [showRegexValidator, setShowRegexValidator] = useState(false);
 
     const [recurringEvents, setRecurringEvents] = React.useState<RecurringEvent[]>(() => {
         const stored = localStorage.getItem('recurringEvents');
@@ -71,7 +73,7 @@ function SettingsPage({ onClose, onDeleteAllRows }: { onClose: () => void, onDel
 
 
     return (
-        <Modal title="Settings" onClose={onClose} maxWidth="4xl">
+        <Modal title="Settings" onClose={onClose}>
             <JiraCredentialsForm />
 
             <GitHubConnectionForm />
@@ -84,7 +86,7 @@ function SettingsPage({ onClose, onDeleteAllRows }: { onClose: () => void, onDel
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">General Settings</h3>
                 <div className="space-y-4">
-                    {SETTINGS_FIELDS.filter(f => !f.key.startsWith('github') && !f.key.startsWith('scrum') && !['dayStartTime', 'dayEndTime', 'commitAnalysisExpanded'].includes(f.key)).map(field => {
+                    {SETTINGS_FIELDS.filter(f => !f.key.startsWith('github') && !f.key.startsWith('scrum') && !['dayStartTime', 'dayEndTime', 'commitAnalysisExpanded', 'jiraBaseUrl'].includes(f.key)).map(field => {
                         // Hide "Week Start Day" when "Hide Weekends" is enabled
                         if (field.key === 'weekStartDay' && settings?.settings['hideWeekends'] === 'true') {
                             return null;
@@ -140,10 +142,22 @@ function SettingsPage({ onClose, onDeleteAllRows }: { onClose: () => void, onDel
                                         }`}
                                         placeholder={'placeholder' in field ? field.placeholder : undefined}
                                     />
-                                    {field.key === 'taskIdRegex' && validateRegex(settings?.settings[field.key] || '') && (
-                                        <p className="mt-1 text-sm text-red-600">
-                                            {validateRegex(settings?.settings[field.key] || '')}
-                                        </p>
+                                    {field.key === 'taskIdRegex' && (
+                                        <>
+                                            {validateRegex(settings?.settings[field.key] || '') && (
+                                                <p className="mt-1 text-sm text-red-600">
+                                                    {validateRegex(settings?.settings[field.key] || '')}
+                                                </p>
+                                            )}
+                                            <Button
+                                                type="button"
+                                                onClick={() => setShowRegexValidator(true)}
+                                                variant="secondary"
+                                                className="mt-2 text-sm"
+                                            >
+                                                Open Pattern Validator
+                                            </Button>
+                                        </>
                                     )}
                                 </>
                             )}
@@ -258,6 +272,35 @@ function SettingsPage({ onClose, onDeleteAllRows }: { onClose: () => void, onDel
                     </p>
                 </div>
             </div>
+            
+            {showRegexValidator && (
+                <Modal 
+                    title="Task ID Pattern Validator" 
+                    onClose={() => setShowRegexValidator(false)} 
+                >
+                    <div className="space-y-4">
+                        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                            <p className="text-sm text-blue-800">
+                                Test your regex pattern against example text to ensure it correctly extracts task IDs from your commits and branch names.
+                            </p>
+                        </div>
+                        
+                        <RegexValidator
+                            regex={settings?.getSetting('taskIdRegex') || ''}
+                            onRegexChange={(regex) => settings?.updateSetting('taskIdRegex', regex)}
+                        />
+                        
+                        <div className="flex justify-end pt-4 border-t border-gray-200">
+                            <Button
+                                onClick={() => setShowRegexValidator(false)}
+                                variant="primary"
+                            >
+                                Done
+                            </Button>
+                        </div>
+                    </div>
+                </Modal>
+            )}
         </Modal>
     );
 }

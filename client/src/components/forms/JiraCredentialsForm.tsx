@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { loginToJira, loginToJiraWithToken, getAuthStatus, logoutFromJira } from '../../services/JiraIntegration';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { Button } from '../ui/Button';
+import { useSettings } from '../../contexts/SettingsContext';
+import { useJiraAuth } from '../../contexts/JiraAuthContext';
 import jiraIcon from '../../assets/icons/jira.svg';
 
 interface JiraCredentialsFormProps {
@@ -9,12 +11,12 @@ interface JiraCredentialsFormProps {
 }
 
 export function JiraCredentialsForm({ onAuthSuccess }: JiraCredentialsFormProps = {}) {
+  const settings = useSettings();
+  const { checkAuthStatus: refreshJiraAuth } = useJiraAuth();
   const loginRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
   const tokenRef = useRef<HTMLInputElement>(null);
-  const jiraUrlRef = useRef<HTMLInputElement>(null);
   const [authMethod, setAuthMethod] = useState<'credentials' | 'token'>('token');
-  const [jiraUrl, setJiraUrl] = useState<string>('https://jira.eg.dk');
   const [showPassword, setShowPassword] = useState(false);
   const [authStatus, setAuthStatus] = useState<{ authenticated: boolean; jiraUrl?: string } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -46,7 +48,7 @@ export function JiraCredentialsForm({ onAuthSuccess }: JiraCredentialsFormProps 
     setSuccess(null);
     
     try {
-      const url = jiraUrlRef.current?.value || jiraUrl;
+      const url = settings?.getSetting('jiraBaseUrl') || '';
       if (!url) {
         setError('Please enter your Jira URL');
         return;
@@ -72,6 +74,10 @@ export function JiraCredentialsForm({ onAuthSuccess }: JiraCredentialsFormProps 
       
       setAuthStatus({ authenticated: true, jiraUrl: url });
       setSuccess('Successfully authenticated!');
+      
+      // Update the global Jira auth state
+      await refreshJiraAuth();
+      
       setTimeout(() => {
         onAuthSuccess?.();
       }, 2000);
@@ -87,6 +93,9 @@ export function JiraCredentialsForm({ onAuthSuccess }: JiraCredentialsFormProps 
     try {
       await logoutFromJira();
       setAuthStatus({ authenticated: false });
+      
+      // Update the global Jira auth state
+      await refreshJiraAuth();
     } catch (e: unknown) {
       setError(getErrorMessage(e));
     } finally {
@@ -179,19 +188,18 @@ export function JiraCredentialsForm({ onAuthSuccess }: JiraCredentialsFormProps 
         <div className="space-y-3">
           <div>
             <label htmlFor="jira-url" className="block text-sm font-medium text-gray-700 mb-2">
-              Jira URL
+              Jira Base URL
             </label>
             <input
               id="jira-url"
-              ref={jiraUrlRef}
               type="url"
-              value={jiraUrl}
-              onChange={(e) => setJiraUrl(e.target.value)}
+              value={settings?.getSetting('jiraBaseUrl') || ''}
+              onChange={(e) => settings?.updateSetting('jiraBaseUrl', e.target.value)}
               placeholder="https://your-company.atlassian.net"
               className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
             <p className="mt-1 text-xs text-gray-500">
-              Enter your Jira instance URL (e.g., https://jira.eg.dk)
+              Enter your Jira instance URL (e.g., https://your-company.atlassian.net)
             </p>
           </div>
 
@@ -279,16 +287,16 @@ export function JiraCredentialsForm({ onAuthSuccess }: JiraCredentialsFormProps 
               />
               <div className="mt-2 text-xs text-gray-500">
                 <p>
-                  {jiraUrl ? (
+                  {settings?.getSetting('jiraBaseUrl') ? (
                     <>
                       Create a token at{' '}
                       <a
-                        href={`${jiraUrl}/secure/ViewProfile.jspa`}
+                        href={`${settings.getSetting('jiraBaseUrl')}/secure/ViewProfile.jspa`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-600 underline hover:text-blue-800"
                       >
-                        {jiraUrl}/secure/ViewProfile.jspa
+                        {settings.getSetting('jiraBaseUrl')}/secure/ViewProfile.jspa
                       </a>
                       {' '}→ Click "Create token" → ⚠️ Copy immediately (shown only once)
                     </>

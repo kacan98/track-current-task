@@ -16,6 +16,7 @@ import { createEntry } from '@/utils/entryUtils';
 import { useSettings } from '@/contexts/SettingsContext';
 import { CommitsModal } from '@/components/modals/CommitsModal';
 import { GitHubAuthModal } from '@/components/modals/GitHubAuthModal';
+import { TaskIdRegexModal } from '@/components/modals/TaskIdRegexModal';
 import { commitService } from '@/services/commitService';
 import { useGitHubAuth } from '@/contexts/GitHubAuthContext';
 import { isValidTaskId } from '@/utils/jiraUtils';
@@ -45,6 +46,7 @@ export function LogTable({
   const [isAutoFilling, setIsAutoFilling] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [showGitHubAuth, setShowGitHubAuth] = useState(false);
+  const [showTaskIdRegexModal, setShowTaskIdRegexModal] = useState(false);
   const { isAuthenticated, getCommitsForDate } = useGitHubAuth();
   const settings = useSettings();
 
@@ -69,8 +71,13 @@ export function LogTable({
   };
 
   const handleAutoFillWeek = async () => {
-    if (!weekStart || !settings) {
-      setToastMsg('Week start date or settings not available');
+    if (!settings) {
+      setToastMsg('Settings not loaded. Please refresh the page.');
+      return;
+    }
+    
+    if (!weekStart) {
+      setToastMsg('Week dates not available. Please try selecting the week again.');
       return;
     }
 
@@ -80,12 +87,19 @@ export function LogTable({
       return;
     }
 
+    // Check if taskIdRegex is configured
+    const taskIdRegex = settings.getSetting('taskIdRegex');
+    if (!taskIdRegex || taskIdRegex.trim() === '') {
+      setShowTaskIdRegexModal(true);
+      return;
+    }
+
     setIsAutoFilling(true);
     try {
       const commitSettings = {
         dayStartTime: settings.getSetting('dayStartTime') || '09:00',
         dayEndTime: settings.getSetting('dayEndTime') || '17:00',
-        taskIdRegex: settings.getSetting('taskIdRegex') || ''
+        taskIdRegex: taskIdRegex
       };
 
       const result = await commitService.autoFillWeek(
@@ -105,6 +119,12 @@ export function LogTable({
 
   const handleViewCommits = (date: string) => {
     setCommitsModalDate(date);
+  };
+
+  const handleTaskIdRegexSaved = () => {
+    setShowTaskIdRegexModal(false);
+    // Retry auto-fill now that the regex is configured
+    handleAutoFillWeek();
   };
 
   const handleDragOver = (date: string) => (e: React.DragEvent) => {
@@ -362,6 +382,13 @@ export function LogTable({
         <GitHubAuthModal
           title="Connect GitHub for Auto-fill Week"
           onClose={() => setShowGitHubAuth(false)}
+        />
+      )}
+
+      {showTaskIdRegexModal && (
+        <TaskIdRegexModal
+          onClose={() => setShowTaskIdRegexModal(false)}
+          onSave={handleTaskIdRegexSaved}
         />
       )}
     </div>

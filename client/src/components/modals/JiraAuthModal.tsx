@@ -24,7 +24,6 @@ export const JiraAuthModal: React.FC<JiraAuthModalProps> = ({
     <Modal 
       title="Connect to Jira" 
       onClose={onClose}
-      maxWidth="2xl"
     >
       <div className="mb-4">
         <p className="text-gray-600 text-sm">

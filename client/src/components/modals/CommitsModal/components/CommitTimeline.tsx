@@ -258,8 +258,8 @@ export function CommitTimeline({
                                     </span>
                                   </div>
                                 ) : (
-                                  <span className="px-3 py-1 bg-yellow-100 text-yellow-800 text-sm font-medium rounded whitespace-nowrap border border-yellow-300">
-                                    ⚠️ No task ID found (regex: {settings?.getSetting('taskIdRegex') || 'DMO-\\d+'})
+                                  <span className="px-3 py-1 bg-red-100 text-red-800 text-sm font-medium rounded whitespace-nowrap border border-red-300">
+                                    ⚠️ {settings?.getSetting('taskIdRegex') ? 'No task ID found' : 'Task ID regex not configured'}
                                   </span>
                                 )}
                               </div>

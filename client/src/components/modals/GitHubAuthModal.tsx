@@ -8,7 +8,7 @@ interface GitHubAuthModalProps {
 
 export function GitHubAuthModal({ onClose, title = "Connect to GitHub" }: GitHubAuthModalProps) {
   return (
-    <Modal title={title} onClose={onClose} maxWidth="md">
+    <Modal title={title} onClose={onClose}>
       <div className="space-y-4">
         <p className="text-gray-600 text-sm">
           Connect your GitHub account to automatically fill your week with commit data.
