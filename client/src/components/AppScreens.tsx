@@ -1,6 +1,7 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { DragDropUpload } from '@/components/ui/DragDropUpload';
+import { Modal } from '@/components/ui/Modal';
 import { DateRangePicker } from '@/components/forms/DateRangePicker';
 import { SettingsModal } from '@/components/modals/SettingsModal';
 import { JiraAuthModal } from '@/components/modals/JiraAuthModal';
@@ -15,24 +16,13 @@ import { useJiraWorklog } from '@/hooks/useJiraWorklog';
 import { useIntroduction } from '@/contexts/IntroductionContext';
 import type { LogEntry } from '@/types';
 
-const ScreenLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-    <div className="bg-white border border-gray-200 rounded-lg p-8 max-w-lg w-full">
-      {children}
-    </div>
-  </div>
-);
-
-
-
 const UploadContent: React.FC<{
   error: string | null;
   loadingFromBackend: boolean;
   onFileSelect: (file: File) => void;
   onLoadFromBackend: () => void;
   onError: (error: string) => void;
-  onSkipUpload?: () => void;
-}> = ({ error, loadingFromBackend, onFileSelect, onLoadFromBackend, onError, onSkipUpload }) => {
+}> = ({ error, loadingFromBackend, onFileSelect, onLoadFromBackend, onError }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const downloadCSVTemplate = () => {
@@ -146,29 +136,6 @@ const UploadContent: React.FC<{
             </div>
           </div>
         </button>
-        
-        {/* Secondary: Start from scratch */}
-        {onSkipUpload && (
-          <button
-            onClick={onSkipUpload}
-            className="w-full p-4 border border-gray-200 rounded-lg hover:border-gray-300 hover:bg-gray-50 transition-all text-left cursor-pointer"
-          >
-            <div className="flex items-start gap-4">
-              <div className="flex-shrink-0 w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-              </div>
-              <div className="flex-1 min-w-0">
-                <h4 className="font-semibold text-gray-900 mb-1">🚀 Start from scratch</h4>
-                <p className="text-sm text-gray-600">
-                  Skip uploading and start with an empty workspace. Perfect if you plan to use GitHub's Auto-fill Week or add entries manually.
-                </p>
-              </div>
-            </div>
-          </button>
-        )}
-        
         {/* Last: Load from Filesystem */}
         <button
           onClick={onLoadFromBackend}
@@ -211,13 +178,7 @@ export const AppScreens: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showJiraAuth, setShowJiraAuth] = useState(false);
-
-  // Clear uploadSkipped flag on app start if there are no entries (fresh start/refresh)
-  useEffect(() => {
-    if (entries.length === 0) {
-      sessionStorage.removeItem('uploadSkipped');
-    }
-  }, [entries.length]);
+  const [showUploadModal, setShowUploadModal] = useState(false);
 
   // Handlers
   const handleLoadFromBackend = async () => {
@@ -281,35 +242,6 @@ export const AppScreens: React.FC = () => {
     />;
   }
 
-  // Show upload screen first if no data loaded or error occurred
-  // Only skip upload screen if user explicitly skipped it AND there's no error
-  const uploadSkipped = sessionStorage.getItem('uploadSkipped') === 'true';
-  const shouldShowUpload = error || (entries.length === 0 && !uploadSkipped);
-  
-  if (shouldShowUpload) {
-    return (
-      <ScreenLayout>
-        <div className="max-w-4xl mx-auto">
-          <UploadContent
-            error={error}
-            loadingFromBackend={loadingFromBackend}
-            onFileSelect={handleFileSelect}
-            onLoadFromBackend={handleLoadFromBackend}
-            onError={setError}
-            onSkipUpload={() => {
-              // Set a temporary flag to remember upload was skipped
-              sessionStorage.setItem('uploadSkipped', 'true');
-              
-              // Start with empty data
-              setEntries([]);
-              setError(null); // Clear any error state to dismiss upload screen
-              showSuccess('Starting with empty workspace. Use Auto-fill Week or add entries manually!');
-            }}
-          />
-        </div>
-      </ScreenLayout>
-    );
-  }
 
   // Show main application
   return (
@@ -318,6 +250,14 @@ export const AppScreens: React.FC = () => {
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Log Bridge</h1>
           <div className="flex items-center gap-3">
+            <Button
+              variant="secondary" 
+              className="flex items-center gap-2"
+              onClick={() => setShowUploadModal(true)}
+            >
+              <span className="material-symbols-outlined text-sm">upload_file</span>
+              Upload
+            </Button>
             <Button
               variant="secondary" 
               className="flex items-center gap-2"
@@ -357,6 +297,27 @@ export const AppScreens: React.FC = () => {
         onClose={() => setShowJiraAuth(false)}
         onAuthSuccess={handleAuthSuccess}
       />
+      
+      {showUploadModal && (
+        <Modal 
+          title="Upload Activity Log" 
+          onClose={() => setShowUploadModal(false)}
+        >
+          <UploadContent
+            error={error}
+            loadingFromBackend={loadingFromBackend}
+            onFileSelect={(file) => {
+              handleFileSelect(file);
+              setShowUploadModal(false);
+            }}
+            onLoadFromBackend={() => {
+              handleLoadFromBackend();
+              setShowUploadModal(false);
+            }}
+            onError={setError}
+          />
+        </Modal>
+      )}
     </div>
   );
 };

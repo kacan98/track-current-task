@@ -27,13 +27,20 @@ export function WeekHeader({
 }) {
   const recurringEvents = getRecurringEvents();
   
-  // Format week header: 'Month YYYY: dd – dd'
+  // Format week header
   const startDate = new Date(weekStart);
   const endDate = new Date(weekEnd);
-  const month = startDate.toLocaleString('default', { month: 'long' });
+  const startMonth = startDate.toLocaleString('default', { month: 'short' });
+  const endMonth = endDate.toLocaleString('default', { month: 'short' });
   const year = startDate.getFullYear();
-  const startDay = String(startDate.getDate()).padStart(2, '0');
-  const endDay = String(endDate.getDate()).padStart(2, '0');
+  const startDay = startDate.getDate();
+  const endDay = endDate.getDate();
+  
+  // Format: "Sep 1-7, 2025" or "Aug 28 - Sep 3, 2025" if crossing months
+  const sameMonth = startMonth === endMonth;
+  const dateRange = sameMonth 
+    ? `${startMonth} ${startDay}-${endDay}, ${year}`
+    : `${startMonth} ${startDay} - ${endMonth} ${endDay}, ${year}`;
   
   return (
     <tr className="bg-gray-50 border-b border-gray-200">
@@ -41,7 +48,7 @@ export function WeekHeader({
         <div className="flex flex-row items-center justify-between w-full">
           <div className="flex flex-col">
             <span className="text-lg font-bold text-gray-900 tracking-tight">
-              {month} {year}: {startDay} – {endDay}
+              {dateRange}
             </span>
           </div>
           <div className="flex gap-3">

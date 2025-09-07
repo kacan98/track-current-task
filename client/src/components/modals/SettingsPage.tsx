@@ -74,15 +74,7 @@ function SettingsPage({ onClose, onDeleteAllRows }: { onClose: () => void, onDel
 
     return (
         <Modal title="Settings" onClose={onClose}>
-            <JiraCredentialsForm />
-
-            <GitHubConnectionForm />
-
-            <CommitAnalysisSettings 
-                showCollapsible={false} 
-                containerClassName="bg-white rounded-lg shadow-sm border border-gray-200 p-6" 
-            />
-
+            {/* General Settings - First */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">General Settings</h3>
                 <div className="space-y-4">
@@ -167,7 +159,7 @@ function SettingsPage({ onClose, onDeleteAllRows }: { onClose: () => void, onDel
                 </div>
             </div>
 
-
+            {/* Recurring Events - Second */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Recurring Events</h3>
                 <p className="text-sm text-gray-600 mb-4">
@@ -213,6 +205,16 @@ function SettingsPage({ onClose, onDeleteAllRows }: { onClose: () => void, onDel
                     </table>
                 </div>
             </div>
+
+            {/* Jira, GitHub, and Commit Analysis - Third */}
+            <JiraCredentialsForm />
+
+            <GitHubConnectionForm />
+
+            <CommitAnalysisSettings 
+                showCollapsible={false} 
+                containerClassName="bg-white rounded-lg shadow-sm border border-gray-200 p-6" 
+            />
 
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Data Management</h3>

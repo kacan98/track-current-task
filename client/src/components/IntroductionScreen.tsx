@@ -23,19 +23,24 @@ export const IntroductionScreen: React.FC<IntroductionScreenProps> = ({ onContin
 
           {/* How it works section */}
           <div className="mb-10">
-            <h2 className="text-xl font-semibold text-gray-800 mb-6 text-center">
-              How It Works
+            <h2 className="text-xl font-semibold text-gray-800 mb-6 text-left">
+              How it works:
             </h2>
             
             <div className="space-y-8">
               {/* Get Data Section */}
               <div className="border-l-4 border-blue-500 pl-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">📊 Get Data</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">📊 Get Data (Choose One)</h3>
+                <p className="text-sm text-gray-500 mb-4 italic">Pick the method that works best for you:</p>
                 <div className="space-y-3 text-sm text-gray-600">
                   <div className="flex items-start gap-3">
-                    <span className="font-medium text-blue-600">•</span>
+                    <span className="font-medium text-blue-600">○</span>
+                    <div><strong>Generate from GitHub commits:</strong> Connect GitHub and create time logs from your commit history (for a day or full week)</div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="font-medium text-blue-600">○</span>
                     <div>
-                      <strong>Background Tracker:</strong> Download and run our desktop app to automatically monitor your Git repos
+                      <strong>Background Tracker:</strong> Download and run our desktop app to automatically monitor your Git repos and generate CSV files with time logs
                       <div className="mt-2">
                         <a 
                           href="https://github.com/kacan98/track-current-task/releases/latest"
@@ -52,15 +57,11 @@ export const IntroductionScreen: React.FC<IntroductionScreenProps> = ({ onContin
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
-                    <span className="font-medium text-blue-600">•</span>
-                    <div><strong>GitHub Auto-fill Week:</strong> Connect GitHub and generate time logs from your commit history</div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <span className="font-medium text-blue-600">•</span>
+                    <span className="font-medium text-blue-600">○</span>
                     <div><strong>Upload CSV:</strong> Upload existing time tracking files or create your own</div>
                   </div>
                   <div className="flex items-start gap-3">
-                    <span className="font-medium text-blue-600">•</span>
+                    <span className="font-medium text-blue-600">○</span>
                     <div><strong>Start from scratch:</strong> Begin with an empty workspace and add entries manually</div>
                   </div>
                 </div>
