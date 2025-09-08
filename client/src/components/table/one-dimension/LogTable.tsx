@@ -5,9 +5,9 @@ import { useExtraRows } from '@/hooks/useExtraRows';
 import { useJiraHeadings } from '@/hooks/useJiraHeadings';
 import { useJiraWorklogs } from '@/hooks/useJiraWorklogs';
 import { DayGroupHeader } from './LogTable/DayGroupHeader';
-import { EmptyState } from './LogTable/EmptyState';
+import { EmptyState } from '../common/EmptyState';
 import { LogTableRow } from './LogTable/LogTableRow';
-import { TABLE_COLUMNS } from './LogTable/tableConfig';
+import { TABLE_COLUMNS } from '../common/tableConfig';
 import { WeekHeader } from './LogTable/WeekHeader';
 import React from 'react';
 import { Toast } from '@/components/ui/Toast';
@@ -47,6 +47,8 @@ export function LogTable({
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [showGitHubAuth, setShowGitHubAuth] = useState(false);
   const [showTaskIdRegexModal, setShowTaskIdRegexModal] = useState(false);
+  const [sendingToJira, setSendingToJira] = useState(false);
+  const [hasAutoFilled, setHasAutoFilled] = useState(false);
   const { isAuthenticated, getCommitsForDate } = useGitHubAuth();
   const settings = useSettings();
 
@@ -109,6 +111,7 @@ export function LogTable({
       );
 
       setToastMsg(`Auto-fill completed! Processed ${result.processed} days, added ${result.added} log entries.`);
+      setHasAutoFilled(true); // Mark as auto-filled for this week
     } catch (error) {
       console.error('Auto-fill failed:', error);
       setToastMsg(`Auto-fill failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -125,6 +128,39 @@ export function LogTable({
     setShowTaskIdRegexModal(false);
     // Retry auto-fill now that the regex is configured
     handleAutoFillWeek();
+  };
+
+  // Handle sending all entries to Jira
+  const handleSendAllToJira = async () => {
+    if (!onSendToJira) return;
+    
+    setSendingToJira(true);
+    
+    try {
+      const entriesToSend = entries.filter(e => !e.sentToJira);
+      let successCount = 0;
+      let errorCount = 0;
+      
+      for (const entry of entriesToSend) {
+        try {
+          await onSendToJira(entry);
+          successCount++;
+        } catch (error) {
+          console.error(`Failed to send entry ${entry.id} to Jira:`, error);
+          errorCount++;
+        }
+      }
+      
+      if (errorCount === 0) {
+        setToastMsg(`Successfully sent ${successCount} entries to Jira`);
+      } else {
+        setToastMsg(`Sent ${successCount} entries to Jira, ${errorCount} failed`);
+      }
+    } catch (error) {
+      setToastMsg('Failed to send entries to Jira');
+    } finally {
+      setSendingToJira(false);
+    }
   };
 
   const handleDragOver = (date: string) => (e: React.DragEvent) => {
@@ -291,7 +327,7 @@ export function LogTable({
 
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+    <div className="overflow-hidden">
       {toastMsg && <Toast message={toastMsg} onClose={() => setToastMsg(null)} />}
       <div className="overflow-x-auto w-full">
         <table className="w-full text-left">
@@ -306,6 +342,10 @@ export function LogTable({
                 hasScrumTaskId={!!(settings?.getSetting('scrumTaskId') || '').trim()}
                 onAutoFillWeek={handleAutoFillWeek}
                 isAutoFilling={isAutoFilling}
+                hasAutoFilled={hasAutoFilled}
+                onSendToJira={onSendToJira ? handleSendAllToJira : undefined}
+                sendingToJira={sendingToJira}
+                entries={entries}
               />
             )}
             <tr className="bg-gray-50 border-b border-gray-200">

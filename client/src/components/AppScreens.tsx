@@ -5,7 +5,8 @@ import { Modal } from '@/components/ui/Modal';
 import { DateRangePicker } from '@/components/forms/DateRangePicker';
 import { SettingsModal } from '@/components/modals/SettingsModal';
 import { JiraAuthModal } from '@/components/modals/JiraAuthModal';
-import { WeeklyLogDisplay } from '@/components/table/WeeklyLogDisplay';
+import { WeeklyLogDisplay } from '@/components/table/one-dimension/WeeklyLogDisplay';
+import { TaskGridView } from '@/components/table/two-dimensions/TaskGridView';
 import { IntroductionScreen } from '@/components/IntroductionScreen';
 import { useAuthentication } from '@/hooks/useAuthentication';
 import { useLogEntries } from '@/contexts/LogEntriesContext';
@@ -179,8 +180,17 @@ export const AppScreens: React.FC = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [showJiraAuth, setShowJiraAuth] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [viewMode, setViewMode] = useState<'timeline' | 'grid'>(() => {
+    const saved = localStorage.getItem('viewMode');
+    return (saved === 'timeline' || saved === 'grid') ? saved : 'grid';
+  });
 
   // Handlers
+  const handleViewModeChange = (newViewMode: 'timeline' | 'grid') => {
+    setViewMode(newViewMode);
+    localStorage.setItem('viewMode', newViewMode);
+  };
+
   const handleLoadFromBackend = async () => {
     setError(null);
     const result = await loadFromBackend();
@@ -250,6 +260,31 @@ export const AppScreens: React.FC = () => {
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Git-to-JIRA Bridge</h1>
           <div className="flex items-center gap-3">
+            <div className="flex bg-gray-100 rounded-lg p-1">
+              <button
+                className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-all duration-200 cursor-pointer ${
+                  viewMode === 'grid' 
+                    ? 'bg-white text-blue-600 font-medium shadow-sm' 
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                }`}
+                onClick={() => handleViewModeChange('grid')}
+              >
+                <span className="material-symbols-outlined text-sm">grid_view</span>
+                Grid
+              </button>
+              <button
+                className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-all duration-200 cursor-pointer ${
+                  viewMode === 'timeline' 
+                    ? 'bg-white text-blue-600 font-medium shadow-sm' 
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                }`}
+                onClick={() => handleViewModeChange('timeline')}
+              >
+                <span className="material-symbols-outlined text-sm">view_list</span>
+                Timeline
+              </button>
+            </div>
+            <div className="w-px h-6 bg-gray-300"></div>
             <Button
               variant="secondary" 
               className="flex items-center gap-2"
@@ -277,11 +312,19 @@ export const AppScreens: React.FC = () => {
           />
         </div>
 
-        <WeeklyLogDisplay
-          weeks={weeks}
-          filtered={filtered}
-          onSendToJira={handleSendToJira}
-        />
+        {viewMode === 'timeline' ? (
+          <WeeklyLogDisplay
+            weeks={weeks}
+            filtered={filtered}
+            onSendToJira={handleSendToJira}
+          />
+        ) : (
+          <TaskGridView
+            weeks={weeks}
+            filtered={filtered}
+            onSendToJira={handleSendToJira}
+          />
+        )}
       </div>
 
       <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />

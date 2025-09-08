@@ -1,5 +1,5 @@
 
-import { TABLE_COLUMNS } from './tableConfig';
+import { TABLE_COLUMNS } from '../../common/tableConfig';
 
 export function TableHeaders({
   sortColumn,

@@ -1,6 +1,6 @@
 // components/LogTable/DayGroupHeader.tsx
 import { getDayOfWeek } from '@/utils/componentUtils';
-import { Button } from '../../ui/Button';
+import { Button } from '@/components/ui/Button';
 
 interface DayGroupHeaderProps {
   date: string;
@@ -68,23 +68,23 @@ export function DayGroupHeader({ date, totalHours, entryCount, isDragOver, onAdd
           {onViewCommits && (
             <Button
               variant="secondary"
-              className="flex items-center justify-center gap-1 text-xs px-2 py-1 flex-1"
+              size="sm"
+              className="flex items-center justify-center w-8 h-8 p-0"
               onClick={() => onViewCommits(date)}
               title={`View GitHub commits for ${date}`}
             >
               <span className="material-symbols-outlined text-sm">code</span>
-              <span className="hidden sm:inline">Commits</span>
             </Button>
           )}
           {onAddTask && (
             <Button
               variant="secondary"
-              className="flex items-center justify-center gap-1 text-xs px-2 py-1 flex-1"
+              size="sm"
+              className="flex items-center justify-center w-8 h-8 p-0"
               onClick={() => onAddTask(date)}
               title={`Add new task for ${date}`}
             >
               <span className="material-symbols-outlined text-sm">add</span>
-              <span className="hidden sm:inline">Add Task</span>
             </Button>
           )}
         </div>
