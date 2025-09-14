@@ -20,9 +20,9 @@ export async function createConfigInteractively(): Promise<Config> {
             name: 'mode',
             message: 'How would you like to track repositories?',
             choices: [
+                { name: 'Auto-discover all repositories from a folder', value: 'auto-discover' },
                 { name: 'Track a single repository', value: 'single' },
-                { name: 'Track multiple repositories (manual setup)', value: 'multiple' },
-                { name: 'Auto-discover all repositories from a folder', value: 'auto-discover' }
+                { name: 'Track multiple repositories (manual setup)', value: 'multiple' }
             ]
         }
     ]);
