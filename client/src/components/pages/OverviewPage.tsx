@@ -92,6 +92,15 @@ interface PullRequest {
   lastCommitDate?: string | null;
   lastReviewDate?: string | null;
   lastReviewState?: string | null;
+  mergeable?: boolean | null;
+  mergeableState?: string;
+  checkStatus?: {
+    state: string;
+    total: number;
+    passed: number;
+    failed: number;
+    pending: number;
+  };
 }
 
 interface TaskWithPRs {
@@ -293,13 +302,20 @@ export const OverviewPage: React.FC = () => {
           linkedTaskIds.includes(pr.taskId)
         );
 
-        // Sort open PRs: changes requested first, then by comment count descending
+        // Sort open PRs: conflicts first, then changes requested, then by comment count descending
         const openPRs = taskPRs
           .filter((pr: PullRequest) => !pr.merged && pr.state === 'open')
           .sort((a: PullRequest, b: PullRequest) => {
-            // Changes requested PRs first
+            // PRs with merge conflicts first
+            const aHasConflicts = a.mergeable === false;
+            const bHasConflicts = b.mergeable === false;
+            if (aHasConflicts && !bHasConflicts) return -1;
+            if (!aHasConflicts && bHasConflicts) return 1;
+
+            // Changes requested PRs second
             if (a.changesRequested && !b.changesRequested) return -1;
             if (!a.changesRequested && b.changesRequested) return 1;
+
             // Then by total comments (descending)
             const aTotalComments = a.comments + a.reviewComments;
             const bTotalComments = b.comments + b.reviewComments;

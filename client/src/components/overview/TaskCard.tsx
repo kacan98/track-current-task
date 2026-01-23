@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Badge } from '@/components/ui/Badge';
 
 interface Subtask {
   key: string;
@@ -59,6 +60,15 @@ interface PullRequest {
   lastCommitDate?: string | null;
   lastReviewDate?: string | null;
   lastReviewState?: string | null;
+  mergeable?: boolean | null;
+  mergeableState?: string;
+  checkStatus?: {
+    state: string;
+    total: number;
+    passed: number;
+    failed: number;
+    pending: number;
+  };
 }
 
 interface TaskCardProps {
@@ -137,6 +147,25 @@ export const TaskCard: React.FC<TaskCardProps> = ({
     const lastCommit = new Date(pr.lastCommitDate);
     const lastReview = new Date(pr.lastReviewDate);
     return lastReview > lastCommit;
+  };
+
+  const hasConflicts = (pr: PullRequest) => {
+    return pr.mergeable === false;
+  };
+
+  const getCheckStatusIcon = (state: string) => {
+    switch (state) {
+      case 'success':
+        return { icon: 'check_circle', color: 'text-green-600' };
+      case 'failure':
+        return { icon: 'cancel', color: 'text-red-600' };
+      case 'pending':
+        return { icon: 'schedule', color: 'text-yellow-600' };
+      case 'none':
+      case 'unknown':
+      default:
+        return null;
+    }
   };
 
   return (
@@ -291,6 +320,8 @@ export const TaskCard: React.FC<TaskCardProps> = ({
             {pullRequests.open.map((pr) => {
               const totalComments = pr.comments + pr.reviewComments;
               const showChangesRequested = shouldShowChangesRequested(pr);
+              const prHasConflicts = hasConflicts(pr);
+              const checkStatusInfo = pr.checkStatus ? getCheckStatusIcon(pr.checkStatus.state) : null;
               return (
                 <a
                   key={pr.number}
@@ -298,35 +329,55 @@ export const TaskCard: React.FC<TaskCardProps> = ({
                   target="_blank"
                   rel="noopener noreferrer"
                   className={`block p-3 rounded border transition-colors ${
-                    showChangesRequested
+                    prHasConflicts
+                      ? 'bg-red-50 border-red-300 hover:border-red-400 hover:bg-red-100'
+                      : showChangesRequested
                       ? 'bg-orange-50 border-orange-300 hover:border-orange-400 hover:bg-orange-100'
                       : 'bg-gray-50 border-gray-200 hover:border-blue-300 hover:bg-blue-50'
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-2 mb-1">
-                    <span className="text-sm font-medium text-gray-900 line-clamp-1 flex-1">
-                      {pr.title}
-                      {showChangesRequested && (
-                        <span className="ml-2 text-xs text-orange-600 font-semibold flex items-center gap-1">
-                          <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>warning</span>
-                          Changes Requested
-                        </span>
-                      )}
-                    </span>
-                    <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border flex-shrink-0 ${getPRStateBadgeColor(
-                        pr
-                      )}`}
-                    >
-                      {getPRStateLabel(pr)}
-                    </span>
+                  <div className="space-y-1.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="text-sm font-medium text-gray-900 line-clamp-1 flex-1">
+                        {pr.title}
+                      </span>
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border flex-shrink-0 ${getPRStateBadgeColor(
+                          pr
+                        )}`}
+                      >
+                        {getPRStateLabel(pr)}
+                      </span>
+                    </div>
+                    {(prHasConflicts || showChangesRequested) && (
+                      <div className="flex items-center gap-2">
+                        {prHasConflicts && (
+                          <Badge variant="danger" icon="warning">
+                            Merge Conflicts
+                          </Badge>
+                        )}
+                        {!prHasConflicts && showChangesRequested && (
+                          <Badge variant="warning" icon="warning">
+                            Changes Requested
+                          </Badge>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <div className="text-xs text-gray-600 flex items-center gap-2">
+                  <div className="text-xs text-gray-600 flex items-center gap-2 flex-wrap">
                     <span>#{pr.number} • {pr.repository.name}</span>
                     {totalComments > 0 && (
                       <span className="text-xs text-gray-500 flex items-center gap-1">
                         <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>comment</span>
                         {totalComments} comment{totalComments !== 1 ? 's' : ''}
+                      </span>
+                    )}
+                    {checkStatusInfo && pr.checkStatus && (
+                      <span className={`text-xs flex items-center gap-1 ${checkStatusInfo.color}`}>
+                        <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>{checkStatusInfo.icon}</span>
+                        {pr.checkStatus.state === 'success' && `${pr.checkStatus.passed}/${pr.checkStatus.total} checks passed`}
+                        {pr.checkStatus.state === 'failure' && `${pr.checkStatus.failed}/${pr.checkStatus.total} checks failed`}
+                        {pr.checkStatus.state === 'pending' && `${pr.checkStatus.pending}/${pr.checkStatus.total} checks pending`}
                       </span>
                     )}
                   </div>

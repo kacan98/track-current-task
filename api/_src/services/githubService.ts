@@ -137,6 +137,50 @@ async function getLastCommit(token: string, prApiUrl: string, prNumber: number) 
   }
 }
 
+// Get check status for a commit
+async function getCheckStatus(token: string, repoFullName: string, commitSha: string) {
+  try {
+    const [owner, repo] = repoFullName.split('/');
+    const url = `${GITHUB_API_BASE}/repos/${owner}/${repo}/commits/${commitSha}/check-runs`;
+
+    const response = await axios.get(url, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/vnd.github+json',
+        'User-Agent': 'track-current-task-app'
+      }
+    });
+
+    const checkRuns = response.data.check_runs;
+    if (checkRuns.length === 0) {
+      return { state: 'none', total: 0, passed: 0, failed: 0, pending: 0 };
+    }
+
+    const passed = checkRuns.filter((run: { conclusion: string }) => run.conclusion === 'success').length;
+    const failed = checkRuns.filter((run: { conclusion: string }) => ['failure', 'timed_out', 'action_required'].includes(run.conclusion)).length;
+    const pending = checkRuns.filter((run: { status: string; conclusion: string | null }) => run.status !== 'completed' || run.conclusion === null).length;
+
+    let state = 'success';
+    if (failed > 0) {
+      state = 'failure';
+    } else if (pending > 0) {
+      state = 'pending';
+    }
+
+    return {
+      state,
+      total: checkRuns.length,
+      passed,
+      failed,
+      pending
+    };
+  } catch (error) {
+    const axiosError = error as AxiosError;
+    githubLogger.warn(`Failed to fetch check status for commit ${commitSha}: ${axiosError?.response?.status || axiosError?.message}`);
+    return { state: 'unknown', total: 0, passed: 0, failed: 0, pending: 0 };
+  }
+}
+
 // Get user's commits for a date range across all accessible repositories  
 export async function getUserCommitsForDateRange(token: string, startDate: string, endDate: string) {
   githubLogger.info(`Fetching commits for date range: ${startDate} to ${endDate}`);
@@ -261,6 +305,10 @@ export async function searchUserPullRequests(token: string, taskIds: string[]) {
           const comments = prDetails.data.comments || 0;
           const reviewComments = prDetails.data.review_comments || 0;
 
+          // Check if PR has merge conflicts
+          const mergeable = prDetails.data.mergeable;
+          const mergeableState = prDetails.data.mergeable_state;
+
           // Get last review and commit information
           const lastReview = await getLastReview(token, prDetails.data.url, pr.number);
           const lastCommitDate = await getLastCommit(token, prDetails.data.url, pr.number);
@@ -268,6 +316,9 @@ export async function searchUserPullRequests(token: string, taskIds: string[]) {
           const changesRequested = lastReview?.changesRequested || false;
           const lastReviewDate = lastReview?.submittedAt || null;
           const lastReviewState = lastReview?.state || null;
+
+          // Get check status for the PR
+          const checkStatus = await getCheckStatus(token, repoFullName, prDetails.data.head.sha);
 
           // Check if branch, title, or description contains any task ID
           const matchedTaskId = taskIds.find(taskId => {
@@ -309,7 +360,10 @@ export async function searchUserPullRequests(token: string, taskIds: string[]) {
             changesRequested,
             lastCommitDate,
             lastReviewDate,
-            lastReviewState
+            lastReviewState,
+            mergeable,
+            mergeableState,
+            checkStatus
           };
         } catch (error) {
           const axiosError = error as AxiosError;
