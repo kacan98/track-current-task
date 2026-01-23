@@ -82,9 +82,27 @@ export const jiraApiClient = {
   // Get details for multiple worklogs
   async getWorklogsDetails(token: string, jiraUrl: string, request: JiraWorklogsRequest): Promise<AxiosResponse> {
     const { worklogIds } = request;
-    
+
     const url = `${jiraUrl}/rest/api/${API_VERSION}/worklog/list`;
     const payload = { ids: worklogIds };
+
+    return axios.post(url, payload, createAxiosConfig(token));
+  },
+
+  // Get assigned tasks filtered by status category
+  async getAssignedTasks(token: string, jiraUrl: string, statusCategories: string[] = ['To Do', 'In Progress'], maxResults: number = 50): Promise<AxiosResponse> {
+    const url = `${jiraUrl}/rest/api/${API_VERSION}/search`;
+
+    const statusCategoryFilter = statusCategories.map(cat => `"${cat}"`).join(', ');
+
+    // Filter by current user's assigned tasks, excluding subtasks
+    const jqlQuery = `assignee = currentUser() AND statusCategory IN (${statusCategoryFilter}) AND issuetype != Sub-task ORDER BY updated DESC`;
+
+    const payload = {
+      jql: jqlQuery,
+      maxResults,
+      fields: ['summary', 'status', 'priority', 'issuetype', 'key', 'project', 'assignee', 'issuelinks', 'subtasks']
+    };
 
     return axios.post(url, payload, createAxiosConfig(token));
   }

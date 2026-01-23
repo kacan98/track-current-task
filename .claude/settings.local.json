@@ -16,5 +16,9 @@
       "Bash(npm run dev:*)"
     ],
     "deny": []
-  }
+  },
+  "enabledMcpjsonServers": [
+    "browsermcp"
+  ],
+  "enableAllProjectMcpServers": true
 }

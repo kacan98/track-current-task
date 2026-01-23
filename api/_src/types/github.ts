@@ -67,3 +67,32 @@ export interface GitHubErrorResponse {
   message: string;
   documentation_url?: string;
 }
+
+export interface GitHubBranchSearchRequest {
+  taskIds: string[]; // e.g., ['PROJ-123', 'PROJ-456']
+}
+
+export interface GitHubBranch {
+  name: string;
+  repository: {
+    name: string;
+    fullName: string;
+  };
+  url: string;
+}
+
+export interface GitHubPullRequest {
+  number: number;
+  title: string;
+  state: string;
+  draft: boolean;
+  url: string;
+  branch: string;
+  repository: {
+    name: string;
+    fullName: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+  mergedAt?: string;
+}

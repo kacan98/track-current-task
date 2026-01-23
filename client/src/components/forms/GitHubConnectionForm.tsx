@@ -2,7 +2,11 @@ import { useState, useRef, useEffect } from 'react';
 import { Button } from '../ui/Button';
 import { useGitHubAuth } from '../../contexts/GitHubAuthContext';
 
-export function GitHubConnectionForm() {
+interface GitHubConnectionFormProps {
+  onSuccess?: (() => void) | undefined;
+}
+
+export function GitHubConnectionForm({ onSuccess }: GitHubConnectionFormProps = {}) {
   const { isAuthenticated, user, logout, isLoading, loginWithPAT } = useGitHubAuth();
   const [isConnecting, setIsConnecting] = useState(false);
   const [authMethod, setAuthMethod] = useState<'pat' | 'oauth'>('pat');
@@ -13,7 +17,10 @@ export function GitHubConnectionForm() {
   // Reset connecting state when authentication status changes
   useEffect(() => {
     setIsConnecting(false);
-  }, [isAuthenticated]);
+    if (isAuthenticated && onSuccess) {
+      onSuccess();
+    }
+  }, [isAuthenticated, onSuccess]);
 
   const handleConnect = async (e?: React.FormEvent) => {
     e?.preventDefault();

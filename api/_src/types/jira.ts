@@ -69,3 +69,8 @@ export interface JiraErrorResponse {
   message?: string;
   errors?: Record<string, string>;
 }
+
+export interface JiraAssignedTasksRequest {
+  statusCategories?: string[]; // e.g., ['To Do', 'In Progress']
+  maxResults?: number;
+}

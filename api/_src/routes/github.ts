@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { ApiError, asyncHandler } from '../middleware/errorHandler';
-import { exchangeCodeForToken, getGitHubUser, getUserCommitsForDate, getUserCommitsForDateRange } from '../services/githubService';
+import { exchangeCodeForToken, getGitHubUser, getUserCommitsForDate, getUserCommitsForDateRange, searchUserPullRequests } from '../services/githubService';
 import { isProduction } from '../config/cors';
 import { createLogger } from '../../../shared/logger';
 import type { GitHubAuthRequest } from '../types/github';
@@ -185,6 +185,25 @@ router.get('/commits/range', asyncHandler(async (req: Request, res: Response) =>
   };
   
   res.json(response);
+}));
+
+// Search for pull requests matching task IDs
+router.post('/pulls/search', asyncHandler(async (req: Request, res: Response) => {
+  const token = getGitHubTokenFromCookies(req);
+  const { taskIds } = req.body as { taskIds: string[] };
+
+  if (!Array.isArray(taskIds) || taskIds.length === 0) {
+    githubLogger.error('Missing or empty taskIds array');
+    throw new ApiError(400, 'Missing or empty taskIds array', 'GITHUB_PRS_MISSING_TASK_IDS');
+  }
+
+  const pullRequests = await searchUserPullRequests(token, taskIds);
+
+  res.json({
+    pullRequests,
+    total: pullRequests.length,
+    taskIds
+  });
 }));
 
 export default router;

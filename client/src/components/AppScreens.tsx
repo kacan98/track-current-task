@@ -263,8 +263,8 @@ export const AppScreens: React.FC = () => {
             <div className="flex bg-gray-100 rounded-lg p-1">
               <button
                 className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-all duration-200 cursor-pointer ${
-                  viewMode === 'grid' 
-                    ? 'bg-white text-blue-600 font-medium shadow-sm' 
+                  viewMode === 'grid'
+                    ? 'bg-white text-blue-600 font-medium shadow-sm'
                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                 }`}
                 onClick={() => handleViewModeChange('grid')}
@@ -274,8 +274,8 @@ export const AppScreens: React.FC = () => {
               </button>
               <button
                 className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-all duration-200 cursor-pointer ${
-                  viewMode === 'timeline' 
-                    ? 'bg-white text-blue-600 font-medium shadow-sm' 
+                  viewMode === 'timeline'
+                    ? 'bg-white text-blue-600 font-medium shadow-sm'
                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                 }`}
                 onClick={() => handleViewModeChange('timeline')}
@@ -286,7 +286,15 @@ export const AppScreens: React.FC = () => {
             </div>
             <div className="w-px h-6 bg-gray-300"></div>
             <Button
-              variant="secondary" 
+              variant="secondary"
+              className="flex items-center gap-2"
+              onClick={() => window.location.href = '/tasks'}
+            >
+              <span className="material-symbols-outlined text-sm">task_alt</span>
+              My Tasks
+            </Button>
+            <Button
+              variant="secondary"
               className="flex items-center gap-2"
               onClick={() => setShowUploadModal(true)}
             >
@@ -294,7 +302,7 @@ export const AppScreens: React.FC = () => {
               Upload
             </Button>
             <Button
-              variant="secondary" 
+              variant="secondary"
               className="flex items-center gap-2"
               onClick={() => setShowSettings(true)}
             >

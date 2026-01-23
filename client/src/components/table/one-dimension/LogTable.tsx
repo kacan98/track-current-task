@@ -418,12 +418,11 @@ export function LogTable({
         />
       )}
 
-      {showGitHubAuth && (
-        <GitHubAuthModal
-          title="Connect GitHub for Auto-fill Week"
-          onClose={() => setShowGitHubAuth(false)}
-        />
-      )}
+      <GitHubAuthModal
+        isOpen={showGitHubAuth}
+        title="Connect GitHub for Auto-fill Week"
+        onClose={() => setShowGitHubAuth(false)}
+      />
 
       {showTaskIdRegexModal && (
         <TaskIdRegexModal

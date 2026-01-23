@@ -59,7 +59,7 @@ export async function getGitHubUser(token: string): Promise<GitHubUser> {
 export async function getPullRequestsForCommit(token: string, owner: string, repo: string, sha: string) {
   try {
     const url = `${GITHUB_API_BASE}/repos/${owner}/${repo}/commits/${sha}/pulls`;
-    
+
     const response = await axios.get(url, {
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -83,6 +83,57 @@ export async function getPullRequestsForCommit(token: string, owner: string, rep
       githubLogger.warn(`Failed to fetch PRs for commit ${sha}: ${axiosError?.response?.status || axiosError?.message}`);
     }
     return [];
+  }
+}
+
+// Get the most recent review for a PR
+async function getLastReview(token: string, prApiUrl: string, prNumber: number) {
+  try {
+    const reviewsResponse = await axios.get(`${prApiUrl}/reviews`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/vnd.github+json',
+        'User-Agent': 'track-current-task-app'
+      }
+    });
+
+    if (reviewsResponse.data.length > 0) {
+      const sortedReviews = reviewsResponse.data.sort((a: { submitted_at: string }, b: { submitted_at: string }) =>
+        new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime()
+      );
+      const lastReview = sortedReviews[0];
+      return {
+        submittedAt: lastReview.submitted_at,
+        state: lastReview.state,
+        changesRequested: lastReview.state === 'CHANGES_REQUESTED'
+      };
+    }
+    return null;
+  } catch (error) {
+    githubLogger.warn(`Failed to fetch reviews for PR #${prNumber}`);
+    return null;
+  }
+}
+
+// Get the last commit date for a PR
+async function getLastCommit(token: string, prApiUrl: string, prNumber: number) {
+  try {
+    const commitsResponse = await axios.get(`${prApiUrl}/commits`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/vnd.github+json',
+        'User-Agent': 'track-current-task-app'
+      }
+    });
+
+    if (commitsResponse.data.length > 0) {
+      const lastCommit = commitsResponse.data[commitsResponse.data.length - 1];
+      return lastCommit.commit.author.date;
+    }
+    return null;
+  } catch (error) {
+    githubLogger.warn(`Failed to fetch commits for PR #${prNumber}`);
+    return null;
   }
 }
 
@@ -144,6 +195,146 @@ export async function getUserCommitsForDateRange(token: string, startDate: strin
   } catch (error: unknown) {
     const axiosError = error as AxiosError;
     githubLogger.error(`Failed to fetch commits for range: ${axiosError?.response?.status || axiosError?.message}`);
+    throw error;
+  }
+}
+
+// Search for user's pull requests matching task IDs
+export async function searchUserPullRequests(token: string, taskIds: string[]) {
+  githubLogger.info(`Searching PRs for ${taskIds.length} task IDs: ${taskIds.join(', ')}`);
+
+  try {
+    const user = await getGitHubUser(token);
+    githubLogger.info(`Searching PRs by author: ${user.login}`);
+
+    // Search for all user's PRs, sorted by recently updated
+    const searchQuery = `author:${user.login} type:pr`;
+    const url = `${GITHUB_API_BASE}/search/issues?q=${encodeURIComponent(searchQuery)}&sort=updated&order=desc&per_page=100`;
+
+    const response = await axios.get(url, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/vnd.github+json',
+        'User-Agent': 'track-current-task-app'
+      }
+    });
+
+    githubLogger.info(`GitHub search returned ${response.data.items.length} items (total available: ${response.data.total_count})`);
+
+    // Filter PRs by checking if head branch contains any task ID
+    const matchedPRs = response.data.items
+      .filter((pr: { pull_request?: { html_url: string }; html_url?: string }) => pr.pull_request) // Ensure it's a PR
+      .map((pr: { number: number; title: string; state: string; draft: boolean; html_url: string; repository_url: string; pull_request: { url: string }; created_at: string; updated_at: string; closed_at?: string }) => {
+        // Get the full PR details to access head branch
+        return {
+          number: pr.number,
+          title: pr.title,
+          state: pr.state,
+          draft: pr.draft,
+          url: pr.html_url,
+          repositoryUrl: pr.repository_url,
+          prApiUrl: pr.pull_request.url,
+          createdAt: pr.created_at,
+          updatedAt: pr.updated_at,
+          closedAt: pr.closed_at
+        };
+      });
+
+    // Fetch detailed PR info to get head branch for each PR
+    const detailedPRs = await Promise.all(
+      matchedPRs.map(async (pr: { prApiUrl: string; number: number; title: string; state: string; draft: boolean; url: string; repositoryUrl: string; createdAt: string; updatedAt: string; closedAt?: string }) => {
+        try {
+          const prDetails = await axios.get(pr.prApiUrl, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Accept': 'application/vnd.github+json',
+              'User-Agent': 'track-current-task-app'
+            }
+          });
+
+          const headBranch = prDetails.data.head.ref;
+          const repoFullName = prDetails.data.base.repo.full_name;
+          const merged = prDetails.data.merged;
+          const mergedAt = prDetails.data.merged_at;
+          const prTitle = pr.title;
+          const prBody = prDetails.data.body || '';
+          const comments = prDetails.data.comments || 0;
+          const reviewComments = prDetails.data.review_comments || 0;
+
+          // Get last review and commit information
+          const lastReview = await getLastReview(token, prDetails.data.url, pr.number);
+          const lastCommitDate = await getLastCommit(token, prDetails.data.url, pr.number);
+
+          const changesRequested = lastReview?.changesRequested || false;
+          const lastReviewDate = lastReview?.submittedAt || null;
+          const lastReviewState = lastReview?.state || null;
+
+          // Check if branch, title, or description contains any task ID
+          const matchedTaskId = taskIds.find(taskId => {
+            const taskIdLower = taskId.toLowerCase();
+            const branchLower = headBranch.toLowerCase();
+            const titleLower = prTitle.toLowerCase();
+            const bodyLower = prBody.toLowerCase();
+
+            return branchLower.includes(taskIdLower) ||
+                   titleLower.includes(taskIdLower) ||
+                   bodyLower.includes(taskIdLower);
+          });
+
+          if (!matchedTaskId) {
+            githubLogger.info(`PR #${pr.number} "${prTitle}" (branch: "${headBranch}") doesn't match any task IDs`);
+            return null;
+          }
+
+          githubLogger.info(`✓ PR #${pr.number} "${prTitle}" matched task ID: ${matchedTaskId}`);
+
+          return {
+            taskId: matchedTaskId,
+            number: pr.number,
+            title: pr.title,
+            state: pr.state,
+            draft: pr.draft,
+            url: prDetails.data.html_url,
+            branch: headBranch,
+            repository: {
+              name: repoFullName.split('/')[1],
+              fullName: repoFullName
+            },
+            createdAt: pr.createdAt,
+            updatedAt: pr.updatedAt,
+            merged,
+            mergedAt,
+            comments,
+            reviewComments,
+            changesRequested,
+            lastCommitDate,
+            lastReviewDate,
+            lastReviewState
+          };
+        } catch (error) {
+          const axiosError = error as AxiosError;
+          githubLogger.warn(`Failed to fetch PR details for #${pr.number}: ${axiosError?.response?.status || axiosError?.message}`);
+          return null;
+        }
+      })
+    );
+
+    // Filter out nulls and group by task ID
+    const validPRs = detailedPRs.filter((pr): pr is NonNullable<typeof pr> => pr !== null);
+
+    githubLogger.info(`Found ${validPRs.length} PRs matching task IDs out of ${matchedPRs.length} total PRs`);
+
+    // Log which task IDs have PRs for debugging
+    const taskIdsWithPRs = new Set(validPRs.map(pr => pr.taskId));
+    const taskIdsWithoutPRs = taskIds.filter(id => !taskIdsWithPRs.has(id));
+    if (taskIdsWithoutPRs.length > 0) {
+      githubLogger.info(`Task IDs without PRs: ${taskIdsWithoutPRs.join(', ')}`);
+    }
+
+    return validPRs;
+  } catch (error: unknown) {
+    const axiosError = error as AxiosError;
+    githubLogger.error(`Failed to search PRs: ${axiosError?.response?.status || axiosError?.message}`);
     throw error;
   }
 }
