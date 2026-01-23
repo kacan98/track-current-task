@@ -11,6 +11,7 @@ import { LoadingSpinner } from '@/components/ui/feedback/LoadingSpinner';
 import { EmptyState } from '@/components/ui/layout/EmptyState';
 import { AuthPrompt } from '@/components/overview/AuthPrompt';
 import { TaskList } from '@/components/overview/TaskList';
+import { ActionSummary } from '@/components/overview/ActionSummary';
 
 interface JiraIssueLink {
   type: {
@@ -439,12 +440,15 @@ export const OverviewPage: React.FC = () => {
             description="You don't have any active Jira tasks assigned to you."
           />
         ) : (
-          <TaskList
-            tasks={tasks}
-            jiraBaseUrl={jiraBaseUrl}
-            expandedMergedPRs={expandedMergedPRs}
-            onToggleMergedPRs={toggleMergedPRs}
-          />
+          <>
+            <ActionSummary tasks={tasks} jiraBaseUrl={jiraBaseUrl} />
+            <TaskList
+              tasks={tasks}
+              jiraBaseUrl={jiraBaseUrl}
+              expandedMergedPRs={expandedMergedPRs}
+              onToggleMergedPRs={toggleMergedPRs}
+            />
+          </>
         )}
       </div>
 
