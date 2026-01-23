@@ -303,7 +303,7 @@ export const OverviewPage: React.FC = () => {
           linkedTaskIds.includes(pr.taskId)
         );
 
-        // Sort open PRs: conflicts first, then changes requested, then by comment count descending
+        // Sort open PRs: conflicts first, failed checks, then changes requested, then by comment count descending
         const openPRs = taskPRs
           .filter((pr: PullRequest) => !pr.merged && pr.state === 'open')
           .sort((a: PullRequest, b: PullRequest) => {
@@ -313,7 +313,13 @@ export const OverviewPage: React.FC = () => {
             if (aHasConflicts && !bHasConflicts) return -1;
             if (!aHasConflicts && bHasConflicts) return 1;
 
-            // Changes requested PRs second
+            // PRs with failed checks second
+            const aHasFailedChecks = a.checkStatus?.state === 'failure';
+            const bHasFailedChecks = b.checkStatus?.state === 'failure';
+            if (aHasFailedChecks && !bHasFailedChecks) return -1;
+            if (!aHasFailedChecks && bHasFailedChecks) return 1;
+
+            // Changes requested PRs third
             if (a.changesRequested && !b.changesRequested) return -1;
             if (!a.changesRequested && b.changesRequested) return 1;
 

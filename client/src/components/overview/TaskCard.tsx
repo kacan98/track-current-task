@@ -360,6 +360,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
               const showChangesRequested = shouldShowChangesRequested(pr);
               const prHasConflicts = hasConflicts(pr);
               const checkStatusInfo = pr.checkStatus ? getCheckStatusIcon(pr.checkStatus.state) : null;
+              const hasFailedChecks = pr.checkStatus?.state === 'failure';
               return (
                 <a
                   key={pr.number}
@@ -368,6 +369,8 @@ export const TaskCard: React.FC<TaskCardProps> = ({
                   rel="noopener noreferrer"
                   className={`block p-3 rounded border transition-colors ${
                     prHasConflicts
+                      ? 'bg-red-50 border-red-300 hover:border-red-400 hover:bg-red-100'
+                      : hasFailedChecks
                       ? 'bg-red-50 border-red-300 hover:border-red-400 hover:bg-red-100'
                       : showChangesRequested
                       ? 'bg-orange-50 border-orange-300 hover:border-orange-400 hover:bg-orange-100'
@@ -387,14 +390,19 @@ export const TaskCard: React.FC<TaskCardProps> = ({
                         {getPRStateLabel(pr)}
                       </span>
                     </div>
-                    {(prHasConflicts || showChangesRequested) && (
+                    {(prHasConflicts || hasFailedChecks || showChangesRequested) && (
                       <div className="flex items-center gap-2">
                         {prHasConflicts && (
                           <Badge variant="danger" icon="warning">
                             Merge Conflicts
                           </Badge>
                         )}
-                        {!prHasConflicts && showChangesRequested && (
+                        {!prHasConflicts && hasFailedChecks && pr.checkStatus && (
+                          <Badge variant="danger" icon="cancel">
+                            {pr.checkStatus.failed} Check{pr.checkStatus.failed !== 1 ? 's' : ''} Failed
+                          </Badge>
+                        )}
+                        {!prHasConflicts && !hasFailedChecks && showChangesRequested && (
                           <Badge variant="warning" icon="warning">
                             Changes Requested
                           </Badge>
