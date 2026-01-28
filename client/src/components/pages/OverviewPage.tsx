@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/Button';
 import { useToastContext } from '@/contexts/ToastContext';
 import { JiraAuthModal } from '@/components/modals/JiraAuthModal';
@@ -12,97 +12,8 @@ import { EmptyState } from '@/components/ui/layout/EmptyState';
 import { AuthPrompt } from '@/components/overview/AuthPrompt';
 import { TaskList } from '@/components/overview/TaskList';
 import { ActionSummary } from '@/components/overview/ActionSummary';
-
-interface JiraIssueLink {
-  type: {
-    name: string;
-    inward: string;
-    outward: string;
-  };
-  inwardIssue?: {
-    key: string;
-    fields: {
-      summary: string;
-      status: {
-        name: string;
-      };
-    };
-  };
-  outwardIssue?: {
-    key: string;
-    fields: {
-      summary: string;
-      status: {
-        name: string;
-      };
-    };
-  };
-}
-
-interface Subtask {
-  key: string;
-  fields: {
-    summary: string;
-    status: {
-      name: string;
-    };
-  };
-}
-
-interface JiraIssue {
-  key: string;
-  fields: {
-    summary: string;
-    status: {
-      name: string;
-      statusCategory: {
-        name: string;
-        colorName: string;
-      };
-    };
-    priority?: {
-      name: string;
-    };
-    issuetype: {
-      name: string;
-    };
-    issuelinks?: JiraIssueLink[];
-    subtasks?: Subtask[];
-  };
-}
-
-interface PullRequest {
-  taskId: string;
-  number: number;
-  title: string;
-  state: string;
-  draft: boolean;
-  url: string;
-  branch: string;
-  repository: {
-    name: string;
-    fullName: string;
-  };
-  createdAt: string;
-  updatedAt: string;
-  merged: boolean;
-  mergedAt?: string;
-  comments: number;
-  reviewComments: number;
-  changesRequested: boolean;
-  lastCommitDate?: string | null;
-  lastReviewDate?: string | null;
-  lastReviewState?: string | null;
-  mergeable?: boolean | null;
-  mergeableState?: string;
-  checkStatus?: {
-    state: string;
-    total: number;
-    passed: number;
-    failed: number;
-    pending: number;
-  };
-}
+import type { JiraIssue, JiraIssueLink } from '@shared/jira.model';
+import type { PullRequest, Branch } from '@shared/github.model';
 
 interface TaskWithPRs {
   issue: JiraIssue;
@@ -121,6 +32,7 @@ export const OverviewPage: React.FC = () => {
   const [showGitHubAuth, setShowGitHubAuth] = useState(false);
   const [expandedMergedPRs, setExpandedMergedPRs] = useState<Set<string>>(new Set());
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [branchesByTask, setBranchesByTask] = useState<Map<string, Branch[]>>(new Map());
   const { showError, showSuccess } = useToastContext();
   const { isAuthenticated: isJiraAuthenticated, isCheckingAuth, handleAuthSuccess } = useAuthentication();
   const [isGitHubAuthenticated, setIsGitHubAuthenticated] = useState(false);
@@ -151,6 +63,19 @@ export const OverviewPage: React.FC = () => {
       }
       return newSet;
     });
+  };
+
+  const handleBranchesFound = useCallback((taskKey: string, branches: Branch[]) => {
+    setBranchesByTask(prev => {
+      const newMap = new Map(prev);
+      newMap.set(taskKey, branches);
+      return newMap;
+    });
+  }, []);
+
+  const handleCheckRerun = () => {
+    // Refetch all data to ensure both Action Items and Task Cards are updated
+    fetchOverview();
   };
 
   // Check GitHub authentication status
@@ -447,12 +372,19 @@ export const OverviewPage: React.FC = () => {
           />
         ) : (
           <>
-            <ActionSummary tasks={tasks} jiraBaseUrl={jiraBaseUrl} />
+            <ActionSummary
+              tasks={tasks}
+              jiraBaseUrl={jiraBaseUrl}
+              branchesByTask={branchesByTask}
+              onCheckRerun={handleCheckRerun}
+            />
             <TaskList
               tasks={tasks}
               jiraBaseUrl={jiraBaseUrl}
               expandedMergedPRs={expandedMergedPRs}
               onToggleMergedPRs={toggleMergedPRs}
+              onBranchesFound={handleBranchesFound}
+              onCheckRerun={handleCheckRerun}
             />
           </>
         )}

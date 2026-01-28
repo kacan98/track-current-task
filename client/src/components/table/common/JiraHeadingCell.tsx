@@ -1,6 +1,7 @@
 import type { LogEntry } from '@/types';
 import { isValidTaskId } from '@/utils/jiraUtils';
 import { useSettings } from '@/contexts/SettingsContext';
+import { Button } from '@/components/ui/Button';
 
 export type JiraHeadingCellProps = {
   entry: LogEntry;
@@ -30,13 +31,15 @@ export function JiraHeadingCell({ entry, loadingHeadings, headingsError, issueHe
       const heading = issueHeadings[entry.taskId];
       if (heading && jiraBaseUrl) {
         return (
-          <button
+          <Button
             onClick={handleJiraNavigation}
-            className="text-left hover:text-blue-600 hover:underline cursor-pointer transition-colors"
+            size="sm"
+            variant="secondary"
+            className="text-left hover:text-blue-600 hover:underline !p-0 !border-0 !shadow-none !bg-transparent hover:!bg-transparent"
             title={`Open ${entry.taskId} in Jira`}
           >
             {heading}
-          </button>
+          </Button>
         );
       }
       return heading || <span className="text-gray-400">Not found</span>;

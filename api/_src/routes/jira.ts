@@ -170,8 +170,7 @@ router.post('/issues/details', asyncHandler(async (req: Request, res: Response) 
   }
   
   const response = await jiraApiClient.getIssuesDetails(token, jiraUrl, requestData);
-  jiraLogger.info(`Retrieved ${requestData.issueKeys.length} issue details`);
-  
+
   res.json({
     issues: response.data.issues,
     total: response.data.total,
@@ -189,8 +188,7 @@ router.post('/worklogs/details', asyncHandler(async (req: Request, res: Response
   }
   
   const response = await jiraApiClient.getWorklogsDetails(token, jiraUrl, requestData);
-  jiraLogger.info(`Retrieved ${requestData.worklogIds.length} worklog details`);
-  
+
   res.json({
     worklogs: response.data,
     total: response.data.length,
@@ -210,7 +208,6 @@ router.get('/tasks/assigned', asyncHandler(async (req: Request, res: Response) =
   const maxResultsNumber = maxResults ? parseInt(maxResults as string, 10) : 50;
 
   const response = await jiraApiClient.getAssignedTasks(token, jiraUrl, statusCategoriesArray, maxResultsNumber);
-  jiraLogger.info(`Retrieved ${response.data.issues.length} tasks`);
 
   res.json({
     issues: response.data.issues,

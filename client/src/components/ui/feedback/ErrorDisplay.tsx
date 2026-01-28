@@ -1,4 +1,5 @@
 import React from 'react';
+import { Button } from '@/components/ui/Button';
 
 interface ErrorDisplayProps {
   title?: string;
@@ -20,12 +21,14 @@ export const ErrorDisplay: React.FC<ErrorDisplayProps> = ({
           <p className="text-sm text-red-700">{error}</p>
         </div>
         {onDismiss && (
-          <button
+          <Button
             onClick={onDismiss}
-            className="text-red-400 hover:text-red-600"
+            size="sm"
+            variant="secondary"
+            className="text-red-400 hover:text-red-600 !p-1 min-w-0"
           >
             <span className="material-symbols-outlined text-sm">close</span>
-          </button>
+          </Button>
         )}
       </div>
     </div>

@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { ApiError, asyncHandler } from '../middleware/errorHandler';
-import { exchangeCodeForToken, getGitHubUser, getUserCommitsForDate, getUserCommitsForDateRange, searchUserPullRequests } from '../services/githubService';
+import { exchangeCodeForToken, getGitHubUser, getUserCommitsForDate, getUserCommitsForDateRange, searchUserPullRequests, searchBranchesForTaskId, requestReview, rerunCheck } from '../services/githubService';
 import { isProduction } from '../config/cors';
 import { createLogger } from '../../../shared/logger';
 import type { GitHubAuthRequest } from '../types/github';
@@ -37,7 +37,8 @@ router.post('/auth/pat', asyncHandler(async (req: Request, res: Response) => {
       httpOnly: true,      // Prevent XSS
       secure: isProduction, // HTTPS only in production
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-      sameSite: isProduction ? 'strict' : 'lax' // Stricter CSRF in prod
+      sameSite: isProduction ? 'strict' : 'lax', // Stricter CSRF in prod
+      path: '/'            // Make cookie available to all routes
     });
     
     githubLogger.success('PAT authentication successful');
@@ -79,7 +80,8 @@ router.post('/auth', asyncHandler(async (req: Request, res: Response) => {
       httpOnly: true,      // Prevent XSS
       secure: isProduction, // HTTPS only in production
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-      sameSite: isProduction ? 'strict' : 'lax' // Stricter CSRF in prod
+      sameSite: isProduction ? 'strict' : 'lax', // Stricter CSRF in prod
+      path: '/'            // Make cookie available to all routes
     });
     
     githubLogger.success('OAuth authentication successful');
@@ -203,6 +205,63 @@ router.post('/pulls/search', asyncHandler(async (req: Request, res: Response) =>
     pullRequests,
     total: pullRequests.length,
     taskIds
+  });
+}));
+
+// Search for branches matching a task ID
+router.get('/branches/search', asyncHandler(async (req: Request, res: Response) => {
+  const token = getGitHubTokenFromCookies(req);
+  const { taskId } = req.query as { taskId?: string };
+
+  if (!taskId) {
+    throw new ApiError(400, 'Missing taskId parameter', 'GITHUB_BRANCHES_MISSING_TASK_ID');
+  }
+
+  const branches = await searchBranchesForTaskId(token, taskId);
+
+  res.json({
+    branches,
+    total: branches.length,
+    taskId
+  });
+}));
+
+// Request review on a PR
+router.post('/pulls/:owner/:repo/:number/request-review', asyncHandler(async (req: Request, res: Response) => {
+  const token = getGitHubTokenFromCookies(req);
+  const { owner, repo, number } = req.params;
+  const { reviewers } = req.body as { reviewers: string[] };
+
+  if (!reviewers || !Array.isArray(reviewers) || reviewers.length === 0) {
+    throw new ApiError(400, 'Missing or invalid reviewers array', 'GITHUB_REVIEWERS_INVALID');
+  }
+
+  const repoFullName = `${owner}/${repo}`;
+  const prNumber = parseInt(number, 10);
+
+  await requestReview(token, repoFullName, prNumber, reviewers);
+
+  githubLogger.success(`Review requested for PR #${prNumber}`);
+  res.json({
+    success: true,
+    message: `Successfully requested review from ${reviewers.join(', ')}`
+  });
+}));
+
+// Rerun a failed check
+router.post('/checks/:owner/:repo/:checkRunId/rerun', asyncHandler(async (req: Request, res: Response) => {
+  const token = getGitHubTokenFromCookies(req);
+  const { owner, repo, checkRunId } = req.params;
+
+  const repoFullName = `${owner}/${repo}`;
+  const checkId = parseInt(checkRunId, 10);
+
+  await rerunCheck(token, repoFullName, checkId);
+
+  githubLogger.success(`Rerun triggered for check ${checkRunId}`);
+  res.json({
+    success: true,
+    message: 'Check rerun triggered successfully'
   });
 }));
 

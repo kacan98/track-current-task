@@ -6,6 +6,21 @@ const githubLogger = createLogger('GITHUB');
 
 const GITHUB_API_BASE = 'https://api.github.com';
 
+// Helper function to make GitHub API calls with proper headers
+async function githubApiCall<T = any>(token: string, url: string, method: 'GET' | 'POST' = 'GET', data?: any): Promise<T> {
+  const response = await axios({
+    method,
+    url,
+    data,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'application/vnd.github+json',
+      'User-Agent': 'track-current-task-app'
+    }
+  });
+  return response.data;
+}
+
 // Exchange authorization code for access token
 export async function exchangeCodeForToken(code: string): Promise<GitHubTokenResponse> {
   const clientId = process.env.GITHUB_CLIENT_ID;
@@ -39,15 +54,7 @@ export async function exchangeCodeForToken(code: string): Promise<GitHubTokenRes
 // Get authenticated user info
 export async function getGitHubUser(token: string): Promise<GitHubUser> {
   try {
-    const response = await axios.get(`${GITHUB_API_BASE}/user`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'application/vnd.github.v3+json'
-      }
-    });
-
-    githubLogger.info('GitHub user retrieved successfully');
-    return response.data;
+    return await githubApiCall<GitHubUser>(token, `${GITHUB_API_BASE}/user`);
   } catch (error: unknown) {
     const axiosError = error as AxiosError;
     githubLogger.error(`Failed to get GitHub user: ${axiosError?.response?.status || axiosError?.message}`);
@@ -137,47 +144,218 @@ async function getLastCommit(token: string, prApiUrl: string, prNumber: number) 
   }
 }
 
-// Get check status for a commit
+// Get check status for a commit with detailed failure information
 async function getCheckStatus(token: string, repoFullName: string, commitSha: string) {
   try {
     const [owner, repo] = repoFullName.split('/');
     const url = `${GITHUB_API_BASE}/repos/${owner}/${repo}/commits/${commitSha}/check-runs`;
 
-    const response = await axios.get(url, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'application/vnd.github+json',
-        'User-Agent': 'track-current-task-app'
-      }
-    });
-
-    const checkRuns = response.data.check_runs;
+    const response = await githubApiCall(token, url);
+    const checkRuns = response.check_runs;
     if (checkRuns.length === 0) {
-      return { state: 'none', total: 0, passed: 0, failed: 0, pending: 0 };
+      return { state: 'none', total: 0, passed: 0, failed: 0, pending: 0, checks: [] };
     }
 
-    const passed = checkRuns.filter((run: { conclusion: string }) => run.conclusion === 'success').length;
-    const failed = checkRuns.filter((run: { conclusion: string }) => ['failure', 'timed_out', 'action_required'].includes(run.conclusion)).length;
-    const pending = checkRuns.filter((run: { status: string; conclusion: string | null }) => run.status !== 'completed' || run.conclusion === null).length;
+    interface CheckRunStep {
+      name: string;
+      status: string;
+      conclusion: string | null;
+      number: number;
+    }
+
+    interface CheckRun {
+      id: number;
+      name: string;
+      status: string;
+      conclusion: string | null;
+      html_url: string;
+      details_url: string;
+      output?: {
+        title: string | null;
+        summary: string | null;
+      };
+    }
+
+    const passedChecks = checkRuns.filter((run: CheckRun) => run.conclusion === 'success');
+    const failedChecks = checkRuns.filter((run: CheckRun) => ['failure', 'timed_out', 'action_required'].includes(run.conclusion || ''));
+    const pendingChecks = checkRuns.filter((run: CheckRun) => run.status !== 'completed' || run.conclusion === null);
 
     let state = 'success';
-    if (failed > 0) {
+    if (failedChecks.length > 0) {
       state = 'failure';
-    } else if (pending > 0) {
+    } else if (pendingChecks.length > 0) {
       state = 'pending';
     }
+
+    // For failed checks, try to get detailed step information
+    const checksWithDetails = await Promise.all(
+      checkRuns.map(async (run: CheckRun) => {
+        let failedStep = null;
+        let errorMessage = null;
+
+        // Only fetch details for failed or action_required checks to avoid extra API calls
+        if (['failure', 'timed_out', 'action_required'].includes(run.conclusion || '')) {
+          try {
+            // Get the workflow run associated with this check
+            const checkDetailUrl = `${GITHUB_API_BASE}/repos/${owner}/${repo}/check-runs/${run.id}`;
+            const checkDetail = await githubApiCall(token, checkDetailUrl);
+            const workflowRunId = checkDetail.check_suite?.id;
+
+            // Get steps if this is a GitHub Actions run
+            if (checkDetail.output?.title || checkDetail.output?.summary) {
+              // Extract failed step from output
+              const outputText = checkDetail.output?.title || checkDetail.output?.summary || '';
+              const stepMatch = outputText.match(/Step\s+#?(\d+)/i) || outputText.match(/(\w+[\s\w]*?)\s+failed/i);
+              if (stepMatch) {
+                failedStep = stepMatch[1];
+              }
+
+              // Extract error message from output
+              // Use summary if available, otherwise use title, or the full text
+              errorMessage = checkDetail.output?.summary || checkDetail.output?.title || checkDetail.output?.text || null;
+
+              // Limit error message length to avoid huge payloads (max 500 chars)
+              if (errorMessage && errorMessage.length > 500) {
+                errorMessage = errorMessage.substring(0, 500) + '...';
+              }
+            }
+          } catch (detailError) {
+            // Silently fail - we'll just not show step details
+          }
+        }
+
+        return {
+          id: run.id,
+          name: run.name,
+          status: run.status,
+          conclusion: run.conclusion,
+          url: run.html_url || run.details_url,
+          failedStep: failedStep,
+          errorMessage: errorMessage
+        };
+      })
+    );
 
     return {
       state,
       total: checkRuns.length,
-      passed,
-      failed,
-      pending
+      passed: passedChecks.length,
+      failed: failedChecks.length,
+      pending: pendingChecks.length,
+      checks: checksWithDetails
     };
   } catch (error) {
     const axiosError = error as AxiosError;
     githubLogger.warn(`Failed to fetch check status for commit ${commitSha}: ${axiosError?.response?.status || axiosError?.message}`);
-    return { state: 'unknown', total: 0, passed: 0, failed: 0, pending: 0 };
+    return { state: 'unknown', total: 0, passed: 0, failed: 0, pending: 0, checks: [] };
+  }
+}
+
+// Get review information for a PR
+async function getReviewStatus(token: string, repoFullName: string, prNumber: number) {
+  try {
+    const [owner, repo] = repoFullName.split('/');
+    const url = `${GITHUB_API_BASE}/repos/${owner}/${repo}/pulls/${prNumber}/reviews`;
+
+    const reviews = await githubApiCall(token, url);
+
+    if (reviews.length === 0) {
+      return { reviewers: [], state: 'no_reviews' };
+    }
+
+    // Group reviews by user, keeping only the most recent review from each reviewer
+    const reviewsByUser = new Map();
+    reviews.forEach((review: { user: { login: string; avatar_url: string }; state: string; submitted_at: string }) => {
+      const login = review.user.login;
+      const existingReview = reviewsByUser.get(login);
+
+      if (!existingReview || new Date(review.submitted_at) > new Date(existingReview.submitted_at)) {
+        reviewsByUser.set(login, review);
+      }
+    });
+
+    // Convert to array and determine overall state
+    const reviewers = Array.from(reviewsByUser.values()).map((review: { user: { login: string; avatar_url: string }; state: string }) => ({
+      login: review.user.login,
+      avatarUrl: review.user.avatar_url,
+      state: review.state
+    }));
+
+    // Determine overall review state
+    const hasChangesRequested = reviewers.some(r => r.state === 'CHANGES_REQUESTED');
+    const hasApproved = reviewers.some(r => r.state === 'APPROVED');
+    const allApproved = reviewers.every(r => r.state === 'APPROVED');
+
+    let state = 'no_reviews';
+    if (hasChangesRequested) {
+      state = 'changes_requested';
+    } else if (allApproved && reviewers.length > 0) {
+      state = 'approved';
+    } else if (hasApproved) {
+      state = 'partial_approval';
+    } else if (reviewers.length > 0) {
+      state = 'commented';
+    }
+
+    return { reviewers, state };
+  } catch (error) {
+    const axiosError = error as AxiosError;
+    githubLogger.warn(`Failed to fetch reviews for PR ${prNumber}: ${axiosError?.response?.status || axiosError?.message}`);
+    return { reviewers: [], state: 'no_reviews' };
+  }
+}
+
+// Request review from reviewers
+export async function requestReview(token: string, repoFullName: string, prNumber: number, reviewers: string[]) {
+  try {
+    const [owner, repo] = repoFullName.split('/');
+    const url = `${GITHUB_API_BASE}/repos/${owner}/${repo}/pulls/${prNumber}/requested_reviewers`;
+
+    await githubApiCall(token, url, 'POST', { reviewers });
+    githubLogger.info(`Successfully requested review for PR #${prNumber} from ${reviewers.join(', ')}`);
+    return { success: true };
+  } catch (error) {
+    const axiosError = error as AxiosError;
+    githubLogger.error(`Failed to request review for PR ${prNumber}: ${axiosError?.response?.status || axiosError?.message}`);
+    throw error;
+  }
+}
+
+export async function rerunCheck(token: string, repoFullName: string, checkRunId: number) {
+  try {
+    const [owner, repo] = repoFullName.split('/');
+
+    // First, get the check run details to find the associated workflow run
+    const checkRunUrl = `${GITHUB_API_BASE}/repos/${owner}/${repo}/check-runs/${checkRunId}`;
+    const checkRun = await githubApiCall(token, checkRunUrl);
+
+    // Get the workflow run ID from the check suite
+    const checkSuiteId = checkRun.check_suite?.id;
+
+    if (!checkSuiteId) {
+      throw new Error('No check suite found for this check run');
+    }
+
+    // Get the workflow runs for this check suite
+    const workflowRunsUrl = `${GITHUB_API_BASE}/repos/${owner}/${repo}/actions/runs?check_suite_id=${checkSuiteId}`;
+    const workflowRunsResponse = await githubApiCall(token, workflowRunsUrl);
+
+    if (!workflowRunsResponse.workflow_runs || workflowRunsResponse.workflow_runs.length === 0) {
+      throw new Error('No workflow run found for this check');
+    }
+
+    const workflowRunId = workflowRunsResponse.workflow_runs[0].id;
+
+    // Trigger the rerun for failed jobs only
+    const rerunUrl = `${GITHUB_API_BASE}/repos/${owner}/${repo}/actions/runs/${workflowRunId}/rerun-failed-jobs`;
+    await githubApiCall(token, rerunUrl, 'POST');
+
+    githubLogger.info(`Successfully triggered rerun for check run ${checkRunId} (workflow run ${workflowRunId})`);
+    return { success: true };
+  } catch (error) {
+    const axiosError = error as AxiosError;
+    githubLogger.error(`Failed to rerun check ${checkRunId}: ${axiosError?.response?.status || axiosError?.message}`);
+    throw error;
   }
 }
 
@@ -245,11 +423,10 @@ export async function getUserCommitsForDateRange(token: string, startDate: strin
 
 // Search for user's pull requests matching task IDs
 export async function searchUserPullRequests(token: string, taskIds: string[]) {
-  githubLogger.info(`Searching PRs for ${taskIds.length} task IDs: ${taskIds.join(', ')}`);
+  githubLogger.info(`Searching PRs for ${taskIds.length} task IDs`);
 
   try {
     const user = await getGitHubUser(token);
-    githubLogger.info(`Searching PRs by author: ${user.login}`);
 
     // Search for all user's PRs, sorted by recently updated
     const searchQuery = `author:${user.login} type:pr`;
@@ -262,8 +439,6 @@ export async function searchUserPullRequests(token: string, taskIds: string[]) {
         'User-Agent': 'track-current-task-app'
       }
     });
-
-    githubLogger.info(`GitHub search returned ${response.data.items.length} items (total available: ${response.data.total_count})`);
 
     // Filter PRs by checking if head branch contains any task ID
     const matchedPRs = response.data.items
@@ -320,6 +495,9 @@ export async function searchUserPullRequests(token: string, taskIds: string[]) {
           // Get check status for the PR
           const checkStatus = await getCheckStatus(token, repoFullName, prDetails.data.head.sha);
 
+          // Get review status for the PR
+          const reviewStatus = await getReviewStatus(token, repoFullName, pr.number);
+
           // Check if branch, title, or description contains any task ID
           const matchedTaskId = taskIds.find(taskId => {
             const taskIdLower = taskId.toLowerCase();
@@ -333,11 +511,8 @@ export async function searchUserPullRequests(token: string, taskIds: string[]) {
           });
 
           if (!matchedTaskId) {
-            githubLogger.info(`PR #${pr.number} "${prTitle}" (branch: "${headBranch}") doesn't match any task IDs`);
             return null;
           }
-
-          githubLogger.info(`✓ PR #${pr.number} "${prTitle}" matched task ID: ${matchedTaskId}`);
 
           return {
             taskId: matchedTaskId,
@@ -363,7 +538,8 @@ export async function searchUserPullRequests(token: string, taskIds: string[]) {
             lastReviewState,
             mergeable,
             mergeableState,
-            checkStatus
+            checkStatus,
+            reviewStatus
           };
         } catch (error) {
           const axiosError = error as AxiosError;
@@ -376,14 +552,7 @@ export async function searchUserPullRequests(token: string, taskIds: string[]) {
     // Filter out nulls and group by task ID
     const validPRs = detailedPRs.filter((pr): pr is NonNullable<typeof pr> => pr !== null);
 
-    githubLogger.info(`Found ${validPRs.length} PRs matching task IDs out of ${matchedPRs.length} total PRs`);
-
-    // Log which task IDs have PRs for debugging
-    const taskIdsWithPRs = new Set(validPRs.map(pr => pr.taskId));
-    const taskIdsWithoutPRs = taskIds.filter(id => !taskIdsWithPRs.has(id));
-    if (taskIdsWithoutPRs.length > 0) {
-      githubLogger.info(`Task IDs without PRs: ${taskIdsWithoutPRs.join(', ')}`);
-    }
+    githubLogger.info(`Found ${validPRs.length} matching PRs`);
 
     return validPRs;
   } catch (error: unknown) {
@@ -459,5 +628,61 @@ export async function getUserCommitsForDate(token: string, date: string) {
     const axiosError = error as AxiosError;
     githubLogger.error(`Failed to fetch commits: ${axiosError?.response?.status || axiosError?.message}`);
     throw error;
+  }
+}
+
+// Search for branches matching a task ID
+export async function searchBranchesForTaskId(token: string, taskId: string) {
+  try {
+    const user = await getGitHubUser(token);
+
+    // Search for branches containing the task ID
+    // We'll search through the user's repositories
+    const reposUrl = `${GITHUB_API_BASE}/user/repos?per_page=100&affiliation=owner,collaborator,organization_member`;
+    const reposResponse = await githubApiCall(token, reposUrl);
+
+    const matchingBranches = [];
+
+    // Search through repositories for matching branches
+    for (const repo of reposResponse) {
+      try {
+        const branchesUrl = `${GITHUB_API_BASE}/repos/${repo.full_name}/branches?per_page=100`;
+        const branches = await githubApiCall(token, branchesUrl);
+
+        for (const branch of branches) {
+          // Check if branch name contains the task ID (case insensitive)
+          if (branch.name.toLowerCase().includes(taskId.toLowerCase())) {
+            // Get last commit date for this branch
+            let lastCommitDate = null;
+            try {
+              const commitUrl = `${GITHUB_API_BASE}/repos/${repo.full_name}/commits/${branch.commit.sha}`;
+              const commitData = await githubApiCall(token, commitUrl);
+              lastCommitDate = commitData.commit.author.date;
+            } catch (error) {
+              // If we can't get commit date, just skip it
+            }
+
+            matchingBranches.push({
+              name: branch.name,
+              repository: {
+                name: repo.name,
+                fullName: repo.full_name
+              },
+              createPrUrl: `https://github.com/${repo.full_name}/compare/${repo.default_branch}...${branch.name}?expand=1`,
+              lastCommitDate
+            });
+          }
+        }
+      } catch (error) {
+        // Skip repositories we can't access
+        continue;
+      }
+    }
+
+    return matchingBranches;
+  } catch (error) {
+    const axiosError = error as AxiosError;
+    githubLogger.warn(`Failed to search branches for task ${taskId}: ${axiosError?.response?.status || axiosError?.message}`);
+    return [];
   }
 }

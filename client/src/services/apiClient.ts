@@ -81,9 +81,12 @@ export const api = {
     
     getStatus: () =>
       api.get(API_ROUTES.GITHUB.AUTH.STATUS),
-    
+
     getCommits: (date: string) =>
       api.get(`${API_ROUTES.GITHUB.COMMITS}?date=${date}`),
+
+    searchBranches: (taskId: string) =>
+      api.get(`${API_ROUTES.GITHUB.BRANCHES_SEARCH}?taskId=${encodeURIComponent(taskId)}`),
   },
 
   // Files specific methods

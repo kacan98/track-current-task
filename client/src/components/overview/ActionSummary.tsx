@@ -1,45 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
-
-interface JiraIssue {
-  key: string;
-  fields: {
-    summary: string;
-    status: {
-      name: string;
-    };
-    subtasks?: Array<{
-      key: string;
-      fields: {
-        summary: string;
-        status: {
-          name: string;
-        };
-      };
-    }>;
-  };
-}
-
-interface PullRequest {
-  taskId: string;
-  number: number;
-  title: string;
-  repository: {
-    name: string;
-  };
-  url: string;
-  changesRequested: boolean;
-  mergeable?: boolean | null;
-  lastCommitDate?: string | null;
-  lastReviewDate?: string | null;
-  checkStatus?: {
-    state: string;
-    failed: number;
-  };
-}
+import { Button } from '@/components/ui/Button';
+import { BranchCard } from './BranchCard';
+import { getTimeAgo } from '@/utils/timeUtils';
+import { API_ROUTES } from '@shared/apiRoutes';
+import type { JiraIssue } from '@shared/jira.model';
+import type { PullRequest, Branch, Check } from '@shared/github.model';
 
 interface TaskWithPRs {
   issue: JiraIssue;
+  linkedIssues: Array<{ key: string; summary: string; status: string }>;
   pullRequests: {
     open: PullRequest[];
     merged: PullRequest[];
@@ -49,10 +19,12 @@ interface TaskWithPRs {
 interface ActionSummaryProps {
   tasks: TaskWithPRs[];
   jiraBaseUrl: string;
+  branchesByTask: Map<string, Branch[]>;
+  onCheckRerun?: () => void;
 }
 
 interface ActionItem {
-  type: 'conflict' | 'changes_requested' | 'checks_failed' | 'ready_for_testing';
+  type: 'conflict' | 'changes_requested' | 'checks_failed' | 'ready_for_testing' | 'create_pr';
   priority: number;
   taskKey: string;
   taskSummary: string;
@@ -60,10 +32,14 @@ interface ActionItem {
   prTitle?: string;
   prUrl?: string;
   repository?: string;
+  repoFullName?: string;
   failedChecks?: number;
+  checks?: Check[];
+  branches?: Branch[];
 }
 
-export const ActionSummary: React.FC<ActionSummaryProps> = ({ tasks, jiraBaseUrl }) => {
+export const ActionSummary: React.FC<ActionSummaryProps> = ({ tasks, jiraBaseUrl, branchesByTask, onCheckRerun }) => {
+  const [rerunningChecks, setRerunningChecks] = useState<Set<number>>(new Set());
   const actionItems: ActionItem[] = [];
 
   tasks.forEach((task) => {
@@ -107,6 +83,10 @@ export const ActionSummary: React.FC<ActionSummaryProps> = ({ tasks, jiraBaseUrl
     // Check for failed checks
     task.pullRequests.open.forEach((pr) => {
       if (pr.checkStatus?.state === 'failure' && pr.mergeable !== false) {
+        const failedChecks = pr.checkStatus.checks?.filter(c =>
+          ['failure', 'timed_out', 'action_required'].includes(c.conclusion || '')
+        ) || [];
+
         actionItems.push({
           type: 'checks_failed',
           priority: 3,
@@ -116,7 +96,9 @@ export const ActionSummary: React.FC<ActionSummaryProps> = ({ tasks, jiraBaseUrl
           prTitle: pr.title,
           prUrl: pr.url,
           repository: pr.repository.name,
-          failedChecks: pr.checkStatus.failed
+          repoFullName: pr.repository.fullName,
+          failedChecks: pr.checkStatus.failed,
+          checks: failedChecks
         });
       }
     });
@@ -140,6 +122,19 @@ export const ActionSummary: React.FC<ActionSummaryProps> = ({ tasks, jiraBaseUrl
         });
       }
     }
+
+    // Check for branches without PRs (lower priority)
+    const noPRs = task.pullRequests.open.length === 0 && task.pullRequests.merged.length === 0;
+    const branches = branchesByTask.get(task.issue.key);
+    if (noPRs && branches && branches.length > 0) {
+      actionItems.push({
+        type: 'create_pr',
+        priority: 5,
+        taskKey: task.issue.key,
+        taskSummary: task.issue.fields.summary,
+        branches
+      });
+    }
   });
 
   // Sort by priority
@@ -159,6 +154,8 @@ export const ActionSummary: React.FC<ActionSummaryProps> = ({ tasks, jiraBaseUrl
         return { icon: 'cancel', color: 'text-red-600' };
       case 'ready_for_testing':
         return { icon: 'science', color: 'text-blue-600' };
+      case 'create_pr':
+        return { icon: 'account_tree', color: 'text-green-600' };
     }
   };
 
@@ -172,6 +169,45 @@ export const ActionSummary: React.FC<ActionSummaryProps> = ({ tasks, jiraBaseUrl
         return `${item.failedChecks} Check${item.failedChecks !== 1 ? 's' : ''} Failed`;
       case 'ready_for_testing':
         return 'Ready for Testing';
+      case 'create_pr':
+        return `${item.branches?.length || 0} Branch${item.branches?.length !== 1 ? 'es' : ''} Ready`;
+    }
+  };
+
+  const handleRerunCheck = async (e: React.MouseEvent, checkId: number, repoFullName: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    setRerunningChecks(prev => new Set(prev).add(checkId));
+    try {
+      const [owner, repo] = repoFullName.split('/');
+
+      const response = await fetch(`/api${API_ROUTES.GITHUB.RERUN_CHECK(owner, repo, checkId)}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to rerun check');
+      }
+
+      console.log('Check rerun triggered successfully');
+
+      // Notify parent to refetch data
+      if (onCheckRerun) {
+        onCheckRerun();
+      }
+    } catch (error) {
+      console.error('Failed to rerun check:', error);
+    } finally {
+      setRerunningChecks(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(checkId);
+        return newSet;
+      });
     }
   };
 
@@ -231,8 +267,66 @@ export const ActionSummary: React.FC<ActionSummaryProps> = ({ tasks, jiraBaseUrl
                 {item.prTitle && (
                   <p className="text-sm text-gray-700 mt-0.5 truncate">{item.prTitle}</p>
                 )}
-                {!item.prTitle && (
+                {!item.prTitle && item.type !== 'create_pr' && (
                   <p className="text-sm text-gray-700 mt-0.5 truncate">{item.taskSummary}</p>
+                )}
+
+                {/* Show branch cards for create_pr action items */}
+                {item.type === 'create_pr' && item.branches && (
+                  <div className="mt-2 space-y-2">
+                    {item.branches.map((branch, idx) => (
+                      <BranchCard
+                        key={idx}
+                        branch={branch}
+                        taskKey={item.taskKey}
+                        jiraBaseUrl={jiraBaseUrl}
+                        relatedPRs={[]}
+                        getTimeAgo={getTimeAgo}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {/* Show failed checks inline for checks_failed action items */}
+                {item.type === 'checks_failed' && item.checks && item.checks.length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    {item.checks.map((check, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between gap-2 px-2 py-1.5 bg-white border border-red-200 rounded text-xs"
+                      >
+                        <a
+                          href={check.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 flex-1 min-w-0 hover:text-red-700"
+                        >
+                          <span className="material-symbols-outlined text-red-600" style={{ fontSize: '16px' }}>
+                            cancel
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-gray-900 truncate">{check.name}</div>
+                            {check.failedStep && (
+                              <div className="text-gray-600 truncate">Step: {check.failedStep}</div>
+                            )}
+                            {check.errorMessage && (
+                              <div className="text-xs text-gray-500 mt-1 line-clamp-2 whitespace-pre-wrap">{check.errorMessage}</div>
+                            )}
+                          </div>
+                        </a>
+                        <Button
+                          onClick={(e) => handleRerunCheck(e, check.id, item.repoFullName!)}
+                          disabled={rerunningChecks.has(check.id)}
+                          size="sm"
+                          variant="secondary"
+                          className="text-xs font-medium flex items-center gap-1 whitespace-nowrap"
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>replay</span>
+                          {rerunningChecks.has(check.id) ? 'Rerunning...' : 'Rerun'}
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
             </div>

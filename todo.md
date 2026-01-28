@@ -18,3 +18,7 @@
 - [ ] Allow users to set their own Jira base URL when logging into Jira
   - Add input field for Jira base URL in login form
   - Store Jira base URL in cookie along with other credentials
+
+# Todo tasks 
+- [] For some reason the status endpoints (api/jira/auth/status and api/github/auth/status) get called each 4 times!!! when opening the app. Investigate and fix this behavior to reduce unnecessary network calls.
+- [] api/github/branches/search?taskId=DFO-10842 takes waaaay too long - 30s! Investigate and optimize the performance of this endpoint.

@@ -1,87 +1,8 @@
 import React from 'react';
 import { TaskCard } from './TaskCard';
-
-interface JiraIssueLink {
-  type: {
-    name: string;
-    inward: string;
-    outward: string;
-  };
-  inwardIssue?: {
-    key: string;
-    fields: {
-      summary: string;
-      status: {
-        name: string;
-      };
-    };
-  };
-  outwardIssue?: {
-    key: string;
-    fields: {
-      summary: string;
-      status: {
-        name: string;
-      };
-    };
-  };
-}
-
-interface Subtask {
-  key: string;
-  fields: {
-    summary: string;
-    status: {
-      name: string;
-    };
-  };
-}
-
-interface JiraIssue {
-  key: string;
-  fields: {
-    summary: string;
-    status: {
-      name: string;
-      statusCategory: {
-        name: string;
-        colorName: string;
-      };
-    };
-    priority?: {
-      name: string;
-    };
-    issuetype: {
-      name: string;
-    };
-    issuelinks?: JiraIssueLink[];
-    subtasks?: Subtask[];
-  };
-}
-
-interface PullRequest {
-  taskId: string;
-  number: number;
-  title: string;
-  state: string;
-  draft: boolean;
-  url: string;
-  branch: string;
-  repository: {
-    name: string;
-    fullName: string;
-  };
-  createdAt: string;
-  updatedAt: string;
-  merged: boolean;
-  mergedAt?: string;
-  comments: number;
-  reviewComments: number;
-  changesRequested: boolean;
-  lastCommitDate?: string | null;
-  lastReviewDate?: string | null;
-  lastReviewState?: string | null;
-}
+import { Button } from '@/components/ui/Button';
+import type { JiraIssue } from '@shared/jira.model';
+import type { PullRequest, Branch } from '@shared/github.model';
 
 interface TaskWithPRs {
   issue: JiraIssue;
@@ -97,13 +18,17 @@ interface TaskListProps {
   jiraBaseUrl: string;
   expandedMergedPRs: Set<string>;
   onToggleMergedPRs: (taskKey: string) => void;
+  onBranchesFound?: (taskKey: string, branches: Branch[]) => void;
+  onCheckRerun?: () => void;
 }
 
 export const TaskList: React.FC<TaskListProps> = ({
   tasks,
   jiraBaseUrl,
   expandedMergedPRs,
-  onToggleMergedPRs
+  onToggleMergedPRs,
+  onBranchesFound,
+  onCheckRerun
 }) => {
   // A task group is "in progress" if the main task OR any linked task is "In Progress"
   const inProgressTasks = tasks.filter((task) => {
@@ -137,6 +62,8 @@ export const TaskList: React.FC<TaskListProps> = ({
             jiraBaseUrl={jiraBaseUrl}
             expandedMergedPRs={expandedMergedPRs}
             onToggleMergedPRs={onToggleMergedPRs}
+            onBranchesFound={onBranchesFound}
+            onCheckRerun={onCheckRerun}
           />
         ))}
       </div>
@@ -144,14 +71,16 @@ export const TaskList: React.FC<TaskListProps> = ({
       {/* Other Tasks - Collapsible */}
       {otherTasks.length > 0 && (
         <div className="mt-6">
-          <button
+          <Button
             onClick={() => setShowOtherTasks(!showOtherTasks)}
-            className="w-full text-left text-sm font-semibold text-gray-700 hover:text-gray-900 py-3 px-4 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors flex items-center justify-between"
+            size="md"
+            variant="secondary"
+            className="w-full text-left text-sm font-semibold text-gray-700 hover:text-gray-900 flex items-center justify-between !bg-gray-100 hover:!bg-gray-200 !rounded-lg"
           >
             <span>
               {showOtherTasks ? '▼' : '▶'} Other Tasks ({otherTasks.length})
             </span>
-          </button>
+          </Button>
 
           {showOtherTasks && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-4">
@@ -164,6 +93,8 @@ export const TaskList: React.FC<TaskListProps> = ({
                   jiraBaseUrl={jiraBaseUrl}
                   expandedMergedPRs={expandedMergedPRs}
                   onToggleMergedPRs={onToggleMergedPRs}
+                  onBranchesFound={onBranchesFound}
+                  onCheckRerun={onCheckRerun}
                 />
               ))}
             </div>
