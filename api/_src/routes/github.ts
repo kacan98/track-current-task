@@ -30,7 +30,7 @@ router.post('/auth/pat', asyncHandler(async (req: Request, res: Response) => {
   try {
     // Validate the PAT by making a test API call
     const user = await getGitHubUser(token);
-    
+
     // Store token in encrypted cookie with environment-aware settings
     res.cookie('githubToken', token, {
       signed: true,        // Encrypt the cookie
@@ -40,10 +40,10 @@ router.post('/auth/pat', asyncHandler(async (req: Request, res: Response) => {
       sameSite: isProduction ? 'strict' : 'lax', // Stricter CSRF in prod
       path: '/'            // Make cookie available to all routes
     });
-    
+
     githubLogger.success('PAT authentication successful');
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: 'Successfully authenticated with GitHub using PAT',
       user: {
         login: user.login,
@@ -51,9 +51,43 @@ router.post('/auth/pat', asyncHandler(async (req: Request, res: Response) => {
         avatar_url: user.avatar_url
       }
     });
-  } catch (error) {
-    githubLogger.error('GitHub PAT authentication failed');
-    throw new ApiError(401, 'Invalid Personal Access Token', 'GITHUB_PAT_INVALID');
+  } catch (error: any) {
+    githubLogger.error('GitHub PAT authentication failed - check detailed error above');
+
+    // Extract more helpful error message
+    let errorMessage = 'Invalid Personal Access Token';
+    let rateLimitInfo = null;
+
+    if (error?.response?.status === 403) {
+      const headers = error.response.headers;
+      const rateLimitRemaining = headers['x-ratelimit-remaining'];
+      const rateLimitReset = headers['x-ratelimit-reset'];
+
+      // Check if this is a rate limit error
+      if (rateLimitRemaining === '0' || error.response.data?.message?.includes('rate limit')) {
+        const resetDate = rateLimitReset ? new Date(parseInt(rateLimitReset) * 1000) : null;
+        const resetTime = resetDate ? resetDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'soon';
+        const minutesUntilReset = resetDate ? Math.ceil((resetDate.getTime() - Date.now()) / 60000) : null;
+
+        errorMessage = `GitHub API rate limit exceeded. Your limit will reset at ${resetTime}${minutesUntilReset ? ` (in ${minutesUntilReset} minutes)` : ''}.`;
+        rateLimitInfo = {
+          remaining: 0,
+          reset: resetDate?.toISOString(),
+          resetTime: resetTime,
+          minutesUntilReset: minutesUntilReset
+        };
+      } else {
+        errorMessage = 'GitHub PAT lacks required permissions. Ensure your token has "repo" scope and SSO authorization (if needed).';
+      }
+    } else if (error?.response?.status === 401) {
+      errorMessage = 'GitHub PAT is invalid or expired';
+    }
+
+    const apiError = new ApiError(error?.response?.status || 401, errorMessage, 'GITHUB_PAT_INVALID');
+    if (rateLimitInfo) {
+      (apiError as any).rateLimitInfo = rateLimitInfo;
+    }
+    throw apiError;
   }
 }));
 

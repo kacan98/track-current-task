@@ -5,20 +5,71 @@ import type { GitHubTokenResponse, GitHubUser } from '../types/github';
 const githubLogger = createLogger('GITHUB');
 
 const GITHUB_API_BASE = 'https://api.github.com';
+const GITHUB_GRAPHQL_ENDPOINT = 'https://api.github.com/graphql';
 
 // Helper function to make GitHub API calls with proper headers
 async function githubApiCall<T = any>(token: string, url: string, method: 'GET' | 'POST' = 'GET', data?: any): Promise<T> {
-  const response = await axios({
-    method,
-    url,
-    data,
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Accept': 'application/vnd.github+json',
-      'User-Agent': 'track-current-task-app'
+  try {
+    const response = await axios({
+      method,
+      url,
+      data,
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/vnd.github+json',
+        'User-Agent': 'track-current-task-app'
+      }
+    });
+    return response.data;
+  } catch (error: unknown) {
+    const axiosError = error as AxiosError;
+    if (axiosError.response) {
+      const headers = axiosError.response.headers;
+      githubLogger.error(`GitHub API Error:
+        URL: ${url}
+        Status: ${axiosError.response.status}
+        Message: ${JSON.stringify(axiosError.response.data)}
+        Rate Limit Remaining: ${headers['x-ratelimit-remaining'] || 'N/A'}
+        Rate Limit Reset: ${headers['x-ratelimit-reset'] ? new Date(parseInt(headers['x-ratelimit-reset']) * 1000).toISOString() : 'N/A'}
+        Token (first 7 chars): ${token.substring(0, 7)}...`);
     }
-  });
-  return response.data;
+    throw error;
+  }
+}
+
+// Helper function to make GitHub GraphQL API calls
+async function githubGraphQLCall<T = any>(token: string, query: string, variables?: Record<string, any>): Promise<T> {
+  try {
+    const response = await axios.post(
+      GITHUB_GRAPHQL_ENDPOINT,
+      { query, variables },
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'User-Agent': 'track-current-task-app'
+        }
+      }
+    );
+
+    if (response.data.errors) {
+      githubLogger.error(`GitHub GraphQL Errors: ${JSON.stringify(response.data.errors)}`);
+      throw new Error(`GraphQL Error: ${response.data.errors[0]?.message || 'Unknown error'}`);
+    }
+
+    return response.data.data;
+  } catch (error: unknown) {
+    const axiosError = error as AxiosError;
+    if (axiosError.response) {
+      const headers = axiosError.response.headers;
+      githubLogger.error(`GitHub GraphQL API Error:
+        Status: ${axiosError.response.status}
+        Message: ${JSON.stringify(axiosError.response.data)}
+        Rate Limit Remaining: ${headers['x-ratelimit-remaining'] || 'N/A'}
+        Rate Limit Reset: ${headers['x-ratelimit-reset'] ? new Date(parseInt(headers['x-ratelimit-reset']) * 1000).toISOString() : 'N/A'}`);
+    }
+    throw error;
+  }
 }
 
 // Exchange authorization code for access token
@@ -53,13 +104,7 @@ export async function exchangeCodeForToken(code: string): Promise<GitHubTokenRes
 
 // Get authenticated user info
 export async function getGitHubUser(token: string): Promise<GitHubUser> {
-  try {
-    return await githubApiCall<GitHubUser>(token, `${GITHUB_API_BASE}/user`);
-  } catch (error: unknown) {
-    const axiosError = error as AxiosError;
-    githubLogger.error(`Failed to get GitHub user: ${axiosError?.response?.status || axiosError?.message}`);
-    throw error;
-  }
+  return await githubApiCall<GitHubUser>(token, `${GITHUB_API_BASE}/user`);
 }
 
 // Get pull requests associated with a specific commit
@@ -422,139 +467,351 @@ export async function getUserCommitsForDateRange(token: string, startDate: strin
 }
 
 // Search for user's pull requests matching task IDs
+// OPTIMIZED: Search user's pull requests using GraphQL (reduces 500+ API calls to 1-2 calls)
 export async function searchUserPullRequests(token: string, taskIds: string[]) {
-  githubLogger.info(`Searching PRs for ${taskIds.length} task IDs`);
+  githubLogger.info(`Searching PRs for ${taskIds.length} task IDs using GraphQL`);
 
   try {
-    const user = await getGitHubUser(token);
-
-    // Search for all user's PRs, sorted by recently updated
-    const searchQuery = `author:${user.login} type:pr`;
-    const url = `${GITHUB_API_BASE}/search/issues?q=${encodeURIComponent(searchQuery)}&sort=updated&order=desc&per_page=100`;
-
-    const response = await axios.get(url, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'application/vnd.github+json',
-        'User-Agent': 'track-current-task-app'
-      }
-    });
-
-    // Filter PRs by checking if head branch contains any task ID
-    const matchedPRs = response.data.items
-      .filter((pr: { pull_request?: { html_url: string }; html_url?: string }) => pr.pull_request) // Ensure it's a PR
-      .map((pr: { number: number; title: string; state: string; draft: boolean; html_url: string; repository_url: string; pull_request: { url: string }; created_at: string; updated_at: string; closed_at?: string }) => {
-        // Get the full PR details to access head branch
-        return {
-          number: pr.number,
-          title: pr.title,
-          state: pr.state,
-          draft: pr.draft,
-          url: pr.html_url,
-          repositoryUrl: pr.repository_url,
-          prApiUrl: pr.pull_request.url,
-          createdAt: pr.created_at,
-          updatedAt: pr.updated_at,
-          closedAt: pr.closed_at
-        };
-      });
-
-    // Fetch detailed PR info to get head branch for each PR
-    const detailedPRs = await Promise.all(
-      matchedPRs.map(async (pr: { prApiUrl: string; number: number; title: string; state: string; draft: boolean; url: string; repositoryUrl: string; createdAt: string; updatedAt: string; closedAt?: string }) => {
-        try {
-          const prDetails = await axios.get(pr.prApiUrl, {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Accept': 'application/vnd.github+json',
-              'User-Agent': 'track-current-task-app'
+    // Use GraphQL to fetch all PR data in a single query
+    // This replaces 500+ REST API calls with just 1 GraphQL call!
+    const query = `
+      query($searchQuery: String!) {
+        search(query: $searchQuery, type: ISSUE, first: 50) {
+          nodes {
+            ... on PullRequest {
+              number
+              title
+              state
+              isDraft
+              url
+              headRefName
+              body
+              createdAt
+              updatedAt
+              closedAt
+              merged
+              mergedAt
+              comments {
+                totalCount
+              }
+              reviews {
+                totalCount
+              }
+              mergeable
+              repository {
+                name
+                nameWithOwner
+              }
+              commits(last: 1) {
+                nodes {
+                  commit {
+                    committedDate
+                    statusCheckRollup {
+                      state
+                      contexts(first: 30) {
+                        nodes {
+                          ... on CheckRun {
+                            id
+                            name
+                            status
+                            conclusion
+                            detailsUrl
+                          }
+                          ... on StatusContext {
+                            id
+                            context
+                            state
+                            targetUrl
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              latestReviews(first: 10) {
+                nodes {
+                  author {
+                    login
+                    avatarUrl
+                  }
+                  state
+                  submittedAt
+                }
+              }
+              reviewRequests(first: 10) {
+                totalCount
+                nodes {
+                  requestedReviewer {
+                    ... on User {
+                      login
+                      avatarUrl
+                    }
+                  }
+                }
+              }
             }
-          });
-
-          const headBranch = prDetails.data.head.ref;
-          const repoFullName = prDetails.data.base.repo.full_name;
-          const merged = prDetails.data.merged;
-          const mergedAt = prDetails.data.merged_at;
-          const prTitle = pr.title;
-          const prBody = prDetails.data.body || '';
-          const comments = prDetails.data.comments || 0;
-          const reviewComments = prDetails.data.review_comments || 0;
-
-          // Check if PR has merge conflicts
-          const mergeable = prDetails.data.mergeable;
-          const mergeableState = prDetails.data.mergeable_state;
-
-          // Get last review and commit information
-          const lastReview = await getLastReview(token, prDetails.data.url, pr.number);
-          const lastCommitDate = await getLastCommit(token, prDetails.data.url, pr.number);
-
-          const changesRequested = lastReview?.changesRequested || false;
-          const lastReviewDate = lastReview?.submittedAt || null;
-          const lastReviewState = lastReview?.state || null;
-
-          // Get check status for the PR
-          const checkStatus = await getCheckStatus(token, repoFullName, prDetails.data.head.sha);
-
-          // Get review status for the PR
-          const reviewStatus = await getReviewStatus(token, repoFullName, pr.number);
-
-          // Check if branch, title, or description contains any task ID
-          const matchedTaskId = taskIds.find(taskId => {
-            const taskIdLower = taskId.toLowerCase();
-            const branchLower = headBranch.toLowerCase();
-            const titleLower = prTitle.toLowerCase();
-            const bodyLower = prBody.toLowerCase();
-
-            return branchLower.includes(taskIdLower) ||
-                   titleLower.includes(taskIdLower) ||
-                   bodyLower.includes(taskIdLower);
-          });
-
-          if (!matchedTaskId) {
-            return null;
           }
+        }
+      }
+    `;
 
-          return {
-            taskId: matchedTaskId,
-            number: pr.number,
-            title: pr.title,
-            state: pr.state,
-            draft: pr.draft,
-            url: prDetails.data.html_url,
-            branch: headBranch,
-            repository: {
-              name: repoFullName.split('/')[1],
-              fullName: repoFullName
-            },
-            createdAt: pr.createdAt,
-            updatedAt: pr.updatedAt,
-            merged,
-            mergedAt,
-            comments,
-            reviewComments,
-            changesRequested,
-            lastCommitDate,
-            lastReviewDate,
-            lastReviewState,
-            mergeable,
-            mergeableState,
-            checkStatus,
-            reviewStatus
+    // Get user login first to build search query
+    const userQuery = `
+      query {
+        viewer {
+          login
+        }
+      }
+    `;
+
+    interface UserResponse {
+      viewer: {
+        login: string;
+      };
+    }
+
+    const userData = await githubGraphQLCall<UserResponse>(token, userQuery);
+    const searchQuery = `author:${userData.viewer.login} type:pr sort:updated-desc`;
+
+    interface GraphQLPRResponse {
+      search: {
+        nodes: Array<{
+          number: number;
+          title: string;
+          state: string;
+          isDraft: boolean;
+          url: string;
+          headRefName: string;
+          body: string | null;
+          createdAt: string;
+          updatedAt: string;
+          closedAt: string | null;
+          merged: boolean;
+          mergedAt: string | null;
+          comments: { totalCount: number };
+          reviews: { totalCount: number };
+          mergeable: string;
+          repository: {
+            name: string;
+            nameWithOwner: string;
           };
-        } catch (error) {
-          const axiosError = error as AxiosError;
-          githubLogger.warn(`Failed to fetch PR details for #${pr.number}: ${axiosError?.response?.status || axiosError?.message}`);
+          commits: {
+            nodes: Array<{
+              commit: {
+                committedDate: string;
+                statusCheckRollup: {
+                  state: string;
+                  contexts: {
+                    nodes: Array<{
+                      id: number;
+                      name?: string;
+                      context?: string;
+                      status?: string;
+                      state?: string;
+                      conclusion?: string | null;
+                      detailsUrl?: string;
+                      targetUrl?: string;
+                    }>;
+                  };
+                } | null;
+              };
+            }>;
+          };
+          latestReviews: {
+            nodes: Array<{
+              author: {
+                login: string;
+                avatarUrl: string;
+              } | null;
+              state: string;
+              submittedAt: string;
+            }>;
+          };
+          reviewRequests: {
+            totalCount: number;
+            nodes: Array<{
+              requestedReviewer: {
+                login: string;
+                avatarUrl: string;
+              } | null;
+            }>;
+          };
+        }>;
+      };
+    }
+
+    const prData = await githubGraphQLCall<GraphQLPRResponse>(token, query, { searchQuery });
+
+    // Filter and map PRs that match task IDs
+    const matchingPRs = prData.search.nodes
+      .map(pr => {
+        const prTitle = pr.title || '';
+        const prBody = pr.body || '';
+        const headBranch = pr.headRefName || '';
+
+        // Check if branch, title, or body contains any task ID
+        const matchedTaskId = taskIds.find(taskId => {
+          const taskIdLower = taskId.toLowerCase();
+          const branchLower = headBranch.toLowerCase();
+          const titleLower = prTitle.toLowerCase();
+          const bodyLower = prBody.toLowerCase();
+
+          return branchLower.includes(taskIdLower) ||
+                 titleLower.includes(taskIdLower) ||
+                 bodyLower.includes(taskIdLower);
+        });
+
+        if (!matchedTaskId) {
           return null;
         }
+
+        // Get last review info
+        const lastReview = pr.latestReviews.nodes[0];
+        const changesRequested = lastReview?.state === 'CHANGES_REQUESTED';
+        const lastReviewDate = lastReview?.submittedAt || null;
+        const lastReviewState = lastReview?.state || null;
+
+        // Get last commit date
+        const lastCommit = pr.commits.nodes[0];
+        const lastCommitDate = lastCommit?.commit.committedDate || null;
+
+        // Parse check status from status rollup
+        const statusRollup = lastCommit?.commit.statusCheckRollup;
+        let checkStatus = {
+          state: 'unknown',
+          total: 0,
+          passed: 0,
+          failed: 0,
+          pending: 0,
+          checks: [] as Array<{
+            id: number;
+            name: string;
+            status: string;
+            conclusion: string | null;
+            url: string;
+            failedStep?: string | null;
+            errorMessage?: string | null;
+          }>
+        };
+
+        if (statusRollup) {
+          checkStatus.state = statusRollup.state.toLowerCase();
+
+          statusRollup.contexts.nodes.forEach(check => {
+            const checkName = check.name || check.context || 'Unknown';
+            const checkStatus_item = check.status || check.state || 'unknown';
+            const conclusion = check.conclusion || (check.state === 'SUCCESS' ? 'SUCCESS' : check.state === 'FAILURE' ? 'FAILURE' : null);
+
+            checkStatus.checks.push({
+              id: check.id,
+              name: checkName,
+              status: checkStatus_item,
+              conclusion: conclusion ? conclusion.toLowerCase() : null, // Normalize to lowercase for frontend
+              url: check.detailsUrl || check.targetUrl || '',
+              failedStep: null,
+              errorMessage: null
+            });
+
+            checkStatus.total++;
+            // Normalize conclusion to uppercase for comparison
+            const conclusionUpper = conclusion?.toUpperCase();
+            if (conclusionUpper === 'SUCCESS') {
+              checkStatus.passed++;
+            } else if (conclusionUpper === 'FAILURE') {
+              checkStatus.failed++;
+            } else if (conclusionUpper === 'SKIPPED' || conclusionUpper === 'CANCELLED' || conclusionUpper === 'NEUTRAL') {
+              // Count skipped/cancelled/neutral as neither pass nor fail
+              checkStatus.pending++;
+            } else {
+              // Anything else (null, in_progress, queued, etc.) is pending
+              checkStatus.pending++;
+            }
+          });
+        }
+
+        // Parse review status
+        // Group reviews by user, keeping only the most recent review from each reviewer
+        const reviewsByUser = new Map();
+        pr.latestReviews.nodes.forEach(review => {
+          // Skip reviews without author (e.g., from deleted users)
+          if (!review.author) return;
+
+          const login = review.author.login;
+          const existingReview = reviewsByUser.get(login);
+
+          if (!existingReview || new Date(review.submittedAt) > new Date(existingReview.submittedAt)) {
+            reviewsByUser.set(login, review);
+          }
+        });
+
+        // Convert to array with proper format
+        const reviewers = Array.from(reviewsByUser.values())
+          .filter(review => review.author) // Extra safety filter
+          .map(review => ({
+            login: review.author.login,
+            avatarUrl: review.author.avatarUrl,
+            state: review.state
+          }));
+
+        // Determine overall review state
+        const hasChangesRequested = reviewers.some(r => r.state === 'CHANGES_REQUESTED');
+        const hasApproved = reviewers.some(r => r.state === 'APPROVED');
+        const allApproved = reviewers.every(r => r.state === 'APPROVED');
+
+        let reviewState = 'no_reviews';
+        if (hasChangesRequested) {
+          reviewState = 'changes_requested';
+        } else if (allApproved && reviewers.length > 0) {
+          reviewState = 'approved';
+        } else if (hasApproved) {
+          reviewState = 'partial_approval';
+        } else if (reviewers.length > 0) {
+          reviewState = 'commented';
+        }
+
+        const reviewStatus = {
+          reviewers,
+          state: reviewState,
+          approved: hasApproved,
+          changesRequested: hasChangesRequested,
+          pendingReviews: pr.reviewRequests.totalCount,
+          totalReviews: pr.reviews.totalCount
+        };
+
+        return {
+          taskId: matchedTaskId,
+          number: pr.number,
+          title: pr.title,
+          state: pr.state.toLowerCase(),
+          draft: pr.isDraft,
+          url: pr.url,
+          branch: headBranch,
+          repository: {
+            name: pr.repository.name,
+            fullName: pr.repository.nameWithOwner
+          },
+          createdAt: pr.createdAt,
+          updatedAt: pr.updatedAt,
+          merged: pr.merged,
+          mergedAt: pr.mergedAt,
+          comments: pr.comments.totalCount,
+          reviewComments: pr.reviews.totalCount,
+          changesRequested,
+          lastCommitDate,
+          lastReviewDate,
+          lastReviewState,
+          mergeable: pr.mergeable,
+          mergeableState: pr.mergeable,
+          checkStatus,
+          reviewStatus
+        };
       })
-    );
+      .filter((pr): pr is NonNullable<typeof pr> => pr !== null);
 
-    // Filter out nulls and group by task ID
-    const validPRs = detailedPRs.filter((pr): pr is NonNullable<typeof pr> => pr !== null);
+    githubLogger.info(`Found ${matchingPRs.length} matching PRs using GraphQL (2 API calls total)`);
 
-    githubLogger.info(`Found ${validPRs.length} matching PRs`);
-
-    return validPRs;
+    return matchingPRs;
   } catch (error: unknown) {
     const axiosError = error as AxiosError;
     githubLogger.error(`Failed to search PRs: ${axiosError?.response?.status || axiosError?.message}`);
@@ -631,54 +888,187 @@ export async function getUserCommitsForDate(token: string, date: string) {
   }
 }
 
-// Search for branches matching a task ID
+// Search for branches matching a task ID (OPTIMIZED - uses GraphQL to fetch all data in 2 API calls)
 export async function searchBranchesForTaskId(token: string, taskId: string) {
   try {
-    const user = await getGitHubUser(token);
-
-    // Search for branches containing the task ID
-    // We'll search through the user's repositories
-    const reposUrl = `${GITHUB_API_BASE}/user/repos?per_page=100&affiliation=owner,collaborator,organization_member`;
-    const reposResponse = await githubApiCall(token, reposUrl);
-
-    const matchingBranches = [];
-
-    // Search through repositories for matching branches
-    for (const repo of reposResponse) {
-      try {
-        const branchesUrl = `${GITHUB_API_BASE}/repos/${repo.full_name}/branches?per_page=100`;
-        const branches = await githubApiCall(token, branchesUrl);
-
-        for (const branch of branches) {
-          // Check if branch name contains the task ID (case insensitive)
-          if (branch.name.toLowerCase().includes(taskId.toLowerCase())) {
-            // Get last commit date for this branch
-            let lastCommitDate = null;
-            try {
-              const commitUrl = `${GITHUB_API_BASE}/repos/${repo.full_name}/commits/${branch.commit.sha}`;
-              const commitData = await githubApiCall(token, commitUrl);
-              lastCommitDate = commitData.commit.author.date;
-            } catch (error) {
-              // If we can't get commit date, just skip it
+    // STEP 1: Get list of repos where user has been active (1 GraphQL call)
+    // Priority: repos with open PRs first, then recently pushed repos
+    const reposQuery = `
+      query {
+        viewer {
+          login
+          repositories(
+            first: 75,
+            orderBy: {field: PUSHED_AT, direction: DESC},
+            affiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER],
+            ownerAffiliations: [OWNER, ORGANIZATION_MEMBER, COLLABORATOR]
+          ) {
+            nodes {
+              name
+              nameWithOwner
+              defaultBranchRef {
+                name
+              }
             }
-
-            matchingBranches.push({
-              name: branch.name,
-              repository: {
-                name: repo.name,
-                fullName: repo.full_name
-              },
-              createPrUrl: `https://github.com/${repo.full_name}/compare/${repo.default_branch}...${branch.name}?expand=1`,
-              lastCommitDate
-            });
           }
         }
-      } catch (error) {
-        // Skip repositories we can't access
-        continue;
+        search(query: "is:pr author:@me state:open", type: ISSUE, first: 100) {
+          nodes {
+            ... on PullRequest {
+              repository {
+                name
+                nameWithOwner
+                defaultBranchRef {
+                  name
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    interface RepoNode {
+      name: string;
+      nameWithOwner: string;
+      defaultBranchRef: { name: string } | null;
+    }
+
+    interface ReposResponse {
+      viewer: {
+        login: string;
+        repositories: {
+          nodes: RepoNode[];
+        };
+      };
+      search: {
+        nodes: Array<{
+          repository: RepoNode;
+        }>;
+      };
+    }
+
+    const reposData = await githubGraphQLCall<ReposResponse>(token, reposQuery);
+
+    // Debug: Log PR search results
+    githubLogger.info(`Found ${reposData.search.nodes.length} open PRs for user`);
+    const prRepos = reposData.search.nodes
+      .filter(pr => pr.repository)
+      .map(pr => pr.repository.nameWithOwner);
+    if (prRepos.length > 0) {
+      githubLogger.info(`PR repositories: ${prRepos.join(', ')}`);
+    }
+
+    // Combine repos from open PRs (priority) with recently pushed repos
+    const repoMap = new Map<string, RepoNode>();
+
+    // First, add repos where user has open PRs (highest priority)
+    reposData.search.nodes.forEach(pr => {
+      if (pr.repository) {
+        repoMap.set(pr.repository.nameWithOwner, pr.repository);
+      }
+    });
+
+    const prRepoCount = repoMap.size;
+
+    // Then, add recently pushed repos as fallback (lower priority)
+    reposData.viewer.repositories.nodes.forEach(repo => {
+      if (!repoMap.has(repo.nameWithOwner)) {
+        repoMap.set(repo.nameWithOwner, repo);
+      }
+    });
+
+    // Convert to array and limit to 50 total repos (balancing coverage vs query size)
+    const repos = Array.from(repoMap.values()).slice(0, 50);
+
+    if (repos.length === 0) {
+      githubLogger.info(`No repositories found for branch search`);
+      return [];
+    }
+
+    githubLogger.info(`Searching for task ${taskId} in ${repos.length} repositories (${prRepoCount} with open PRs, ${repos.length - prRepoCount} recently pushed): ${repos.map(r => r.nameWithOwner).join(', ')}`);
+
+    // STEP 2: Build a single GraphQL query with aliases to fetch branches from all repos (1 GraphQL call)
+    // This replaces 15 separate REST API calls with 1 GraphQL call!
+    const branchesQueryParts: string[] = [];
+
+    repos.forEach((repo, index) => {
+      const [owner, repoName] = repo.nameWithOwner.split('/');
+      branchesQueryParts.push(`
+        repo${index}: repository(owner: "${owner}", name: "${repoName}") {
+          nameWithOwner
+          defaultBranchRef {
+            name
+          }
+          refs(refPrefix: "refs/heads/", first: 75) {
+            nodes {
+              name
+            }
+          }
+        }
+      `);
+    });
+
+    const branchesQuery = `
+      query {
+        ${branchesQueryParts.join('\n')}
+      }
+    `;
+
+    interface BranchNode {
+      name: string;
+    }
+
+    interface RepositoryData {
+      nameWithOwner: string;
+      defaultBranchRef: { name: string } | null;
+      refs: {
+        nodes: BranchNode[];
+      };
+    }
+
+    type BranchesResponse = Record<string, RepositoryData>;
+
+    const branchesData = await githubGraphQLCall<BranchesResponse>(token, branchesQuery);
+
+    // STEP 3: Filter branches that match the task ID
+    const matchingBranches = [];
+    let reposSearched = 0;
+
+    for (const [_key, repoData] of Object.entries(branchesData)) {
+      if (!repoData || !repoData.refs) continue;
+
+      reposSearched++;
+      const defaultBranch = repoData.defaultBranchRef?.name || 'main';
+      const branchNames = repoData.refs.nodes.map(b => b.name);
+
+      // Log branches for debugging (first 10 branches per repo)
+      if (branchNames.length > 0) {
+        githubLogger.debug(`${repoData.nameWithOwner}: ${branchNames.length} branches (showing first 10): ${branchNames.slice(0, 10).join(', ')}`);
+      }
+
+      for (const branch of repoData.refs.nodes) {
+        // Check if branch name contains the task ID (case insensitive)
+        if (branch.name.toLowerCase().includes(taskId.toLowerCase())) {
+          const [owner, repoName] = repoData.nameWithOwner.split('/');
+          githubLogger.info(`Found matching branch: ${repoData.nameWithOwner}:${branch.name}`);
+          matchingBranches.push({
+            name: branch.name,
+            repository: {
+              name: repoName,
+              fullName: repoData.nameWithOwner
+            },
+            createPrUrl: `https://github.com/${repoData.nameWithOwner}/compare/${defaultBranch}...${branch.name}?expand=1`,
+            lastCommitDate: null
+          });
+        }
       }
     }
 
+    githubLogger.info(`Found ${matchingBranches.length} branches for task ${taskId} (searched ${reposSearched} repos using GraphQL - 2 API calls total)`);
+    if (matchingBranches.length > 0) {
+      githubLogger.info(`Matching branches: ${matchingBranches.map(b => `${b.repository.fullName}:${b.name}`).join(', ')}`);
+    }
     return matchingBranches;
   } catch (error) {
     const axiosError = error as AxiosError;

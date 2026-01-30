@@ -19,6 +19,10 @@
   - Add input field for Jira base URL in login form
   - Store Jira base URL in cookie along with other credentials
 
-# Todo tasks 
+# Todo tasks
 - [] For some reason the status endpoints (api/jira/auth/status and api/github/auth/status) get called each 4 times!!! when opening the app. Investigate and fix this behavior to reduce unnecessary network calls.
-- [] api/github/branches/search?taskId=DFO-10842 takes waaaay too long - 30s! Investigate and optimize the performance of this endpoint.
+- [x] api/github/branches/search?taskId=DFO-10842 takes waaaay too long - 30s! Investigate and optimize the performance of this endpoint.
+  - DONE: Optimized from 30s to ~3s using GraphQL batching (reduced from ~200 API calls to 2 calls)
+  - DONE: Fixed repository selection to prioritize repos where user has open PRs instead of globally recently pushed repos
+- [] Make it possible to change the state of the tasks and subtasks (e.g. from "In Progress" to "Ready for review") directly from the app interface. Not sure how possible this is because jira has some restrictions on which order we can change states and to which states we can change.
+- [] If I am reviewing something or I am assigned to a subtask in Jira... will it show up in the overview? it should. :D 

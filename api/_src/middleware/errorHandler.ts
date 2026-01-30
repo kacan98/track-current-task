@@ -4,12 +4,34 @@ import { createLogger } from '../../../shared/logger';
 
 const errorLogger = createLogger('ERROR');
 
+// Rate limit info interface
+interface RateLimitInfo {
+  remaining: number;
+  reset: string;
+  resetTime: string;
+  minutesUntilReset: number | null;
+}
+
+// Error response interface
+interface ErrorResponse {
+  error: {
+    code: string;
+    message: string;
+    timestamp: string;
+    path: string;
+    method: string;
+    rateLimitInfo?: RateLimitInfo;
+    details?: unknown;
+  };
+}
+
 // Custom error class for API errors
 export class ApiError extends Error {
   statusCode: number;
   code: string;
   details?: unknown;
   isOperational: boolean;
+  rateLimitInfo?: RateLimitInfo;
 
   constructor(
     statusCode: number,
@@ -23,7 +45,7 @@ export class ApiError extends Error {
     this.code = code;
     this.details = details;
     this.isOperational = isOperational;
-    
+
     // Capture stack trace
     Error.captureStackTrace(this, this.constructor);
   }
@@ -47,7 +69,7 @@ export const errorHandler = (
   let statusCode = 500;
   let code = 'INTERNAL_ERROR';
   let message = 'An unexpected error occurred';
-  let details = undefined;
+  let details: unknown = undefined;
 
   // Handle our custom ApiError
   if (err instanceof ApiError) {
@@ -55,6 +77,11 @@ export const errorHandler = (
     code = err.code;
     message = err.message;
     details = err.details;
+
+    // Include rate limit info if present
+    if (err.rateLimitInfo) {
+      details = { ...(details || {}), rateLimitInfo: err.rateLimitInfo };
+    }
   } 
   // Handle Axios errors (from Jira API calls)
   else if ((err as AxiosError).isAxiosError) {
@@ -108,16 +135,27 @@ export const errorHandler = (
   }
 
   // Send error response
-  res.status(statusCode).json({
+  const errorResponse: ErrorResponse = {
     error: {
       code,
       message,
-      ...(process.env.DEV === 'true' && details ? { details } : {}),
       timestamp: new Date().toISOString(),
       path: req.path,
       method: req.method
     }
-  });
+  };
+
+  // Always include rate limit info if present (not just in dev mode)
+  if (details && typeof details === 'object' && details !== null && 'rateLimitInfo' in details) {
+    errorResponse.error.rateLimitInfo = (details as { rateLimitInfo: RateLimitInfo }).rateLimitInfo;
+  }
+
+  // Include other details only in dev mode
+  if (process.env.DEV === 'true' && details) {
+    errorResponse.error.details = details;
+  }
+
+  res.status(statusCode).json(errorResponse);
 };
 
 // 404 handler

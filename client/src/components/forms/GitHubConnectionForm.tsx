@@ -40,8 +40,24 @@ export function GitHubConnectionForm({ onSuccess }: GitHubConnectionFormProps = 
         await loginWithPAT(token);
         // Clear the token from the input after successful login
         setPatValue('');
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to authenticate with GitHub');
+      } catch (err: any) {
+        // Extract error message from API response
+        let errorMsg = 'Failed to authenticate with GitHub';
+
+        if (err?.response?.data?.error) {
+          const apiError = err.response.data.error;
+          errorMsg = apiError.message || errorMsg;
+
+          // Add rate limit info if present
+          if (apiError.rateLimitInfo) {
+            const info = apiError.rateLimitInfo;
+            errorMsg = `${errorMsg}\n\nRate limit will reset at ${info.resetTime}${info.minutesUntilReset ? ` (in about ${info.minutesUntilReset} minutes)` : ''}.`;
+          }
+        } else if (err instanceof Error) {
+          errorMsg = err.message;
+        }
+
+        setError(errorMsg);
         setIsConnecting(false);
       }
     } else {
@@ -252,8 +268,8 @@ export function GitHubConnectionForm({ onSuccess }: GitHubConnectionFormProps = 
           )}
 
           {error && (
-            <div className="p-2 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-red-800 text-sm">{error}</p>
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-red-800 text-sm whitespace-pre-line">{error}</p>
             </div>
           )}
 
