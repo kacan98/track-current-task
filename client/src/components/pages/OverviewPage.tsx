@@ -3,7 +3,8 @@ import { Button } from '@/components/ui/Button';
 import { useToastContext } from '@/contexts/ToastContext';
 import { JiraAuthModal } from '@/components/modals/JiraAuthModal';
 import { GitHubAuthModal } from '@/components/modals/GitHubAuthModal';
-import { useAuthentication } from '@/hooks/useAuthentication';
+import { useJiraAuth } from '@/contexts/JiraAuthContext';
+import { useGitHubAuth } from '@/contexts/GitHubAuthContext';
 import { useSettings } from '@/contexts/SettingsContext';
 import { PageHeader } from '@/components/ui/layout/PageHeader';
 import { ErrorDisplay } from '@/components/ui/feedback/ErrorDisplay';
@@ -34,9 +35,8 @@ export const OverviewPage: React.FC = () => {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [branchesByTask, setBranchesByTask] = useState<Map<string, Branch[]>>(new Map());
   const { showError, showSuccess } = useToastContext();
-  const { isAuthenticated: isJiraAuthenticated, isCheckingAuth, handleAuthSuccess } = useAuthentication();
-  const [isGitHubAuthenticated, setIsGitHubAuthenticated] = useState(false);
-  const [isCheckingGitHubAuth, setIsCheckingGitHubAuth] = useState(true);
+  const jiraAuth = useJiraAuth();
+  const githubAuth = useGitHubAuth();
   const settings = useSettings();
   const [showSettingsError, setShowSettingsError] = useState(false);
 
@@ -78,25 +78,6 @@ export const OverviewPage: React.FC = () => {
     fetchOverview();
   };
 
-  // Check GitHub authentication status
-  useEffect(() => {
-    const checkGitHubAuth = async () => {
-      try {
-        const response = await fetch('/api/github/auth/status', {
-          credentials: 'include'
-        });
-        const data = await response.json();
-        setIsGitHubAuthenticated(data.authenticated);
-      } catch (error) {
-        console.error('Failed to check GitHub auth:', error);
-        setIsGitHubAuthenticated(false);
-      } finally {
-        setIsCheckingGitHubAuth(false);
-      }
-    };
-    checkGitHubAuth();
-  }, []);
-
   const fetchOverview = async () => {
     // Check if Jira URL is configured
     if (!jiraBaseUrl || jiraBaseUrl === '') {
@@ -105,12 +86,12 @@ export const OverviewPage: React.FC = () => {
     }
 
     // Check authentication first
-    if (!isJiraAuthenticated) {
+    if (!jiraAuth.isAuthenticated) {
       setShowJiraAuth(true);
       return;
     }
 
-    if (!isGitHubAuthenticated) {
+    if (!githubAuth.isAuthenticated) {
       setShowGitHubAuth(true);
       return;
     }
@@ -278,10 +259,10 @@ export const OverviewPage: React.FC = () => {
   };
 
   useEffect(() => {
-    if (isJiraAuthenticated && isGitHubAuthenticated && !isCheckingAuth && !isCheckingGitHubAuth && !showSettingsError) {
+    if (jiraAuth.isAuthenticated && githubAuth.isAuthenticated && !jiraAuth.isLoading && !githubAuth.isLoading && !showSettingsError) {
       fetchOverview();
     }
-  }, [isJiraAuthenticated, isGitHubAuthenticated, isCheckingAuth, isCheckingGitHubAuth, showSettingsError]);
+  }, [jiraAuth.isAuthenticated, githubAuth.isAuthenticated, jiraAuth.isLoading, githubAuth.isLoading, showSettingsError]);
 
   // Re-render every minute to update the "last updated" text
   const [, setTick] = useState(0);
@@ -353,12 +334,12 @@ export const OverviewPage: React.FC = () => {
           </div>
         )}
 
-        {isCheckingAuth || isCheckingGitHubAuth ? (
+        {jiraAuth.isLoading || githubAuth.isLoading ? (
           <LoadingSpinner message="Checking authentication..." />
-        ) : !isJiraAuthenticated || !isGitHubAuthenticated ? (
+        ) : !jiraAuth.isAuthenticated || !githubAuth.isAuthenticated ? (
           <AuthPrompt
-            isJiraAuthenticated={isJiraAuthenticated}
-            isGitHubAuthenticated={isGitHubAuthenticated}
+            isJiraAuthenticated={jiraAuth.isAuthenticated}
+            isGitHubAuthenticated={githubAuth.isAuthenticated}
             onJiraAuth={() => setShowJiraAuth(true)}
             onGitHubAuth={() => setShowGitHubAuth(true)}
           />
@@ -395,8 +376,8 @@ export const OverviewPage: React.FC = () => {
       <JiraAuthModal
         isOpen={showJiraAuth}
         onClose={() => setShowJiraAuth(false)}
-        onAuthSuccess={() => {
-          handleAuthSuccess();
+        onAuthSuccess={async () => {
+          await jiraAuth.checkAuthStatus();
           setShowJiraAuth(false);
           fetchOverview();
         }}
@@ -405,8 +386,8 @@ export const OverviewPage: React.FC = () => {
       <GitHubAuthModal
         isOpen={showGitHubAuth}
         onClose={() => setShowGitHubAuth(false)}
-        onAuthSuccess={() => {
-          setIsGitHubAuthenticated(true);
+        onAuthSuccess={async () => {
+          await githubAuth.checkAuthStatus();
           setShowGitHubAuth(false);
           fetchOverview();
         }}

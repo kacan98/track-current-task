@@ -8,7 +8,7 @@ import { JiraAuthModal } from '@/components/modals/JiraAuthModal';
 import { WeeklyLogDisplay } from '@/components/table/one-dimension/WeeklyLogDisplay';
 import { TaskGridView } from '@/components/table/two-dimensions/TaskGridView';
 import { IntroductionScreen } from '@/components/IntroductionScreen';
-import { useAuthentication } from '@/hooks/useAuthentication';
+import { useJiraAuth } from '@/contexts/JiraAuthContext';
 import { useLogEntries } from '@/contexts/LogEntriesContext';
 import { useToastContext } from '@/contexts/ToastContext';
 import { useDataLoader } from '@/hooks/useDataLoader';
@@ -173,7 +173,7 @@ export const AppScreens: React.FC = () => {
   const { isLoading: loadingFromBackend, loadFromBackend, processFile } = useDataLoader();
   const { sendWorklog } = useJiraWorklog();
   const { from, to, filtered, weeks, handleDateRangeChange } = useDateRange(entries);
-  const { isAuthenticated, isCheckingAuth, handleAuthSuccess } = useAuthentication();
+  const { isAuthenticated, isLoading, checkAuthStatus } = useJiraAuth();
   const { showIntroduction, handleIntroductionComplete, handleDontShowAgain } = useIntroduction();
   
   const [error, setError] = useState<string | null>(null);
@@ -218,7 +218,7 @@ export const AppScreens: React.FC = () => {
 
   const handleSendToJira = async (entry: LogEntry) => {
     // Check if user is authenticated with Jira before sending
-    if (isCheckingAuth) {
+    if (isLoading) {
       showError('Checking Jira authentication status...');
       return;
     }
@@ -346,7 +346,7 @@ export const AppScreens: React.FC = () => {
       <JiraAuthModal
         isOpen={showJiraAuth}
         onClose={() => setShowJiraAuth(false)}
-        onAuthSuccess={handleAuthSuccess}
+        onAuthSuccess={checkAuthStatus}
       />
       
       {showUploadModal && (
