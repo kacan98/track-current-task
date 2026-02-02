@@ -136,6 +136,36 @@ Location: `%APPDATA%/.TrackCurrentTask/activity_log.csv`
 - New commits compared to main branch  
 - Branch checkout (first time on branch)
 
+## Task Overview Dashboard
+
+In addition to time tracking, the app includes a **Task Overview** dashboard that gives you a real-time view of your active work:
+
+### Features
+
+**Task Cards**: See all your assigned Jira tasks with their associated pull requests, organized by priority.
+
+**Action Items Summary**: A prioritized list of items requiring attention:
+- 🔴 **Merge Conflicts** - PRs that need conflict resolution
+- 🔴 **Failed Checks** - CI/CD failures with one-click rerun
+- 🟠 **Changes Requested** - PRs needing code updates
+- 🔵 **Ready for Testing** - Tasks with merged PRs awaiting QA
+- 🟢 **Branches Ready** - Branches without PRs (quick PR creation links)
+
+**PR Status at a Glance**:
+- Check status (passed/failed/pending) with detailed failure info
+- Review status with reviewer avatars and approval state
+- Merge conflict detection
+- Comment counts and activity timestamps
+
+**Quick Actions**:
+- Rerun failed GitHub Actions checks directly from the UI
+- Request re-reviews from previous reviewers
+- Jump to Jira tickets, PRs, or failed check logs
+
+### Requirements
+
+The Task Overview requires both **Jira** and **GitHub** authentication to fetch your assigned tasks and their associated PRs.
+
 ## Project Structure
 
 ```

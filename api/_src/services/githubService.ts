@@ -241,28 +241,58 @@ async function getCheckStatus(token: string, repoFullName: string, commitSha: st
         // Only fetch details for failed or action_required checks to avoid extra API calls
         if (['failure', 'timed_out', 'action_required'].includes(run.conclusion || '')) {
           try {
-            // Get the workflow run associated with this check
+            // Get the check run details which includes steps for GitHub Actions
             const checkDetailUrl = `${GITHUB_API_BASE}/repos/${owner}/${repo}/check-runs/${run.id}`;
             const checkDetail = await githubApiCall(token, checkDetailUrl);
-            const workflowRunId = checkDetail.check_suite?.id;
 
-            // Get steps if this is a GitHub Actions run
+            // First try to get step information from the check run output
             if (checkDetail.output?.title || checkDetail.output?.summary) {
-              // Extract failed step from output
-              const outputText = checkDetail.output?.title || checkDetail.output?.summary || '';
-              const stepMatch = outputText.match(/Step\s+#?(\d+)/i) || outputText.match(/(\w+[\s\w]*?)\s+failed/i);
-              if (stepMatch) {
-                failedStep = stepMatch[1];
-              }
+              errorMessage = checkDetail.output?.summary || checkDetail.output?.title || null;
+            }
 
-              // Extract error message from output
-              // Use summary if available, otherwise use title, or the full text
-              errorMessage = checkDetail.output?.summary || checkDetail.output?.title || checkDetail.output?.text || null;
+            // For GitHub Actions, fetch the job to get step-level details
+            // The check run is linked to a job via the external_id or we can find it through the check suite
+            const checkSuiteId = checkDetail.check_suite?.id;
+            if (checkSuiteId) {
+              try {
+                // Find the workflow run for this check suite
+                const workflowRunsUrl = `${GITHUB_API_BASE}/repos/${owner}/${repo}/actions/runs?check_suite_id=${checkSuiteId}`;
+                const workflowRunsResponse = await githubApiCall(token, workflowRunsUrl);
 
-              // Limit error message length to avoid huge payloads (max 500 chars)
-              if (errorMessage && errorMessage.length > 500) {
-                errorMessage = errorMessage.substring(0, 500) + '...';
+                if (workflowRunsResponse.workflow_runs && workflowRunsResponse.workflow_runs.length > 0) {
+                  const workflowRunId = workflowRunsResponse.workflow_runs[0].id;
+
+                  // Get jobs for this workflow run
+                  const jobsUrl = `${GITHUB_API_BASE}/repos/${owner}/${repo}/actions/runs/${workflowRunId}/jobs`;
+                  const jobsResponse = await githubApiCall(token, jobsUrl);
+
+                  // Find the job that matches this check run name
+                  const matchingJob = jobsResponse.jobs?.find((job: { name: string }) => job.name === run.name);
+
+                  if (matchingJob && matchingJob.steps) {
+                    // Find the failed step
+                    const failedStepData = matchingJob.steps.find(
+                      (step: { conclusion: string | null }) => step.conclusion === 'failure'
+                    );
+
+                    if (failedStepData) {
+                      failedStep = failedStepData.name;
+
+                      // If we don't have an error message yet, indicate which step failed
+                      if (!errorMessage) {
+                        errorMessage = `Step "${failedStepData.name}" failed`;
+                      }
+                    }
+                  }
+                }
+              } catch (jobsError) {
+                // Silently fail - we'll use whatever info we have from check output
               }
+            }
+
+            // Limit error message length to avoid huge payloads (max 500 chars)
+            if (errorMessage && errorMessage.length > 500) {
+              errorMessage = errorMessage.substring(0, 500) + '...';
             }
           } catch (detailError) {
             // Silently fail - we'll just not show step details
@@ -404,7 +434,151 @@ export async function rerunCheck(token: string, repoFullName: string, checkRunId
   }
 }
 
-// Get user's commits for a date range across all accessible repositories  
+// Get logs for a check run (job logs from GitHub Actions)
+export async function getCheckLogs(token: string, owner: string, repo: string, checkRunId: number) {
+  githubLogger.info(`Fetching logs for check run ${checkRunId}`);
+
+  try {
+    // Get the check run details
+    const checkRunUrl = `${GITHUB_API_BASE}/repos/${owner}/${repo}/check-runs/${checkRunId}`;
+    const checkRun = await githubApiCall(token, checkRunUrl);
+
+    const result: {
+      checkName: string;
+      conclusion: string;
+      startedAt: string;
+      completedAt: string;
+      url: string;
+      steps: Array<{
+        name: string;
+        status: string;
+        conclusion: string | null;
+        number: number;
+      }>;
+      annotations: Array<{
+        path: string;
+        startLine: number;
+        endLine: number;
+        level: string;
+        message: string;
+        title: string;
+      }>;
+      output: {
+        title: string | null;
+        summary: string | null;
+      };
+      logs: string | null;
+    } = {
+      checkName: checkRun.name,
+      conclusion: checkRun.conclusion,
+      startedAt: checkRun.started_at,
+      completedAt: checkRun.completed_at,
+      url: checkRun.html_url,
+      steps: [],
+      annotations: [],
+      output: {
+        title: checkRun.output?.title || null,
+        summary: checkRun.output?.summary || null
+      },
+      logs: null
+    };
+
+    // Get annotations
+    try {
+      const annotationsUrl = `${GITHUB_API_BASE}/repos/${owner}/${repo}/check-runs/${checkRunId}/annotations`;
+      const annotations = await githubApiCall(token, annotationsUrl);
+      result.annotations = annotations.map((a: {
+        path: string;
+        start_line: number;
+        end_line: number;
+        annotation_level: string;
+        message: string;
+        title: string;
+      }) => ({
+        path: a.path,
+        startLine: a.start_line,
+        endLine: a.end_line,
+        level: a.annotation_level,
+        message: a.message,
+        title: a.title
+      }));
+    } catch {
+      githubLogger.warn(`No annotations found for check ${checkRunId}`);
+    }
+
+    // Try to get job steps and logs from the workflow run
+    const checkSuiteId = checkRun.check_suite?.id;
+    if (checkSuiteId) {
+      try {
+        const workflowRunsUrl = `${GITHUB_API_BASE}/repos/${owner}/${repo}/actions/runs?check_suite_id=${checkSuiteId}`;
+        const workflowRunsResponse = await githubApiCall(token, workflowRunsUrl);
+
+        if (workflowRunsResponse.workflow_runs?.length > 0) {
+          const workflowRunId = workflowRunsResponse.workflow_runs[0].id;
+          const jobsUrl = `${GITHUB_API_BASE}/repos/${owner}/${repo}/actions/runs/${workflowRunId}/jobs`;
+          const jobsResponse = await githubApiCall(token, jobsUrl);
+
+          const matchingJob = jobsResponse.jobs?.find((job: { name: string }) => job.name === checkRun.name);
+          if (matchingJob) {
+            if (matchingJob.steps) {
+              result.steps = matchingJob.steps.map((step: {
+                name: string;
+                status: string;
+                conclusion: string | null;
+                number: number;
+              }) => ({
+                name: step.name,
+                status: step.status,
+                conclusion: step.conclusion,
+                number: step.number
+              }));
+            }
+
+            // Fetch actual job logs
+            try {
+              const jobLogsUrl = `${GITHUB_API_BASE}/repos/${owner}/${repo}/actions/jobs/${matchingJob.id}/logs`;
+              githubLogger.info(`Fetching job logs from: ${jobLogsUrl}`);
+
+              const logsResponse = await axios.get(jobLogsUrl, {
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Accept': 'application/vnd.github+json',
+                  'User-Agent': 'track-current-task-app'
+                },
+                maxRedirects: 5,
+                responseType: 'text'
+              });
+
+              if (logsResponse.data) {
+                // Limit log size to avoid huge payloads (max 3MB, keep the end which has the error)
+                const logText = logsResponse.data as string;
+                const maxSize = 3000000;
+                if (logText.length > maxSize) {
+                  result.logs = '... (truncated, showing last 3MB) ...\n\n' + logText.substring(logText.length - maxSize);
+                } else {
+                  result.logs = logText;
+                }
+                githubLogger.info(`Fetched ${result.logs.length} chars of logs for job ${matchingJob.id}`);
+              }
+            } catch (logsError) {
+              githubLogger.warn(`Could not fetch job logs for job ${matchingJob.id}: ${logsError}`);
+            }
+          }
+        }
+      } catch {
+        githubLogger.warn(`Could not fetch job steps for check ${checkRunId}`);
+      }
+    }
+
+    return result;
+  } catch (error) {
+    const axiosError = error as AxiosError;
+    githubLogger.error(`Failed to fetch logs for check ${checkRunId}: ${axiosError?.response?.status || axiosError?.message}`);
+    throw error;
+  }
+}
+
+// Get user's commits for a date range across all accessible repositories
 export async function getUserCommitsForDateRange(token: string, startDate: string, endDate: string) {
   githubLogger.info(`Fetching commits for date range: ${startDate} to ${endDate}`);
   
@@ -511,7 +685,7 @@ export async function searchUserPullRequests(token: string, taskIds: string[]) {
                       contexts(first: 30) {
                         nodes {
                           ... on CheckRun {
-                            id
+                            databaseId
                             name
                             status
                             conclusion
@@ -604,7 +778,8 @@ export async function searchUserPullRequests(token: string, taskIds: string[]) {
                   state: string;
                   contexts: {
                     nodes: Array<{
-                      id: number;
+                      databaseId?: number;
+                      id?: string;
                       name?: string;
                       context?: string;
                       status?: string;
@@ -703,28 +878,29 @@ export async function searchUserPullRequests(token: string, taskIds: string[]) {
             const checkStatus_item = check.status || check.state || 'unknown';
             const conclusion = check.conclusion || (check.state === 'SUCCESS' ? 'SUCCESS' : check.state === 'FAILURE' ? 'FAILURE' : null);
 
+            // databaseId is used for CheckRun (GitHub Actions), id is for StatusContext
+            // Only CheckRun has databaseId, StatusContext uses a string id that can't be used for rerun
+            const checkId = check.databaseId || 0;
+
             checkStatus.checks.push({
-              id: check.id,
+              id: checkId,
               name: checkName,
               status: checkStatus_item,
-              conclusion: conclusion ? conclusion.toLowerCase() : null, // Normalize to lowercase for frontend
+              conclusion: conclusion ? conclusion.toLowerCase() : null,
               url: check.detailsUrl || check.targetUrl || '',
               failedStep: null,
               errorMessage: null
             });
 
             checkStatus.total++;
-            // Normalize conclusion to uppercase for comparison
             const conclusionUpper = conclusion?.toUpperCase();
             if (conclusionUpper === 'SUCCESS') {
               checkStatus.passed++;
             } else if (conclusionUpper === 'FAILURE') {
               checkStatus.failed++;
             } else if (conclusionUpper === 'SKIPPED' || conclusionUpper === 'CANCELLED' || conclusionUpper === 'NEUTRAL') {
-              // Count skipped/cancelled/neutral as neither pass nor fail
               checkStatus.pending++;
             } else {
-              // Anything else (null, in_progress, queued, etc.) is pending
               checkStatus.pending++;
             }
           });
@@ -809,7 +985,98 @@ export async function searchUserPullRequests(token: string, taskIds: string[]) {
       })
       .filter((pr): pr is NonNullable<typeof pr> => pr !== null);
 
-    githubLogger.info(`Found ${matchingPRs.length} matching PRs using GraphQL (2 API calls total)`);
+    githubLogger.info(`Found ${matchingPRs.length} matching PRs using GraphQL`);
+
+    // Enrich failed checks with detailed error information (async)
+    const failedCheckPRs = matchingPRs.filter(pr =>
+      pr.checkStatus?.checks?.some(c =>
+        ['failure', 'timed_out', 'action_required'].includes(c.conclusion || '')
+      )
+    );
+
+    if (failedCheckPRs.length > 0) {
+      githubLogger.info(`Fetching details for ${failedCheckPRs.length} PRs with failed checks`);
+
+      await Promise.all(failedCheckPRs.map(async (pr) => {
+        const [owner, repo] = pr.repository.fullName.split('/');
+
+        await Promise.all(pr.checkStatus!.checks.map(async (check) => {
+          if (!check.id || !['failure', 'timed_out', 'action_required'].includes(check.conclusion || '')) {
+            return;
+          }
+
+          githubLogger.info(`Fetching details for failed check: ${check.name} (ID: ${check.id})`);
+
+          try {
+            // First, try to get annotations - these contain the actual error messages
+            const annotationsUrl = `${GITHUB_API_BASE}/repos/${owner}/${repo}/check-runs/${check.id}/annotations`;
+            const annotations = await githubApiCall(token, annotationsUrl);
+
+            if (annotations && annotations.length > 0) {
+              const failureAnnotation = annotations.find(
+                (a: { annotation_level: string }) => a.annotation_level === 'failure'
+              ) || annotations[0];
+
+              if (failureAnnotation) {
+                check.errorMessage = failureAnnotation.message || failureAnnotation.raw_details || null;
+                githubLogger.info(`Found annotation for ${check.name}: ${check.errorMessage?.substring(0, 100)}...`);
+              }
+            }
+          } catch (annotationError) {
+            githubLogger.warn(`Failed to fetch annotations for check ${check.id}`);
+          }
+
+          try {
+            const checkDetailUrl = `${GITHUB_API_BASE}/repos/${owner}/${repo}/check-runs/${check.id}`;
+            const checkDetail = await githubApiCall(token, checkDetailUrl);
+
+            // Get error from check output if we don't have annotation
+            if (!check.errorMessage && (checkDetail.output?.summary || checkDetail.output?.title)) {
+              check.errorMessage = checkDetail.output?.summary || checkDetail.output?.title || null;
+              githubLogger.info(`Found output for ${check.name}: ${check.errorMessage?.substring(0, 100)}...`);
+            }
+
+            // Try to get the failed step from the job
+            const checkSuiteId = checkDetail.check_suite?.id;
+            if (checkSuiteId) {
+              try {
+                const workflowRunsUrl = `${GITHUB_API_BASE}/repos/${owner}/${repo}/actions/runs?check_suite_id=${checkSuiteId}`;
+                const workflowRunsResponse = await githubApiCall(token, workflowRunsUrl);
+
+                if (workflowRunsResponse.workflow_runs?.length > 0) {
+                  const workflowRunId = workflowRunsResponse.workflow_runs[0].id;
+                  const jobsUrl = `${GITHUB_API_BASE}/repos/${owner}/${repo}/actions/runs/${workflowRunId}/jobs`;
+                  const jobsResponse = await githubApiCall(token, jobsUrl);
+
+                  const matchingJob = jobsResponse.jobs?.find((job: { name: string }) => job.name === check.name);
+                  if (matchingJob?.steps) {
+                    const failedStepData = matchingJob.steps.find(
+                      (step: { conclusion: string | null }) => step.conclusion === 'failure'
+                    );
+                    if (failedStepData) {
+                      check.failedStep = failedStepData.name;
+                      githubLogger.info(`Found failed step for ${check.name}: ${check.failedStep}`);
+                      if (!check.errorMessage) {
+                        check.errorMessage = `Step "${failedStepData.name}" failed`;
+                      }
+                    }
+                  }
+                }
+              } catch {
+                // Silently fail - use whatever info we have
+              }
+            }
+          } catch {
+            githubLogger.warn(`Failed to fetch check details for ${check.id}`);
+          }
+
+          // Limit error message length
+          if (check.errorMessage && check.errorMessage.length > 500) {
+            check.errorMessage = check.errorMessage.substring(0, 500) + '...';
+          }
+        }));
+      }));
+    }
 
     return matchingPRs;
   } catch (error: unknown) {

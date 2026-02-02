@@ -21,6 +21,7 @@ export const API_ROUTES = {
     COMMITS: '/github/commits',
     BRANCHES_SEARCH: '/github/branches/search',
     RERUN_CHECK: (owner: string, repo: string, checkRunId: number) => `/github/checks/${owner}/${repo}/${checkRunId}/rerun`,
+    CHECK_LOGS: (owner: string, repo: string, checkRunId: number) => `/github/checks/${owner}/${repo}/${checkRunId}/logs`,
     REQUEST_REVIEW: (owner: string, repo: string, prNumber: number) => `/github/pulls/${owner}/${repo}/${prNumber}/request-review`
   },
   FILES: {

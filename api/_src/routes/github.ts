@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { ApiError, asyncHandler } from '../middleware/errorHandler';
-import { exchangeCodeForToken, getGitHubUser, getUserCommitsForDate, getUserCommitsForDateRange, searchUserPullRequests, searchBranchesForTaskId, requestReview, rerunCheck } from '../services/githubService';
+import { exchangeCodeForToken, getGitHubUser, getUserCommitsForDate, getUserCommitsForDateRange, searchUserPullRequests, searchBranchesForTaskId, requestReview, rerunCheck, getCheckLogs } from '../services/githubService';
 import { isProduction } from '../config/cors';
 import { createLogger } from '../../../shared/logger';
 import type { GitHubAuthRequest } from '../types/github';
@@ -297,6 +297,17 @@ router.post('/checks/:owner/:repo/:checkRunId/rerun', asyncHandler(async (req: R
     success: true,
     message: 'Check rerun triggered successfully'
   });
+}));
+
+// Get logs for a check run
+router.get('/checks/:owner/:repo/:checkRunId/logs', asyncHandler(async (req: Request, res: Response) => {
+  const token = getGitHubTokenFromCookies(req);
+  const { owner, repo, checkRunId } = req.params;
+
+  const checkId = parseInt(checkRunId, 10);
+  const logs = await getCheckLogs(token, owner, repo, checkId);
+
+  res.json(logs);
 }));
 
 export default router;

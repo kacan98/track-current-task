@@ -264,6 +264,28 @@ export const OverviewPage: React.FC = () => {
     }
   }, [jiraAuth.isAuthenticated, githubAuth.isAuthenticated, jiraAuth.isLoading, githubAuth.isLoading, showSettingsError]);
 
+  // Check if any checks are pending (need to poll for updates)
+  // Only poll when checks are actively in progress or queued, not for completed checks
+  const hasPendingChecks = tasks.some(task =>
+    task.pullRequests.open.some(pr =>
+      pr.checkStatus?.state === 'pending' ||
+      pr.checkStatus?.checks?.some(c =>
+        c.status === 'in_progress' || c.status === 'queued' || c.status === 'pending'
+      )
+    )
+  );
+
+  // Auto-refresh when checks are pending (poll every 3 minutes)
+  useEffect(() => {
+    if (!hasPendingChecks || isLoading) return;
+
+    const pollInterval = setInterval(() => {
+      fetchOverview();
+    }, 180000); // 3 minutes
+
+    return () => clearInterval(pollInterval);
+  }, [hasPendingChecks, isLoading, jiraAuth.isAuthenticated, githubAuth.isAuthenticated]);
+
   // Re-render every minute to update the "last updated" text
   const [, setTick] = useState(0);
   useEffect(() => {
@@ -294,7 +316,7 @@ export const OverviewPage: React.FC = () => {
           title="My Tasks"
           description={
             lastUpdated
-              ? `Your active Jira tasks with associated PRs • Last updated ${formatLastUpdated(lastUpdated)}`
+              ? `Your active Jira tasks with associated PRs • Last updated ${formatLastUpdated(lastUpdated)}${hasPendingChecks ? ' • Auto-refreshing...' : ''}`
               : "Your active Jira tasks with associated PRs"
           }
           backUrl="/"

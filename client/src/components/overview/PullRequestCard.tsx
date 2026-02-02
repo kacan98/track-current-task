@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { FailedCheckItem } from './FailedCheckItem';
 import { API_ROUTES } from '@shared/apiRoutes';
+import { useToastContext } from '@/contexts/ToastContext';
 import type { PullRequest } from '@shared/github.model';
 
 interface PullRequestCardProps {
@@ -32,6 +34,7 @@ export const PullRequestCard: React.FC<PullRequestCardProps> = ({
   const [requestingReview, setRequestingReview] = useState(false);
   const [rerunningChecks, setRerunningChecks] = useState<Set<number>>(new Set());
   const [localCheckStatus, setLocalCheckStatus] = useState(pr.checkStatus);
+  const { showSuccess, showError } = useToastContext();
 
   // Sync local state when pr.checkStatus changes from parent refetch
   useEffect(() => {
@@ -82,9 +85,14 @@ export const PullRequestCard: React.FC<PullRequestCardProps> = ({
     }
   };
 
-  const handleRerunCheck = async (e: React.MouseEvent, checkId: number) => {
+  const handleRerunCheck = async (e: React.MouseEvent, checkId: number, checkName: string) => {
     e.preventDefault();
     e.stopPropagation();
+
+    if (!checkId) {
+      showError('Cannot rerun this check - no valid check ID');
+      return;
+    }
 
     setRerunningChecks(prev => new Set(prev).add(checkId));
     try {
@@ -99,10 +107,11 @@ export const PullRequestCard: React.FC<PullRequestCardProps> = ({
       });
 
       if (!response.ok) {
-        throw new Error('Failed to rerun check');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to rerun check');
       }
 
-      console.log('Check rerun triggered successfully');
+      showSuccess(`Rerun triggered for "${checkName}"`);
 
       // Update local state to show check as pending
       if (checkStatus) {
@@ -123,6 +132,7 @@ export const PullRequestCard: React.FC<PullRequestCardProps> = ({
       }
     } catch (error) {
       console.error('Failed to rerun check:', error);
+      showError(`Failed to rerun check: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setRerunningChecks(prev => {
         const newSet = new Set(prev);
@@ -272,41 +282,16 @@ export const PullRequestCard: React.FC<PullRequestCardProps> = ({
           {failedChecks.length > 0 && (
             <div className="space-y-1">
               {failedChecks.map((check, idx) => (
-                <div
+                <FailedCheckItem
                   key={idx}
-                  className="flex items-center justify-between gap-2 px-2 py-1.5 bg-white border border-red-200 rounded text-xs"
-                >
-                  <a
-                    href={check.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 flex-1 min-w-0 hover:text-red-700"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <span className="material-symbols-outlined text-red-600" style={{ fontSize: '16px' }}>
-                      cancel
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-gray-900 truncate">{check.name}</div>
-                      {check.failedStep && (
-                        <div className="text-gray-600 truncate">Step: {check.failedStep}</div>
-                      )}
-                      {check.errorMessage && (
-                        <div className="text-xs text-gray-500 mt-1 line-clamp-2 whitespace-pre-wrap">{check.errorMessage}</div>
-                      )}
-                    </div>
-                  </a>
-                  <Button
-                    onClick={(e) => handleRerunCheck(e, check.id)}
-                    disabled={rerunningChecks.has(check.id)}
-                    size="sm"
-                    variant="secondary"
-                    className="text-xs font-medium flex items-center gap-1 whitespace-nowrap"
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>replay</span>
-                    {rerunningChecks.has(check.id) ? 'Rerunning...' : 'Rerun'}
-                  </Button>
-                </div>
+                  check={check}
+                  repoFullName={pr.repository.fullName}
+                  onRerun={async (checkId, checkName) => {
+                    await handleRerunCheck({ preventDefault: () => {}, stopPropagation: () => {} } as React.MouseEvent, checkId, checkName);
+                  }}
+                  isRerunning={rerunningChecks.has(check.id)}
+                  allFailedChecks={failedChecks}
+                />
               ))}
             </div>
           )}
@@ -349,6 +334,7 @@ export const PullRequestCard: React.FC<PullRequestCardProps> = ({
           </div>
         </div>
       )}
+
     </div>
   );
 };

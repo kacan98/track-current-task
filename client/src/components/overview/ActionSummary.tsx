@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Badge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
 import { BranchCard } from './BranchCard';
+import { FailedCheckItem } from './FailedCheckItem';
 import { getTimeAgo } from '@/utils/timeUtils';
 import { API_ROUTES } from '@shared/apiRoutes';
+import { useToastContext } from '@/contexts/ToastContext';
 import type { JiraIssue } from '@shared/jira.model';
 import type { PullRequest, Branch, Check } from '@shared/github.model';
 
@@ -40,7 +41,18 @@ interface ActionItem {
 
 export const ActionSummary: React.FC<ActionSummaryProps> = ({ tasks, jiraBaseUrl, branchesByTask, onCheckRerun }) => {
   const [rerunningChecks, setRerunningChecks] = useState<Set<number>>(new Set());
+  const [rerunTriggeredChecks, setRerunTriggeredChecks] = useState<Set<number>>(new Set());
+  const { showSuccess, showError } = useToastContext();
+  const prevTasksRef = useRef(tasks);
   const actionItems: ActionItem[] = [];
+
+  // Clear rerunTriggeredChecks when tasks data is refreshed from API
+  useEffect(() => {
+    if (tasks !== prevTasksRef.current) {
+      setRerunTriggeredChecks(new Set());
+      prevTasksRef.current = tasks;
+    }
+  }, [tasks]);
 
   tasks.forEach((task) => {
     // Check for conflicts
@@ -83,23 +95,28 @@ export const ActionSummary: React.FC<ActionSummaryProps> = ({ tasks, jiraBaseUrl
     // Check for failed checks
     task.pullRequests.open.forEach((pr) => {
       if (pr.checkStatus?.state === 'failure' && pr.mergeable !== false) {
+        // Filter out checks that have been rerun (they're now pending)
         const failedChecks = pr.checkStatus.checks?.filter(c =>
-          ['failure', 'timed_out', 'action_required'].includes(c.conclusion || '')
+          ['failure', 'timed_out', 'action_required'].includes(c.conclusion || '') &&
+          !rerunTriggeredChecks.has(c.id)
         ) || [];
 
-        actionItems.push({
-          type: 'checks_failed',
-          priority: 3,
-          taskKey: task.issue.key,
-          taskSummary: task.issue.fields.summary,
-          prNumber: pr.number,
-          prTitle: pr.title,
-          prUrl: pr.url,
-          repository: pr.repository.name,
-          repoFullName: pr.repository.fullName,
-          failedChecks: pr.checkStatus.failed,
-          checks: failedChecks
-        });
+        // Only add action item if there are still failed checks after filtering
+        if (failedChecks.length > 0) {
+          actionItems.push({
+            type: 'checks_failed',
+            priority: 3,
+            taskKey: task.issue.key,
+            taskSummary: task.issue.fields.summary,
+            prNumber: pr.number,
+            prTitle: pr.title,
+            prUrl: pr.url,
+            repository: pr.repository.name,
+            repoFullName: pr.repository.fullName,
+            failedChecks: failedChecks.length,
+            checks: failedChecks
+          });
+        }
       }
     });
 
@@ -174,9 +191,14 @@ export const ActionSummary: React.FC<ActionSummaryProps> = ({ tasks, jiraBaseUrl
     }
   };
 
-  const handleRerunCheck = async (e: React.MouseEvent, checkId: number, repoFullName: string) => {
+  const handleRerunCheck = async (e: React.MouseEvent, checkId: number, repoFullName: string, checkName: string) => {
     e.preventDefault();
     e.stopPropagation();
+
+    if (!checkId) {
+      showError('Cannot rerun this check - no valid check ID');
+      return;
+    }
 
     setRerunningChecks(prev => new Set(prev).add(checkId));
     try {
@@ -191,17 +213,22 @@ export const ActionSummary: React.FC<ActionSummaryProps> = ({ tasks, jiraBaseUrl
       });
 
       if (!response.ok) {
-        throw new Error('Failed to rerun check');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to rerun check');
       }
 
-      console.log('Check rerun triggered successfully');
+      showSuccess(`Rerun triggered for "${checkName}"`);
 
-      // Notify parent to refetch data
+      // Track this check as rerun so we can hide it from failed checks immediately
+      setRerunTriggeredChecks(prev => new Set(prev).add(checkId));
+
+      // Notify parent to refetch data (will update with fresh data from API)
       if (onCheckRerun) {
         onCheckRerun();
       }
     } catch (error) {
       console.error('Failed to rerun check:', error);
+      showError(`Failed to rerun check: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setRerunningChecks(prev => {
         const newSet = new Set(prev);
@@ -291,40 +318,16 @@ export const ActionSummary: React.FC<ActionSummaryProps> = ({ tasks, jiraBaseUrl
                 {item.type === 'checks_failed' && item.checks && item.checks.length > 0 && (
                   <div className="mt-2 space-y-1">
                     {item.checks.map((check, idx) => (
-                      <div
+                      <FailedCheckItem
                         key={idx}
-                        className="flex items-center justify-between gap-2 px-2 py-1.5 bg-white border border-red-200 rounded text-xs"
-                      >
-                        <a
-                          href={check.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-2 flex-1 min-w-0 hover:text-red-700"
-                        >
-                          <span className="material-symbols-outlined text-red-600" style={{ fontSize: '16px' }}>
-                            cancel
-                          </span>
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium text-gray-900 truncate">{check.name}</div>
-                            {check.failedStep && (
-                              <div className="text-gray-600 truncate">Step: {check.failedStep}</div>
-                            )}
-                            {check.errorMessage && (
-                              <div className="text-xs text-gray-500 mt-1 line-clamp-2 whitespace-pre-wrap">{check.errorMessage}</div>
-                            )}
-                          </div>
-                        </a>
-                        <Button
-                          onClick={(e) => handleRerunCheck(e, check.id, item.repoFullName!)}
-                          disabled={rerunningChecks.has(check.id)}
-                          size="sm"
-                          variant="secondary"
-                          className="text-xs font-medium flex items-center gap-1 whitespace-nowrap"
-                        >
-                          <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>replay</span>
-                          {rerunningChecks.has(check.id) ? 'Rerunning...' : 'Rerun'}
-                        </Button>
-                      </div>
+                        check={check}
+                        repoFullName={item.repoFullName!}
+                        onRerun={async (checkId, checkName) => {
+                          await handleRerunCheck({ preventDefault: () => {}, stopPropagation: () => {} } as React.MouseEvent, checkId, item.repoFullName!, checkName);
+                        }}
+                        isRerunning={rerunningChecks.has(check.id)}
+                        allFailedChecks={item.checks}
+                      />
                     ))}
                   </div>
                 )}
