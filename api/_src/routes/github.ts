@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { ApiError, asyncHandler } from '../middleware/errorHandler';
-import { exchangeCodeForToken, getGitHubUser, getUserCommitsForDate, getUserCommitsForDateRange, searchUserPullRequests, searchBranchesForTaskId, requestReview, rerunCheck, getCheckLogs } from '../services/githubService';
+import { exchangeCodeForToken, getGitHubUser, getUserCommitsForDate, getUserCommitsForDateRange, searchUserPullRequests, getPullRequestDetails, searchBranchesForTaskId, requestReview, rerunCheck, getCheckLogs } from '../services/githubService';
 import { isProduction } from '../config/cors';
 import { createLogger } from '../../../shared/logger';
 import type { GitHubAuthRequest } from '../types/github';
@@ -239,6 +239,23 @@ router.post('/pulls/search', asyncHandler(async (req: Request, res: Response) =>
     pullRequests,
     total: pullRequests.length,
     taskIds
+  });
+}));
+
+// Get details for a specific pull request
+router.get('/pulls/:owner/:repo/:number', asyncHandler(async (req: Request, res: Response) => {
+  const token = getGitHubTokenFromCookies(req);
+  const { owner, repo, number } = req.params;
+
+  const prNumber = parseInt(number, 10);
+  if (isNaN(prNumber)) {
+    throw new ApiError(400, 'Invalid PR number', 'GITHUB_PR_INVALID_NUMBER');
+  }
+
+  const pullRequest = await getPullRequestDetails(token, owner, repo, prNumber);
+
+  res.json({
+    pullRequest
   });
 }));
 

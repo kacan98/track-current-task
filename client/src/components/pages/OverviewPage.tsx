@@ -74,9 +74,54 @@ export const OverviewPage: React.FC = () => {
     });
   }, []);
 
-  const handleCheckRerun = () => {
-    // Refetch all data to ensure both Action Items and Task Cards are updated
-    fetchOverview();
+  const handleCheckRerun = async (owner: string, repo: string, prNumber: number) => {
+    // Fetch only the specific PR that was updated
+    try {
+      const response = await fetch(`/api/github/pulls/${owner}/${repo}/${prNumber}`, {
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        console.error('Failed to refetch PR details');
+        return;
+      }
+
+      const { pullRequest } = await response.json();
+
+      // Update the specific PR in the tasks
+      setTasks(prevTasks => prevTasks.map(task => {
+        // Check if this task has this PR
+        const hasOpenPR = task.pullRequests.open.some(pr =>
+          pr.number === pullRequest.number && pr.repository.fullName === `${owner}/${repo}`
+        );
+        const hasMergedPR = task.pullRequests.merged.some(pr =>
+          pr.number === pullRequest.number && pr.repository.fullName === `${owner}/${repo}`
+        );
+
+        if (!hasOpenPR && !hasMergedPR) {
+          return task; // This task doesn't have this PR
+        }
+
+        // Update the PR in the task
+        return {
+          ...task,
+          pullRequests: {
+            open: task.pullRequests.open.map(pr =>
+              pr.number === pullRequest.number && pr.repository.fullName === `${owner}/${repo}`
+                ? pullRequest
+                : pr
+            ),
+            merged: task.pullRequests.merged.map(pr =>
+              pr.number === pullRequest.number && pr.repository.fullName === `${owner}/${repo}`
+                ? pullRequest
+                : pr
+            )
+          }
+        };
+      }));
+    } catch (error) {
+      console.error('Failed to refetch PR details:', error);
+    }
   };
 
   const fetchOverview = async () => {
@@ -391,14 +436,13 @@ export const OverviewPage: React.FC = () => {
           />
         ) : (
           <>
-            {!loadingPRs && (
-              <ActionSummary
-                tasks={tasks}
-                jiraBaseUrl={jiraBaseUrl}
-                branchesByTask={branchesByTask}
-                onCheckRerun={handleCheckRerun}
-              />
-            )}
+            <ActionSummary
+              tasks={tasks}
+              jiraBaseUrl={jiraBaseUrl}
+              branchesByTask={branchesByTask}
+              onCheckRerun={handleCheckRerun}
+              loadingPRs={loadingPRs}
+            />
             <TaskList
               tasks={tasks}
               jiraBaseUrl={jiraBaseUrl}

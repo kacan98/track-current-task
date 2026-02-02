@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { BranchCard } from './BranchCard';
 import { FailedCheckItem } from './FailedCheckItem';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { getTimeAgo } from '@/utils/timeUtils';
 import { API_ROUTES } from '@shared/apiRoutes';
 import { useToastContext } from '@/contexts/ToastContext';
@@ -21,7 +22,8 @@ interface ActionSummaryProps {
   tasks: TaskWithPRs[];
   jiraBaseUrl: string;
   branchesByTask: Map<string, Branch[]>;
-  onCheckRerun?: () => void;
+  onCheckRerun?: (owner: string, repo: string, prNumber: number) => void;
+  loadingPRs?: boolean;
 }
 
 interface ActionItem {
@@ -39,7 +41,7 @@ interface ActionItem {
   branches?: Branch[];
 }
 
-export const ActionSummary: React.FC<ActionSummaryProps> = ({ tasks, jiraBaseUrl, branchesByTask, onCheckRerun }) => {
+export const ActionSummary: React.FC<ActionSummaryProps> = ({ tasks, jiraBaseUrl, branchesByTask, onCheckRerun, loadingPRs = false }) => {
   const [rerunningChecks, setRerunningChecks] = useState<Set<number>>(new Set());
   const [rerunTriggeredChecks, setRerunTriggeredChecks] = useState<Set<number>>(new Set());
   const { showSuccess, showError } = useToastContext();
@@ -157,10 +159,6 @@ export const ActionSummary: React.FC<ActionSummaryProps> = ({ tasks, jiraBaseUrl
   // Sort by priority
   actionItems.sort((a, b) => a.priority - b.priority);
 
-  if (actionItems.length === 0) {
-    return null;
-  }
-
   const getActionIcon = (type: ActionItem['type']) => {
     switch (type) {
       case 'conflict':
@@ -191,7 +189,7 @@ export const ActionSummary: React.FC<ActionSummaryProps> = ({ tasks, jiraBaseUrl
     }
   };
 
-  const handleRerunCheck = async (e: React.MouseEvent, checkId: number, repoFullName: string, checkName: string) => {
+  const handleRerunCheck = async (e: React.MouseEvent, checkId: number, repoFullName: string, checkName: string, prNumber?: number) => {
     e.preventDefault();
     e.stopPropagation();
 
@@ -222,9 +220,9 @@ export const ActionSummary: React.FC<ActionSummaryProps> = ({ tasks, jiraBaseUrl
       // Track this check as rerun so we can hide it from failed checks immediately
       setRerunTriggeredChecks(prev => new Set(prev).add(checkId));
 
-      // Notify parent to refetch data (will update with fresh data from API)
-      if (onCheckRerun) {
-        onCheckRerun();
+      // Notify parent to refetch just this PR's data (much more efficient than refetching everything)
+      if (onCheckRerun && prNumber) {
+        onCheckRerun(owner, repo, prNumber);
       }
     } catch (error) {
       console.error('Failed to rerun check:', error);
@@ -238,14 +236,38 @@ export const ActionSummary: React.FC<ActionSummaryProps> = ({ tasks, jiraBaseUrl
     }
   };
 
+  // Don't show anything if not loading and no action items
+  if (!loadingPRs && actionItems.length === 0) {
+    return null;
+  }
+
   return (
     <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 mb-6">
       <div className="flex items-center gap-2 mb-3">
         <span className="material-symbols-outlined text-gray-700">notifications_active</span>
-        <h3 className="font-semibold text-gray-900">Action Items ({actionItems.length})</h3>
+        <h3 className="font-semibold text-gray-900">
+          Action Items {!loadingPRs && `(${actionItems.length})`}
+        </h3>
       </div>
 
-      <div className="space-y-2">
+      {loadingPRs ? (
+        <div className="space-y-2">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div key={index} className="flex items-start gap-3 p-2">
+              <Skeleton variant="circular" width="20px" height="20px" />
+              <div className="flex-1 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Skeleton variant="text" width="80px" height="16px" />
+                  <Skeleton variant="rectangular" width="100px" height="20px" />
+                  <Skeleton variant="text" width="40px" height="16px" />
+                </div>
+                <Skeleton variant="text" width="70%" height="14px" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-2">
         {actionItems.map((item, index) => {
           const actionInfo = getActionIcon(item.type);
           return (
@@ -323,7 +345,7 @@ export const ActionSummary: React.FC<ActionSummaryProps> = ({ tasks, jiraBaseUrl
                         check={check}
                         repoFullName={item.repoFullName!}
                         onRerun={async (checkId, checkName) => {
-                          await handleRerunCheck({ preventDefault: () => {}, stopPropagation: () => {} } as React.MouseEvent, checkId, item.repoFullName!, checkName);
+                          await handleRerunCheck({ preventDefault: () => {}, stopPropagation: () => {} } as React.MouseEvent, checkId, item.repoFullName!, checkName, item.prNumber);
                         }}
                         isRerunning={rerunningChecks.has(check.id)}
                         allFailedChecks={item.checks}
@@ -335,7 +357,8 @@ export const ActionSummary: React.FC<ActionSummaryProps> = ({ tasks, jiraBaseUrl
             </div>
           );
         })}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

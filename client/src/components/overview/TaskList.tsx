@@ -19,7 +19,7 @@ interface TaskListProps {
   expandedMergedPRs: Set<string>;
   onToggleMergedPRs: (taskKey: string) => void;
   onBranchesFound?: (taskKey: string, branches: Branch[]) => void;
-  onCheckRerun?: () => void;
+  onCheckRerun?: (owner: string, repo: string, prNumber: number) => void;
   loadingPRs?: boolean;
 }
 

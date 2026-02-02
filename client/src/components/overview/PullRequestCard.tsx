@@ -16,7 +16,7 @@ interface PullRequestCardProps {
   shouldShowChangesRequested: (pr: PullRequest) => boolean;
   hasConflicts: (pr: PullRequest) => boolean;
   getCheckStatusIcon: (state: string) => { icon: string; color: string } | null;
-  onCheckRerun?: (() => void) | undefined;
+  onCheckRerun?: ((owner: string, repo: string, prNumber: number) => void) | undefined;
 }
 
 export const PullRequestCard: React.FC<PullRequestCardProps> = ({
@@ -126,9 +126,9 @@ export const PullRequestCard: React.FC<PullRequestCardProps> = ({
         });
       }
 
-      // Notify parent to refetch data
+      // Notify parent to refetch just this PR's data (much more efficient than refetching everything)
       if (onCheckRerun) {
-        onCheckRerun();
+        onCheckRerun(owner, repo, pr.number);
       }
     } catch (error) {
       console.error('Failed to rerun check:', error);
@@ -269,13 +269,16 @@ export const PullRequestCard: React.FC<PullRequestCardProps> = ({
       )}
 
       {/* Check Status - consolidated in one place */}
-      {checkStatusInfo && checkStatus && (
+      {checkStatus && (checkStatusInfo || checkStatus.total === 0) && (
         <div className="mt-2 pt-2 border-t border-gray-200">
-          <div className={`text-xs flex items-center gap-1 mb-2 ${checkStatusInfo.color}`}>
-            <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>{checkStatusInfo.icon}</span>
+          <div className={`text-xs flex items-center gap-1 mb-2 ${checkStatusInfo?.color || 'text-gray-500'}`}>
+            <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>
+              {checkStatusInfo?.icon || 'help_outline'}
+            </span>
             {checkStatus.state === 'success' && `${checkStatus.passed}/${checkStatus.total} checks passed`}
             {checkStatus.state === 'failure' && `${checkStatus.failed}/${checkStatus.total} checks failed`}
             {checkStatus.state === 'pending' && `${checkStatus.pending}/${checkStatus.total} checks pending`}
+            {(checkStatus.state === 'unknown' || checkStatus.total === 0) && 'No checks configured'}
           </div>
 
           {/* Show failed checks inline */}

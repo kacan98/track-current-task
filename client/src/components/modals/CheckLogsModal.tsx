@@ -404,8 +404,9 @@ export function CheckLogsModal({ isOpen, onClose, checkId, checkName, repoFullNa
       footer={footer}
       onKeyDown={handleKeyDown}
     >
-      {/* Search bar */}
-      {logs?.logs && (
+      <div className="flex flex-col h-full">
+        {/* Search bar */}
+        {logs?.logs && (
         <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-200 bg-gray-50 flex-shrink-0">
           <span className="material-symbols-outlined text-gray-400" style={{ fontSize: '20px' }}>search</span>
           <input
@@ -511,6 +512,7 @@ export function CheckLogsModal({ isOpen, onClose, checkId, checkName, repoFullNa
             </div>
           </>
         )}
+      </div>
       </div>
     </Modal>
   );

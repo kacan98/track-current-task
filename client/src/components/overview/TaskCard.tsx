@@ -6,6 +6,7 @@ import { JiraIssueDisplay } from './JiraIssueDisplay';
 import { LinkedIssuesList } from './LinkedIssuesList';
 import { PullRequestCard } from './PullRequestCard';
 import { MergedPRsList } from './MergedPRsList';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { getTimeAgo } from '@/utils/timeUtils';
 import type { JiraIssue, LinkedIssue } from '@shared/jira.model';
 import type { PullRequest, Branch } from '@shared/github.model';
@@ -21,7 +22,7 @@ interface TaskCardProps {
   expandedMergedPRs: Set<string>;
   onToggleMergedPRs: (taskKey: string) => void;
   onBranchesFound?: ((taskKey: string, branches: Branch[]) => void) | undefined;
-  onCheckRerun?: (() => void) | undefined;
+  onCheckRerun?: ((owner: string, repo: string, prNumber: number) => void) | undefined;
   loadingPRs?: boolean | undefined;
 }
 
@@ -126,6 +127,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
       case 'pending':
         return { icon: 'schedule', color: 'text-yellow-600' };
       case 'none':
+        return { icon: 'remove_circle', color: 'text-gray-400' };
       case 'unknown':
       default:
         return null;
@@ -177,9 +179,14 @@ export const TaskCard: React.FC<TaskCardProps> = ({
         <div className="text-sm font-semibold text-gray-700 mb-2">Pull Requests</div>
 
         {loadingPRs && pullRequests.open.length === 0 && pullRequests.merged.length === 0 ? (
-          <div className="flex items-center gap-2 text-gray-500 py-2">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600" />
-            <span className="text-sm">Loading PRs...</span>
+          <div className="space-y-2">
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-2">
+              <Skeleton variant="text" width="60%" height="16px" />
+              <div className="flex gap-2 mt-2">
+                <Skeleton variant="rectangular" width="70px" height="20px" />
+                <Skeleton variant="rectangular" width="70px" height="20px" />
+              </div>
+            </div>
           </div>
         ) : pullRequests.open.length === 0 && pullRequests.merged.length === 0 ? (
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-2">
