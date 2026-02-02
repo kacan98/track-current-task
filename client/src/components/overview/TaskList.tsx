@@ -20,6 +20,7 @@ interface TaskListProps {
   onToggleMergedPRs: (taskKey: string) => void;
   onBranchesFound?: (taskKey: string, branches: Branch[]) => void;
   onCheckRerun?: () => void;
+  loadingPRs?: boolean;
 }
 
 export const TaskList: React.FC<TaskListProps> = ({
@@ -28,7 +29,8 @@ export const TaskList: React.FC<TaskListProps> = ({
   expandedMergedPRs,
   onToggleMergedPRs,
   onBranchesFound,
-  onCheckRerun
+  onCheckRerun,
+  loadingPRs
 }) => {
   // A task group is "in progress" if the main task OR any linked task is "In Progress"
   const inProgressTasks = tasks.filter((task) => {
@@ -64,6 +66,7 @@ export const TaskList: React.FC<TaskListProps> = ({
             onToggleMergedPRs={onToggleMergedPRs}
             onBranchesFound={onBranchesFound}
             onCheckRerun={onCheckRerun}
+            loadingPRs={loadingPRs}
           />
         ))}
       </div>
@@ -95,6 +98,7 @@ export const TaskList: React.FC<TaskListProps> = ({
                   onToggleMergedPRs={onToggleMergedPRs}
                   onBranchesFound={onBranchesFound}
                   onCheckRerun={onCheckRerun}
+                  loadingPRs={loadingPRs}
                 />
               ))}
             </div>

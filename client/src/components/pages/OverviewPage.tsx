@@ -28,6 +28,7 @@ interface TaskWithPRs {
 export const OverviewPage: React.FC = () => {
   const [tasks, setTasks] = useState<TaskWithPRs[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingPRs, setLoadingPRs] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showJiraAuth, setShowJiraAuth] = useState(false);
   const [showGitHubAuth, setShowGitHubAuth] = useState(false);
@@ -99,7 +100,7 @@ export const OverviewPage: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      // Fetch Jira tasks
+      // Phase 1: Fetch Jira tasks
       const jiraResponse = await fetch('/api/jira/tasks/assigned', {
         credentials: 'include'
       });
@@ -128,6 +129,7 @@ export const OverviewPage: React.FC = () => {
 
       if (issues.length === 0) {
         setTasks([]);
+        setIsLoading(false);
         showSuccess('No active tasks found');
         return;
       }
@@ -151,7 +153,52 @@ export const OverviewPage: React.FC = () => {
       // Combine all task IDs (original + linked) for PR search
       const allTaskIds = [...taskIds, ...Array.from(allLinkedIssueKeys)];
 
-      // Fetch PRs for these task IDs (including linked issues)
+      // Helper function to extract linked issues from an issue
+      const extractLinkedIssues = (issue: JiraIssue, allIssues: JiraIssue[], processedKeys: Set<string>) => {
+        const linkedIssues: Array<{ key: string; summary: string; status: string }> = [];
+        issue.fields.issuelinks?.forEach((link: JiraIssueLink) => {
+          const linkedIssue = link.inwardIssue || link.outwardIssue;
+          if (linkedIssue) {
+            // Check if this linked issue is also in our assigned issues list
+            const linkedInOurList = allIssues.find(i => i.key === linkedIssue.key);
+            if (linkedInOurList) {
+              // It's in our assigned list, so mark it as processed to avoid duplicate cards
+              processedKeys.add(linkedIssue.key);
+            }
+
+            linkedIssues.push({
+              key: linkedIssue.key,
+              summary: linkedIssue.fields.summary,
+              status: linkedIssue.fields.status.name
+            });
+          }
+        });
+        return linkedIssues;
+      };
+
+      // Immediately create tasks with empty PRs and display them
+      const processedIssueKeys = new Set<string>();
+      const initialTasks: TaskWithPRs[] = [];
+
+      issues.forEach((issue: JiraIssue) => {
+        if (processedIssueKeys.has(issue.key)) return;
+        processedIssueKeys.add(issue.key);
+
+        const linkedIssues = extractLinkedIssues(issue, issues, processedIssueKeys);
+
+        initialTasks.push({
+          issue,
+          linkedIssues,
+          pullRequests: { open: [], merged: [] }
+        });
+      });
+
+      // Show Jira tasks immediately
+      setTasks(initialTasks);
+      setIsLoading(false);
+      setLoadingPRs(true);
+
+      // Phase 2: Fetch PRs (async, doesn't block UI)
       const ghResponse = await fetch('/api/github/pulls/search', {
         method: 'POST',
         headers: {
@@ -172,39 +219,9 @@ export const OverviewPage: React.FC = () => {
       const ghData = await ghResponse.json();
       const pullRequests: PullRequest[] = ghData.pullRequests;
 
-      // Group tasks by their linked issues (so linked tasks appear as one card)
-      const processedIssueKeys = new Set<string>();
-      const tasksWithPRs: TaskWithPRs[] = [];
-
-      issues.forEach((issue: JiraIssue) => {
-        // Skip if already processed as part of a linked group
-        if (processedIssueKeys.has(issue.key)) return;
-
-        // Mark this issue as processed
-        processedIssueKeys.add(issue.key);
-
-        // Extract linked issues that are also in our assigned list
-        const linkedIssues: Array<{ key: string; summary: string; status: string }> = [];
-        issue.fields.issuelinks?.forEach((link: JiraIssueLink) => {
-          const linkedIssue = link.inwardIssue || link.outwardIssue;
-          if (linkedIssue) {
-            // Check if this linked issue is also in our assigned issues list
-            const linkedInOurList = issues.find(i => i.key === linkedIssue.key);
-            if (linkedInOurList) {
-              // It's in our assigned list, so mark it as processed to avoid duplicate cards
-              processedIssueKeys.add(linkedIssue.key);
-            }
-
-            linkedIssues.push({
-              key: linkedIssue.key,
-              summary: linkedIssue.fields.summary,
-              status: linkedIssue.fields.status.name
-            });
-          }
-        });
-
-        // Get PRs for this task and its linked issues
-        const linkedTaskIds = [issue.key, ...linkedIssues.map(li => li.key)];
+      // Merge PR data into existing tasks
+      setTasks(prevTasks => prevTasks.map(task => {
+        const linkedTaskIds = [task.issue.key, ...task.linkedIssues.map(li => li.key)];
         const taskPRs = pullRequests.filter((pr: PullRequest) =>
           linkedTaskIds.includes(pr.taskId)
         );
@@ -235,17 +252,16 @@ export const OverviewPage: React.FC = () => {
             return bTotalComments - aTotalComments;
           });
 
-        tasksWithPRs.push({
-          issue,
-          linkedIssues,
+        return {
+          ...task,
           pullRequests: {
             open: openPRs,
             merged: taskPRs.filter((pr: PullRequest) => pr.merged)
           }
-        });
-      });
+        };
+      }));
 
-      setTasks(tasksWithPRs);
+      setLoadingPRs(false);
       setLastUpdated(new Date());
       showSuccess(`Loaded ${issues.length} tasks`);
     } catch (error) {
@@ -253,8 +269,8 @@ export const OverviewPage: React.FC = () => {
       const errorMessage = (error as Error).message || 'Failed to load overview';
       setError(errorMessage);
       showError(errorMessage);
-    } finally {
       setIsLoading(false);
+      setLoadingPRs(false);
     }
   };
 
@@ -375,12 +391,14 @@ export const OverviewPage: React.FC = () => {
           />
         ) : (
           <>
-            <ActionSummary
-              tasks={tasks}
-              jiraBaseUrl={jiraBaseUrl}
-              branchesByTask={branchesByTask}
-              onCheckRerun={handleCheckRerun}
-            />
+            {!loadingPRs && (
+              <ActionSummary
+                tasks={tasks}
+                jiraBaseUrl={jiraBaseUrl}
+                branchesByTask={branchesByTask}
+                onCheckRerun={handleCheckRerun}
+              />
+            )}
             <TaskList
               tasks={tasks}
               jiraBaseUrl={jiraBaseUrl}
@@ -388,6 +406,7 @@ export const OverviewPage: React.FC = () => {
               onToggleMergedPRs={toggleMergedPRs}
               onBranchesFound={handleBranchesFound}
               onCheckRerun={handleCheckRerun}
+              loadingPRs={loadingPRs}
             />
           </>
         )}
